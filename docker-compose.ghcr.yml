@@ -1,7 +1,7 @@
 version: '3.8'
 
 services:
-  app:
+  mywebsite:
     image: ghcr.io/ferilee/mywebsite:latest
     ports:
       - "4128:4128"
