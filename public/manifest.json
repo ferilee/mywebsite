@@ -1,0 +1,22 @@
+{
+  "name": "Ferilee Portfolio",
+  "short_name": "Ferilee",
+  "description": "Extraordinary Digital Showcase - Fullstack Developer Portfolio & Blog",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#0f0404",
+  "theme_color": "#b91c1c",
+  "icons": [
+    {
+      "src": "/static/favicon.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/static/ferilee.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}

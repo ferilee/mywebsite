@@ -1,0 +1,10 @@
+import type { Config } from 'drizzle-kit';
+
+export default {
+  schema: './src/db/schema.ts',
+  out: './drizzle',
+  driver: 'libsql', // For Bun/SQLite, libsql is the recommended driver in drizzle-kit
+  dbCredentials: {
+    url: 'file:sqlite.db',
+  },
+} satisfies Config;

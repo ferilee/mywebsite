@@ -1,0 +1,18 @@
+# Dependencies
+node_modules/
+.bun/
+
+# Environment Variables
+.env
+src/arsip/
+
+# Database
+*.db
+*.db-journal
+
+# IDEs
+.vscode/
+.idea/
+
+# Logs
+*.log
