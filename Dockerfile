@@ -7,9 +7,10 @@ RUN bun install --frozen-lockfile
 
 COPY . .
 
-# Initialize DB (Optional: you might want to do this via a script)
-RUN bun run db:push
+# Ensure data directory exists
+RUN mkdir -p data
 
 EXPOSE 4128
 
-CMD ["bun", "src/index.tsx"]
+# Run database push then start the app
+CMD ["sh", "-c", "bun run db:push && bun src/index.tsx"]
