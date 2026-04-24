@@ -1866,6 +1866,6 @@ app.post('/admin/comments/delete/:id', async (c) => {
 
 
 export default {
-  port: 4128,
+  port: process.env.PORT || 4128,
   fetch: app.fetch,
 };

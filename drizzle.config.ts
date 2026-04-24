@@ -5,6 +5,6 @@ export default {
   out: './drizzle',
   driver: 'libsql', // For Bun/SQLite, libsql is the recommended driver in drizzle-kit
   dbCredentials: {
-    url: 'file:sqlite.db',
+    url: 'file:data/sqlite.db',
   },
 } satisfies Config;

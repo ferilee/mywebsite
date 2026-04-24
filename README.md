@@ -32,7 +32,7 @@ curl -fsSL https://bun.sh/install | bash
    ```bash
    bun run dev
    ```
-   Aplikasi akan berjalan di `http://localhost:3000`.
+   Aplikasi akan berjalan di `http://localhost:4128`.
 
 ## 🐳 Menjalankan dengan Docker
 
@@ -44,7 +44,7 @@ Jika Anda ingin menjalankan aplikasi menggunakan Docker:
    ```
 
 2. **Akses Aplikasi**
-   Buka `http://localhost:3000` di browser Anda.
+   Buka `http://localhost:4128` di browser Anda.
 
 ## 📁 Struktur Proyek
 - `src/index.tsx`: Titik masuk utama aplikasi (Routing & Page Logic).

@@ -7,6 +7,8 @@ node_modules/
 src/arsip/
 
 # Database
+data/*.db
+data/*.db-journal
 *.db
 *.db-journal
 

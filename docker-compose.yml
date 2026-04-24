@@ -6,7 +6,7 @@ services:
     ports:
       - "4128:4128"
     volumes:
-      - ./sqlite.db:/app/sqlite.db
+      - ./data:/app/data
     environment:
       - NODE_ENV=production
     env_file:
