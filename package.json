@@ -5,7 +5,8 @@
   "scripts": {
     "dev": "bun --hot src/index.tsx",
     "db:generate": "drizzle-kit generate:sqlite",
-    "db:push": "drizzle-kit push:sqlite"
+    "db:push": "drizzle-kit push:sqlite",
+    "test": "bun test --watch"
   },
   "dependencies": {
     "@libsql/client": "^0.17.2",

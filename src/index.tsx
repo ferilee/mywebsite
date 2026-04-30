@@ -204,7 +204,7 @@ app.get('/', async (c) => {
             </div>
             <div class="relative flex justify-center items-center order-1 lg:order-2">
               <div class="absolute w-[300px] md:w-[500px] h-[300px] md:h-[500px] bg-red-900/10 rounded-full blur-[100px] animate-pulse"></div>
-              <img src="/static/ferilee.png" alt="Ferilee Profile" class="relative w-full max-w-[320px] md:max-w-[500px] aspect-[4/5] object-cover scale-110 lg:scale-125 z-10 brightness-95" style="mask-image: linear-gradient(to bottom, black 80%, transparent 100%); -webkit-mask-image: linear-gradient(to bottom, black 80%, transparent 100%);" />
+              <img src="/static/ferilee.png" alt="Ferilee Profile" class="relative w-full max-w-[280px] md:max-w-[500px] aspect-[4/5] object-cover scale-105 md:scale-110 lg:scale-125 z-10 brightness-95" style="mask-image: linear-gradient(to bottom, black 80%, transparent 100%); -webkit-mask-image: linear-gradient(to bottom, black 80%, transparent 100%);" />
             </div>
             <div class="z-20 text-center lg:text-right order-3">
               <h2 class="text-4xl md:text-6xl font-black mb-6 leading-[1.1] tracking-tight" dangerouslySetInnerHTML={{ __html: philTitle }}></h2>
@@ -241,7 +241,7 @@ app.get('/projects', async (c) => {
           <button onclick="filterProjects('all')" class="tech-filter-btn active px-6 py-2 rounded-full border border-white/10 text-xs font-bold uppercase tracking-widest bg-white/5 hover:bg-white/10 transition-all">All</button>
           {allTech.map(tech => (
             <button 
-              onclick={`filterProjects('${tech}')`}
+              onclick={`filterProjects(${JSON.stringify(tech)})`}
               class="tech-filter-btn px-6 py-2 rounded-full border border-white/10 text-xs font-bold uppercase tracking-widest bg-white/5 hover:bg-white/10 transition-all"
             >
               {tech}
@@ -452,9 +452,9 @@ app.get('/blog', async (c) => {
             <p class="text-slate-400 font-bold uppercase tracking-widest text-xs">Successfully subscribed! Thank you.</p>
           </div>
         ) : (
-          <div class="mt-32 p-12 bg-white/5 border border-white/10 rounded-[3rem] backdrop-blur-xl relative overflow-hidden text-center">
+          <div class="mt-32 p-6 md:p-12 bg-white/5 border border-white/10 rounded-[3rem] backdrop-blur-xl relative overflow-hidden text-center">
             <div class="absolute -top-24 -left-24 w-64 h-64 bg-cyan-900/10 rounded-full blur-[100px]"></div>
-            <h2 class="text-3xl font-black mb-4 tracking-tight">Stay <span class="text-cyan-400">Updated</span></h2>
+            <h2 class="text-2xl md:text-3xl font-black mb-4 tracking-tight">Stay <span class="text-cyan-400">Updated</span></h2>
             <p class="text-slate-400 mb-8 max-w-md mx-auto">Get notified when I publish new articles about tech, development, and my journey.</p>
             <form action="/subscribe" method="post" class="max-w-md mx-auto flex flex-col sm:flex-row gap-4">
               <input type="email" name="email" placeholder="Your email address" required class="flex-grow bg-slate-950/50 border border-white/10 rounded-xl px-6 py-4 text-slate-300 focus:outline-none focus:border-cyan-500 transition-all" />
@@ -548,7 +548,7 @@ app.get('/blog/:slug', async (c) => {
           };
         `}} />
 
-        <article class="max-w-3xl mx-auto px-6 py-20">
+        <article class="max-w-3xl mx-auto px-4 md:px-6 py-10 md:py-20">
           <header class="mb-12">
             <div class="flex flex-wrap gap-4 items-center mb-6">
               <span class="text-xs font-bold text-cyan-400 uppercase tracking-widest">{post.category}</span>
@@ -558,7 +558,7 @@ app.get('/blog/:slug', async (c) => {
                 {readingTime} min read
               </span>
             </div>
-            <h1 class="text-5xl font-black mb-8 leading-tight">{post.title}</h1>
+            <h1 class="text-3xl md:text-5xl font-black mb-8 leading-tight break-words">{post.title}</h1>
           </header>
           
           <div class="prose prose-invert prose-cyan max-w-none text-slate-300 leading-relaxed text-lg mb-16" dangerouslySetInnerHTML={{ __html: contentHtml }} />
@@ -605,7 +605,7 @@ app.get('/blog/:slug', async (c) => {
                   <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 2h-3a5 5 0 0 0-5 5v3H7v4h3v8h4v-8h3l1-4h-4V7a1 1 0 0 1 1-1h3z"/></svg>
                 </a>
                 {/* Instagram (Copy Link fallback) */}
-                <button onclick={`navigator.clipboard.writeText('${postUrl}'); alert('Link copied for Instagram!')`} class="w-10 h-10 rounded-full bg-white/5 border border-white/10 flex items-center justify-center hover:bg-pink-600/20 hover:border-pink-600/50 transition-all text-slate-400 hover:text-pink-500" title="Copy Link for Instagram">
+                <button onclick={`navigator.clipboard.writeText(${JSON.stringify(postUrl)}); alert('Link copied for Instagram!')`} class="w-10 h-10 rounded-full bg-white/5 border border-white/10 flex items-center justify-center hover:bg-pink-600/20 hover:border-pink-600/50 transition-all text-slate-400 hover:text-pink-500" title="Copy Link for Instagram">
                   <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="20" height="20" x="2" y="2" rx="5" ry="5"/><path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z"/><line x1="17.5" y1="6.5" x2="17.51" y2="6.5"/></svg>
                 </button>
                 {/* WhatsApp */}
@@ -620,12 +620,12 @@ app.get('/blog/:slug', async (c) => {
             </div>
           </div>
 
-          <div class="mt-32 border-t border-white/10 pt-16">
+          <div class="mt-16 md:mt-32 border-t border-white/10 pt-10 md:pt-16">
             <h3 class="text-2xl font-black italic mb-8 tracking-tight">COMMENTS <span class="text-red-500">SECTION</span> ({allComments.length})</h3>
             
             {/* Comment Form */}
             {user ? (
-              <div id="comment-form-container" class="bg-white/5 border border-white/10 p-8 rounded-[2rem] backdrop-blur-xl mb-16 transition-all">
+              <div id="comment-form-container" class="bg-white/5 border border-white/10 p-6 md:p-8 rounded-[2rem] backdrop-blur-xl mb-16 transition-all">
                 <div class="flex justify-between items-center mb-6">
                   <div class="flex items-center gap-4">
                     <div class="w-10 h-10 rounded-full border border-white/10 overflow-hidden">
@@ -682,14 +682,14 @@ app.get('/blog/:slug', async (c) => {
                         </div>
                       </div>
                       {user && (
-                        <button onclick={`setReply(${comment.id}, '${comment.name}')`} class="text-[10px] font-black text-cyan-400 uppercase tracking-widest hover:text-white transition-all">Reply</button>
+                        <button onclick={`setReply(${comment.id}, ${JSON.stringify(comment.name)})`} class="text-[10px] font-black text-cyan-400 uppercase tracking-widest hover:text-white transition-all">Reply</button>
                       )}
                     </div>
                     <p class="text-slate-400 text-sm leading-relaxed">{comment.content}</p>
                   </div>
                   
                   {/* Replies */}
-                  <div class="ml-8 space-y-4 border-l-2 border-white/5 pl-8">
+                  <div class="ml-4 md:ml-8 space-y-4 border-l-2 border-white/5 pl-4 md:pl-8">
                     {replies.filter(r => r.parentId === comment.id).map(reply => (
                       <div class="bg-white/5 border border-white/5 p-6 rounded-2xl">
                         <div class="flex justify-between items-start mb-4">
@@ -1864,6 +1864,8 @@ app.post('/admin/comments/delete/:id', async (c) => {
 // Profile saving moved to main profiling section above
 
 
+
+export { app };
 
 export default {
   port: process.env.PORT || 4128,
