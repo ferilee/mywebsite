@@ -4,7 +4,7 @@ services:
   mywebsite:
     build:
       context: .
-      dockerfile: Dockerfile
+      dockerfile: dockerfile
     container_name: ferilee_website
     restart: always
     ports:
