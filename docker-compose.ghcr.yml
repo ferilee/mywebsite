@@ -12,3 +12,9 @@ services:
     env_file:
       - .env
     restart: always
+    networks:
+      - ferileenet
+
+networks:
+  ferileenet:
+    driver: bridge

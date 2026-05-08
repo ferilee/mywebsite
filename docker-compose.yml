@@ -3,6 +3,8 @@ version: '3.8'
 services:
   mywebsite:
     build: .
+    container_name: ferilee_website
+    restart: always
     ports:
       - "4128:4128"
     volumes:
@@ -11,3 +13,9 @@ services:
       - NODE_ENV=production
     env_file:
       - .env
+    networks:
+      - ferileenet
+
+networks:
+  ferileenet:
+    driver: bridge
