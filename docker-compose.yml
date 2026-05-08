@@ -2,7 +2,9 @@ version: '3.8'
 
 services:
   mywebsite:
-    build: .
+    build:
+      context: .
+      dockerfile: Dockerfile
     container_name: ferilee_website
     restart: always
     ports:
