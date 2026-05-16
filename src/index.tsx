@@ -264,14 +264,16 @@ app.get('/projects', async (c) => {
               </div>
               <div class="p-8 h-full flex flex-col">
                 <h3 class="text-2xl font-bold mb-3">{project.title}</h3>
-                <p class="text-slate-400 mb-8 line-clamp-3 text-sm leading-relaxed flex-grow">{project.description}</p>
+                <p class="text-slate-400 mb-8 line-clamp-5 text-sm leading-relaxed flex-grow">{project.description}</p>
                 <div class="flex flex-wrap gap-2 mb-8">
                   {project.techStack?.split(',').map(tech => (
                     <span class="px-3 py-1 bg-white/5 border border-white/5 rounded-lg text-[10px] font-bold uppercase tracking-widest text-slate-500">{tech.trim()}</span>
                   ))}
                 </div>
-                <div class="flex items-center justify-between mt-auto">
-                  <a href={`/projects/${project.slug || project.id}`} class="text-sm font-bold text-red-500 hover:text-red-400 transition-colors uppercase tracking-widest">Case Study →</a>
+                <div class="flex items-center justify-between mt-auto pt-6 border-t border-white/5">
+                  <a href={`/projects/${project.slug || project.id}`} class="inline-flex items-center gap-2 text-sm font-bold text-red-500 hover:text-red-400 transition-colors uppercase tracking-widest">Case Study
+                    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>
+                  </a>
                   {project.github && (
                     <a href={project.github} target="_blank" class="text-slate-500 hover:text-white transition-all">
                       <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 19c-5 1.5-5-2.5-7-3m14 6v-3.87a3.37 3.37 0 0 0-.94-2.61c3.14-.35 6.44-1.54 6.44-7A5.44 5.44 0 0 0 20 4.77 5.07 5.07 0 0 0 19.91 1S18.73.65 16 2.48a13.38 13.38 0 0 0-7 0C6.27.65 5.09 1 5.09 1A5.07 5.07 0 0 0 5 4.77a5.44 5.44 0 0 0-1.5 3.78c0 5.42 3.3 6.61 6.44 7A3.37 3.37 0 0 0 9 18.13V22"/></svg>
