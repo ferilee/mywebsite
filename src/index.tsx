@@ -270,7 +270,7 @@ app.get('/projects', async (c) => {
         <div class="grid md:grid-cols-2 lg:grid-cols-3 gap-8" id="projects-grid">
           {projects.map(project => (
             <div 
-              class="project-card group relative bg-white/5 border border-white/10 rounded-[2rem] overflow-hidden hover:border-red-500/30 transition-all duration-500 hover:-translate-y-2"
+              class="project-card group relative bg-white/5 border border-white/10 rounded-[2rem] overflow-hidden hover:border-red-500/30 transition-all duration-500 hover:-translate-y-2 flex flex-col h-full"
               data-tech={project.techStack}
             >
               <div class="aspect-video w-full overflow-hidden bg-slate-900/70 border-b border-white/5">
@@ -280,10 +280,10 @@ app.get('/projects', async (c) => {
                   class="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
                 />
               </div>
-              <div class="p-8 h-full flex flex-col">
+              <div class="p-8 flex flex-col flex-1 min-h-0">
                 <h3 class="text-2xl font-bold mb-3">{project.title}</h3>
-                <p class="text-slate-400 mb-8 text-sm leading-relaxed flex-grow" style="display:-webkit-box;-webkit-line-clamp:5;-webkit-box-orient:vertical;overflow:hidden;">{project.description}</p>
-                <div class="flex flex-wrap gap-2 mb-8">
+                <p class="text-slate-400 mb-8 text-sm leading-relaxed" style="display:-webkit-box;-webkit-line-clamp:4;-webkit-box-orient:vertical;overflow:hidden;">{project.description}</p>
+                <div class="flex flex-wrap gap-2 mb-8 max-h-16 overflow-hidden">
                   {project.techStack?.split(',').map(tech => (
                     <span class="px-3 py-1 bg-white/5 border border-white/5 rounded-lg text-[10px] font-bold uppercase tracking-widest text-slate-500">{tech.trim()}</span>
                   ))}
@@ -296,6 +296,11 @@ app.get('/projects', async (c) => {
                     <a href={project.github} target="_blank" class="text-slate-500 hover:text-white transition-all">
                       <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 19c-5 1.5-5-2.5-7-3m14 6v-3.87a3.37 3.37 0 0 0-.94-2.61c3.14-.35 6.44-1.54 6.44-7A5.44 5.44 0 0 0 20 4.77 5.07 5.07 0 0 0 19.91 1S18.73.65 16 2.48a13.38 13.38 0 0 0-7 0C6.27.65 5.09 1 5.09 1A5.07 5.07 0 0 0 5 4.77a5.44 5.44 0 0 0-1.5 3.78c0 5.42 3.3 6.61 6.44 7A3.37 3.37 0 0 0 9 18.13V22"/></svg>
                     </a>
+                  )}
+                  {!project.github && (
+                    <span class="text-slate-700" aria-hidden="true">
+                      <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 19c-5 1.5-5-2.5-7-3m14 6v-3.87a3.37 3.37 0 0 0-.94-2.61c3.14-.35 6.44-1.54 6.44-7A5.44 5.44 0 0 0 20 4.77 5.07 5.07 0 0 0 19.91 1S18.73.65 16 2.48a13.38 13.38 0 0 0-7 0C6.27.65 5.09 1 5.09 1A5.07 5.07 0 0 0 5 4.77a5.44 5.44 0 0 0-1.5 3.78c0 5.42 3.3 6.61 6.44 7A3.37 3.37 0 0 0 9 18.13V22"/></svg>
+                    </span>
                   )}
                 </div>
               </div>
