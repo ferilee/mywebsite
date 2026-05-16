@@ -255,6 +255,13 @@ app.get('/projects', async (c) => {
               class="project-card group relative bg-white/5 border border-white/10 rounded-[2rem] overflow-hidden hover:border-red-500/30 transition-all duration-500 hover:-translate-y-2"
               data-tech={project.techStack}
             >
+              <div class="aspect-video w-full overflow-hidden bg-slate-900/70 border-b border-white/5">
+                <img
+                  src={project.image || `https://images.unsplash.com/photo-1555066931-4365d14bab8c?q=80&w=1200&auto=format&fit=crop`}
+                  alt={project.title}
+                  class="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
+                />
+              </div>
               <div class="p-8 h-full flex flex-col">
                 <h3 class="text-2xl font-bold mb-3">{project.title}</h3>
                 <p class="text-slate-400 mb-8 line-clamp-3 text-sm leading-relaxed flex-grow">{project.description}</p>
@@ -1449,7 +1456,7 @@ function renderBlogForm(c: any, post: any = null, user: any = null) {
       <div class="max-w-4xl mx-auto px-6 pt-10 pb-32">
 
         <h1 class="text-4xl font-black mb-12 italic tracking-tight">{post ? 'EDIT' : 'NEW'} <span class="text-red-700">POST</span></h1>
-        <form id="blog-form" action="/admin/blog/save" method="post" class="space-y-8 bg-white/5 p-8 rounded-[2.5rem] border border-white/10 backdrop-blur-xl">
+        <form id="blog-form" action="/admin/blog/save" method="post" enctype="multipart/form-data" class="space-y-8 bg-white/5 p-8 rounded-[2.5rem] border border-white/10 backdrop-blur-xl">
           {post && <input type="hidden" name="id" value={post.id} />}
           
           <div class="grid md:grid-cols-2 gap-6">
@@ -1478,6 +1485,9 @@ function renderBlogForm(c: any, post: any = null, user: any = null) {
               <input type="text" name="coverImage" id="cover" value={post?.coverImage || ''} placeholder=" " class={inputClass} />
               <label for="cover" class={labelClass}>Cover Image URL</label>
             </div>
+          </div>
+          <div class="relative">
+            <input type="file" name="coverImageFile" accept="image/*" class="w-full bg-slate-950/50 border border-white/10 rounded-2xl px-5 py-4 text-sm text-slate-300 file:mr-4 file:rounded-lg file:border-0 file:bg-red-700 file:px-4 file:py-2 file:text-xs file:font-black file:text-white hover:file:bg-red-800" />
           </div>
 
           <div class="relative">
@@ -1580,12 +1590,19 @@ async function notifySubscribers(post: { title: string; slug: string }) {
 app.post('/admin/blog/save', async (c) => {
   const body = await c.req.parseBody();
   const id = body.id ? parseInt(body.id as string) : null;
+  const coverImageFile = body.coverImageFile;
+  let coverImage = (body.coverImage as string) || '';
+  if (coverImageFile instanceof File && coverImageFile.size > 0) {
+    const safeName = `${Date.now()}-${coverImageFile.name.replace(/\s+/g, '-').replace(/[^a-zA-Z0-9._-]/g, '')}`;
+    await Bun.write(`public/uploads/${safeName}`, await coverImageFile.arrayBuffer());
+    coverImage = `/static/uploads/${safeName}`;
+  }
   const data = {
     title: body.title as string,
     slug: body.slug as string,
     content: body.content as string,
     category: body.category as string,
-    coverImage: body.coverImage as string,
+    coverImage,
     status: body.status as any,
     updatedAt: new Date(),
   };
@@ -1621,15 +1638,22 @@ app.get('/admin/projects/edit/:id', async (c) => {
 app.post('/admin/projects/save', async (c) => {
   const body = await c.req.parseBody();
   const id = body.id ? parseInt(body.id as string) : null;
+  const projectImageFile = body.projectImageFile;
+  let image = (body.image as string) || '';
+  if (projectImageFile instanceof File && projectImageFile.size > 0) {
+    const safeName = `${Date.now()}-${projectImageFile.name.replace(/\s+/g, '-').replace(/[^a-zA-Z0-9._-]/g, '')}`;
+    await Bun.write(`public/uploads/${safeName}`, await projectImageFile.arrayBuffer());
+    image = `/static/uploads/${safeName}`;
+  }
   const data = {
     title: body.title as string,
     slug: body.slug as string,
     description: body.description as string,
     content: body.content as string,
+    image,
     techStack: body.techStack as string,
     link: body.link as string,
     github: body.github as string,
-    featured: 0,
   };
   if (id) {
     await db.update(projectTable).set(data).where(eq(projectTable.id, id));
@@ -1698,7 +1722,7 @@ function renderProjectForm(c: any, project: any = null, user: any = null) {
       <div class="max-w-4xl mx-auto px-6 pt-10 pb-32">
 
         <h1 class="text-4xl font-black mb-12 italic tracking-tight">{project ? 'EDIT' : 'NEW'} <span class="text-red-700">PROJECT</span></h1>
-        <form id="project-form" action="/admin/projects/save" method="post" class="space-y-8 bg-white/5 p-8 rounded-[2.5rem] border border-white/10 backdrop-blur-xl">
+        <form id="project-form" action="/admin/projects/save" method="post" enctype="multipart/form-data" class="space-y-8 bg-white/5 p-8 rounded-[2.5rem] border border-white/10 backdrop-blur-xl">
           {project && <input type="hidden" name="id" value={project.id} />}
           
           <div class="grid md:grid-cols-2 gap-6">
@@ -1726,6 +1750,15 @@ function renderProjectForm(c: any, project: any = null, user: any = null) {
           <div class="relative">
             <input type="text" name="techStack" id="tech" value={project?.techStack || ''} placeholder=" " class={inputClass} />
             <label for="tech" class={labelClass}>Tech Stack (comma separated)</label>
+          </div>
+          <div class="grid md:grid-cols-2 gap-6">
+            <div class="relative">
+              <input type="text" name="image" id="p-image" value={project?.image || ''} placeholder=" " class={inputClass} />
+              <label for="p-image" class={labelClass}>Thumbnail Image URL</label>
+            </div>
+            <div class="relative">
+              <input type="file" name="projectImageFile" accept="image/*" class="w-full bg-slate-950/50 border border-white/10 rounded-2xl px-5 py-4 text-sm text-slate-300 file:mr-4 file:rounded-lg file:border-0 file:bg-red-700 file:px-4 file:py-2 file:text-xs file:font-black file:text-white hover:file:bg-red-800" />
+            </div>
           </div>
 
           <div class="grid md:grid-cols-2 gap-6">
