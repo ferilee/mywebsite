@@ -7,6 +7,7 @@ import { cors } from 'hono/cors';
 import { streamSSE } from 'hono/streaming';
 import { setCookie, getCookie } from 'hono/cookie';
 import { EventEmitter } from 'node:events';
+import { mkdir } from 'node:fs/promises';
 import { db } from './db';
 import { projects as projectTable, blogPosts, skills as skillTable, experience as expTable, settings as settingsTable, contacts as contactTable, comments as commentTable, reactions as reactionTable, subscriptions as subTable, pageViews as viewTable, milestones as milestonesTable, profiles as profileTable } from './db/schema';
 import { eq, desc, or, like, and, sql } from 'drizzle-orm';
@@ -29,6 +30,23 @@ interface Env {
 
 const app = new Hono<Env>();
 const adminUpdates = new EventEmitter();
+
+async function ensureColumn(table: string, column: string, definition: string) {
+  const columns = await db.all(sql.raw(`PRAGMA table_info(${table})`)) as Array<{ name: string }>;
+  if (!columns.some((entry) => entry.name === column)) {
+    await db.run(sql.raw(`ALTER TABLE ${table} ADD COLUMN ${column} ${definition}`));
+  }
+}
+
+try {
+  await ensureColumn('projects', 'image', 'text');
+  await ensureColumn('projects', 'slug', 'text');
+  await ensureColumn('projects', 'content', 'text');
+  await ensureColumn('projects', 'github', 'text');
+  await ensureColumn('blog_posts', 'cover_image', 'text');
+} catch (error) {
+  console.error('Schema compatibility check failed:', error);
+}
 
 // --- MIDDLEWARE ---
 app.use('*', async (c, next) => {
@@ -1595,7 +1613,7 @@ app.post('/admin/blog/save', async (c) => {
   const coverImageFile = body.coverImageFile;
   let coverImage = (body.coverImage as string) || '';
   if (coverImageFile instanceof File && coverImageFile.size > 0) {
-    await Bun.$`mkdir -p public/uploads`.quiet();
+    await mkdir('public/uploads', { recursive: true });
     const safeName = `${Date.now()}-${coverImageFile.name.replace(/\s+/g, '-').replace(/[^a-zA-Z0-9._-]/g, '')}`;
     await Bun.write(`public/uploads/${safeName}`, await coverImageFile.arrayBuffer());
     coverImage = `/static/uploads/${safeName}`;
@@ -1644,7 +1662,7 @@ app.post('/admin/projects/save', async (c) => {
   const projectImageFile = body.projectImageFile;
   let image = (body.image as string) || '';
   if (projectImageFile instanceof File && projectImageFile.size > 0) {
-    await Bun.$`mkdir -p public/uploads`.quiet();
+    await mkdir('public/uploads', { recursive: true });
     const safeName = `${Date.now()}-${projectImageFile.name.replace(/\s+/g, '-').replace(/[^a-zA-Z0-9._-]/g, '')}`;
     await Bun.write(`public/uploads/${safeName}`, await projectImageFile.arrayBuffer());
     image = `/static/uploads/${safeName}`;
