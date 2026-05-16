@@ -1595,6 +1595,7 @@ app.post('/admin/blog/save', async (c) => {
   const coverImageFile = body.coverImageFile;
   let coverImage = (body.coverImage as string) || '';
   if (coverImageFile instanceof File && coverImageFile.size > 0) {
+    await Bun.$`mkdir -p public/uploads`.quiet();
     const safeName = `${Date.now()}-${coverImageFile.name.replace(/\s+/g, '-').replace(/[^a-zA-Z0-9._-]/g, '')}`;
     await Bun.write(`public/uploads/${safeName}`, await coverImageFile.arrayBuffer());
     coverImage = `/static/uploads/${safeName}`;
@@ -1643,6 +1644,7 @@ app.post('/admin/projects/save', async (c) => {
   const projectImageFile = body.projectImageFile;
   let image = (body.image as string) || '';
   if (projectImageFile instanceof File && projectImageFile.size > 0) {
+    await Bun.$`mkdir -p public/uploads`.quiet();
     const safeName = `${Date.now()}-${projectImageFile.name.replace(/\s+/g, '-').replace(/[^a-zA-Z0-9._-]/g, '')}`;
     await Bun.write(`public/uploads/${safeName}`, await projectImageFile.arrayBuffer());
     image = `/static/uploads/${safeName}`;
