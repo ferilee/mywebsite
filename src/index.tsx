@@ -264,7 +264,7 @@ app.get('/projects', async (c) => {
               </div>
               <div class="p-8 h-full flex flex-col">
                 <h3 class="text-2xl font-bold mb-3">{project.title}</h3>
-                <p class="text-slate-400 mb-8 line-clamp-5 text-sm leading-relaxed flex-grow">{project.description}</p>
+                <p class="text-slate-400 mb-8 text-sm leading-relaxed flex-grow" style="display:-webkit-box;-webkit-line-clamp:5;-webkit-box-orient:vertical;overflow:hidden;">{project.description}</p>
                 <div class="flex flex-wrap gap-2 mb-8">
                   {project.techStack?.split(',').map(tech => (
                     <span class="px-3 py-1 bg-white/5 border border-white/5 rounded-lg text-[10px] font-bold uppercase tracking-widest text-slate-500">{tech.trim()}</span>
