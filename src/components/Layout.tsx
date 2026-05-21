@@ -33,11 +33,31 @@ export const Layout = (props: { title: string; children: any; notificationCount?
       
       <script src="https://cdn.tailwindcss.com"></script>
       <script dangerouslySetInnerHTML={{ __html: `
-        if ('serviceWorker' in navigator) {
-          window.addEventListener('load', () => {
-            navigator.serviceWorker.register('/static/sw.js').catch(err => console.log('SW registration failed:', err));
-          });
-        }
+        (function () {
+          function setOfflineBadge() {
+            var badge = document.getElementById('offline-badge');
+            if (!badge) return;
+            if (navigator.onLine) {
+              badge.classList.add('hidden');
+            } else {
+              badge.classList.remove('hidden');
+            }
+          }
+
+          window.addEventListener('online', setOfflineBadge);
+          window.addEventListener('offline', setOfflineBadge);
+          document.addEventListener('visibilitychange', setOfflineBadge);
+
+          if ('serviceWorker' in navigator) {
+            window.addEventListener('load', function () {
+              navigator.serviceWorker.register('/static/sw.js').catch(function (err) {
+                console.log('SW registration failed:', err);
+              });
+            });
+          }
+
+          setOfflineBadge();
+        })();
       `}} />
 
       <script src="https://unpkg.com/@dotlottie/player-component@latest/dist/dotlottie-player.mjs" type="module"></script>
@@ -77,6 +97,10 @@ export const Layout = (props: { title: string; children: any; notificationCount?
       `}</style>
     </head>
     <body class="gradient-bg text-slate-100 min-h-screen selection:bg-red-500/30 overflow-x-hidden relative">
+      <div id="offline-badge" class="hidden fixed top-4 right-4 z-[70] px-4 py-2 rounded-xl bg-red-700/80 border border-red-500/30 backdrop-blur-xl text-xs font-black uppercase tracking-widest">
+        Offline
+      </div>
+
       <header class="fixed top-0 md:top-8 w-full z-50 px-6 md:px-12 py-4 md:py-0 bg-slate-950/50 md:bg-transparent backdrop-blur-lg md:backdrop-blur-none border-b border-white/5 md:border-none">
         <div class="max-w-7xl mx-auto flex justify-between items-center">
           <a href="/" class="text-2xl font-black text-red-700 tracking-wider">Research</a>
