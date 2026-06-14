@@ -1,20 +1,18 @@
-version: '3.8'
-
 services:
   mywebsite:
-    build:
-      context: .
-      dockerfile: Dockerfile
-    container_name: ferilee_website
-    restart: always
+    image: ghcr.io/ferilee/mywebsite:latest
+    container_name: mywebsite
     ports:
       - "4128:4128"
     volumes:
       - ./data:/app/data
     environment:
       - NODE_ENV=production
+      - PORT=4128
+      - DATABASE_URL=/app/data/app.db
     env_file:
       - .env
+    restart: always
     networks:
       - ferileenet
 

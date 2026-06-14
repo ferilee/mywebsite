@@ -13,6 +13,8 @@ import { projects as projectTable, blogPosts, skills as skillTable, experience a
 import { eq, desc, or, like, and, sql } from 'drizzle-orm';
 import { Layout } from './components/Layout';
 import { marked } from 'marked';
+import { z as zod } from 'zod';
+import { S3Client, PutObjectCommand } from '@aws-sdk/client-s3';
 
 type SessionUser = {
   email: string;
@@ -460,7 +462,7 @@ app.get('/blog', async (c) => {
                   {post.title}
                 </h2>
                 <p class="text-slate-400 text-sm leading-relaxed mb-8 line-clamp-3 flex-grow">
-                  {post.content.replace(/[#*`]/g, '').substring(0, 160)}...
+                  {post.content.replace(/<[^>]*>?/gm, '').replace(/[#*`]/g, '').substring(0, 160)}...
                 </p>
                 <div class="pt-6 border-t border-white/5 mt-auto">
                   <a href={`/blog/${post.slug}`} class="inline-flex items-center gap-2 text-xs font-black text-white hover:text-cyan-400 transition-colors uppercase tracking-widest group/btn">
@@ -1098,26 +1100,26 @@ app.get('/admin', async (c) => {
         {/* QUICK STATS & CV & TIMELINE */}
         <div class="grid lg:grid-cols-2 gap-12 mb-12">
           <div class="space-y-6">
-            <div class="grid grid-cols-2 gap-6">
-              <div class="bg-white/5 border border-white/10 p-8 rounded-[2rem] backdrop-blur-xl">
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-6">
+              <div class="bg-white/5 border border-white/10 p-6 sm:p-8 rounded-[2rem] backdrop-blur-xl">
                 <p class="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2">Total Page Views</p>
-                <h4 class="text-4xl font-black text-white">{totalViews[0]?.sum || 0}</h4>
+                <h4 class="text-3xl sm:text-4xl font-black text-white">{totalViews[0]?.sum || 0}</h4>
               </div>
-              <div class="bg-white/5 border border-white/10 p-8 rounded-[2rem] backdrop-blur-xl">
+              <div class="bg-white/5 border border-white/10 p-6 sm:p-8 rounded-[2rem] backdrop-blur-xl">
                 <p class="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2">Comments (7d)</p>
-                <h4 class="text-4xl font-black text-cyan-400">+{recentComments.length}</h4>
+                <h4 class="text-3xl sm:text-4xl font-black text-cyan-400">+{recentComments.length}</h4>
               </div>
             </div>
 
-            <div class="bg-white/5 border border-white/10 p-8 rounded-[2rem] backdrop-blur-xl">
+            <div class="bg-white/5 border border-white/10 p-6 sm:p-8 rounded-[2rem] backdrop-blur-xl">
               {/* Timeline Milestones */}
-              <div class="flex justify-between items-center mb-8">
-                <h2 class="text-2xl font-black italic">ACTIVITY <span class="text-red-700">TIMELINE</span></h2>
+              <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 sm:gap-0 mb-8">
+                <h2 class="text-xl sm:text-2xl font-black italic">ACTIVITY <span class="text-red-700">TIMELINE</span></h2>
                 <button onclick="document.getElementById('milestone-form').classList.toggle('hidden')" class="px-4 py-2 bg-white/5 border border-white/10 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-white/10 transition-all">+ Add Milestone</button>
               </div>
 
               <form id="milestone-form" action="/admin/milestones/save" method="post" class="hidden space-y-4 mb-8 bg-slate-950/50 p-6 rounded-2xl border border-white/5">
-                <div class="grid grid-cols-2 gap-4">
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <input type="text" name="year" placeholder="Year (e.g. 2024)" required class="bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-sm text-white" />
                   <select name="type" class="bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-sm text-slate-400">
                     <option value="work">Work</option>
@@ -1149,16 +1151,16 @@ app.get('/admin', async (c) => {
           </div>
 
           <div class="space-y-6">
-            <div class="bg-white/5 border border-white/10 p-8 rounded-[2rem] backdrop-blur-xl">
-              <h2 class="text-2xl font-black italic mb-6">RESUME / <span class="text-red-700">CV</span></h2>
-              <form action="/admin/settings/cv" method="post" class="flex gap-4">
-                <input type="url" name="cv_url" value={(await db.select().from(settingsTable).where(eq(settingsTable.key, 'cv_url')).limit(1))[0]?.value || ''} placeholder="https://drive.google.com/..." class="flex-grow bg-slate-950/50 border border-white/10 rounded-xl px-6 py-4 text-slate-300 focus:outline-none focus:border-red-500" />
-                <button type="submit" class="px-8 py-4 bg-red-700 hover:bg-red-800 text-white font-black rounded-xl transition-all uppercase text-xs tracking-widest">Update</button>
+            <div class="bg-white/5 border border-white/10 p-6 sm:p-8 rounded-[2rem] backdrop-blur-xl">
+              <h2 class="text-xl sm:text-2xl font-black italic mb-6">RESUME / <span class="text-red-700">CV</span></h2>
+              <form action="/admin/settings/cv" method="post" class="flex flex-col sm:flex-row gap-4">
+                <input type="url" name="cv_url" value={(await db.select().from(settingsTable).where(eq(settingsTable.key, 'cv_url')).limit(1))[0]?.value || ''} placeholder="https://drive.google.com/..." class="flex-grow bg-slate-950/50 border border-white/10 rounded-xl px-4 sm:px-6 py-3 sm:py-4 text-slate-300 focus:outline-none focus:border-red-500" />
+                <button type="submit" class="px-8 py-3 sm:py-4 bg-red-700 hover:bg-red-800 text-white font-black rounded-xl transition-all uppercase text-xs tracking-widest">Update</button>
               </form>
             </div>
 
-            <div class="bg-white/5 border border-white/10 rounded-[2.5rem] p-8 backdrop-blur-xl h-full">
-              <h2 class="text-2xl font-black italic mb-8">NEWSLETTER <span class="text-cyan-500">SUBSCRIBERS</span></h2>
+            <div class="bg-white/5 border border-white/10 rounded-[2.5rem] p-6 sm:p-8 backdrop-blur-xl h-full">
+              <h2 class="text-xl sm:text-2xl font-black italic mb-8">NEWSLETTER <span class="text-cyan-500">SUBSCRIBERS</span></h2>
               <div class="flex flex-wrap gap-4 max-h-[160px] overflow-y-auto pr-2">
                 {totalSubs.map(sub => (
                   <div class="px-4 py-2 bg-slate-950/50 border border-white/5 rounded-xl flex items-center gap-4">
@@ -1173,11 +1175,11 @@ app.get('/admin', async (c) => {
 
         <div class="grid lg:grid-cols-2 gap-12 mb-12">
           {/* Blog Posts */}
-          <div class="bg-white/5 border border-white/10 rounded-[2.5rem] p-8 backdrop-blur-xl">
-            <h2 class="text-2xl font-black italic mb-8">BLOG <span class="text-red-700">POSTS</span></h2>
+          <div class="bg-white/5 border border-white/10 rounded-[2.5rem] p-6 sm:p-8 backdrop-blur-xl">
+            <h2 class="text-xl sm:text-2xl font-black italic mb-8">BLOG <span class="text-red-700">POSTS</span></h2>
             <div class="space-y-4 max-h-[400px] overflow-y-auto pr-2 custom-scrollbar">
               {posts.map(post => (
-                <div class="flex justify-between items-center p-5 bg-slate-950/50 border border-white/5 rounded-2xl">
+                <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center p-5 bg-slate-950/50 border border-white/5 rounded-2xl gap-4 sm:gap-0">
                   <div>
                     <p class="font-bold text-sm">{post.title}</p>
                     <p class="text-[10px] text-slate-500 uppercase">{post.status}</p>
@@ -1199,12 +1201,12 @@ app.get('/admin', async (c) => {
           </div>
 
           {/* Portfolio Projects */}
-          <div class="bg-white/5 border border-white/10 rounded-[2.5rem] p-8 backdrop-blur-xl">
-            <h2 class="text-2xl font-black italic mb-8">PORTFOLIO <span class="text-red-700">PROJECTS</span></h2>
+          <div class="bg-white/5 border border-white/10 rounded-[2.5rem] p-6 sm:p-8 backdrop-blur-xl">
+            <h2 class="text-xl sm:text-2xl font-black italic mb-8">PORTFOLIO <span class="text-red-700">PROJECTS</span></h2>
             <div class="space-y-4 max-h-[400px] overflow-y-auto pr-2 custom-scrollbar">
               {projects.map(project => (
-                <div class="flex justify-between items-center p-5 bg-slate-950/50 border border-white/5 rounded-2xl">
-                  <p class="font-bold text-sm truncate max-w-[200px]">{project.title}</p>
+                <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center p-5 bg-slate-950/50 border border-white/5 rounded-2xl gap-4 sm:gap-0">
+                  <p class="font-bold text-sm truncate max-w-full sm:max-w-[200px]">{project.title}</p>
                   <div class="flex items-center gap-2">
                     <a href={`/admin/projects/edit/${project.id}`} class="p-2 bg-white/5 border border-white/10 rounded-lg text-slate-400 hover:text-white hover:bg-white/10 transition-all" title="Edit Project">
                       <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"/></svg>
@@ -1227,13 +1229,13 @@ app.get('/admin', async (c) => {
         {/* MODERATION & INBOX */}
         <div class="grid lg:grid-cols-2 gap-12 mb-12">
           {/* Inbox Messages */}
-          <div class="bg-white/5 border border-white/10 rounded-[2.5rem] p-8 backdrop-blur-xl overflow-hidden">
-            <h2 class="text-2xl font-black italic mb-8">INBOX <span class="text-red-700">MESSAGES</span></h2>
+          <div class="bg-white/5 border border-white/10 rounded-[2.5rem] p-6 sm:p-8 backdrop-blur-xl overflow-hidden">
+            <h2 class="text-xl sm:text-2xl font-black italic mb-8">INBOX <span class="text-red-700">MESSAGES</span></h2>
             <div class="space-y-4 max-h-[500px] overflow-y-auto pr-2 custom-scrollbar">
               {messages.map(msg => (
                 <div class={`bg-slate-950/40 border ${!msg.isRead ? 'border-red-500/30 ring-1 ring-red-500/20' : 'border-white/5'} rounded-2xl p-4 transition-all relative group`}>
-                  <div class="flex justify-between items-start gap-4">
-                    <div class="flex-grow min-w-0">
+                  <div class="flex flex-col sm:flex-row justify-between items-start gap-4">
+                    <div class="flex-grow min-w-0 w-full sm:w-auto">
                       <div class="flex items-center gap-2 mb-1">
                         {!msg.isRead && <div class="w-1.5 h-1.5 bg-red-500 rounded-full"></div>}
                         <span class="text-[10px] font-black text-red-500 uppercase tracking-widest truncate">{msg.subject}</span>
@@ -1264,12 +1266,12 @@ app.get('/admin', async (c) => {
             </div>
           </div>
           {/* Comment Moderation */}
-          <div class="bg-white/5 border border-white/10 rounded-[2.5rem] p-8 backdrop-blur-xl overflow-hidden">
-            <h2 class="text-2xl font-black italic mb-8">COMMENT <span class="text-red-700">MODERATION</span></h2>
+          <div class="bg-white/5 border border-white/10 rounded-[2.5rem] p-6 sm:p-8 backdrop-blur-xl overflow-hidden">
+            <h2 class="text-xl sm:text-2xl font-black italic mb-8">COMMENT <span class="text-red-700">MODERATION</span></h2>
             <div class="space-y-4 max-h-[500px] overflow-y-auto pr-2">
               {(await db.select().from(commentTable).orderBy(desc(commentTable.createdAt))).map(comment => (
                 <div class="p-4 bg-slate-950/30 border border-white/5 rounded-xl">
-                  <div class="flex justify-between items-start mb-2">
+                  <div class="flex flex-col sm:flex-row justify-between items-start gap-2 mb-2">
                     <div>
                       <span class="text-[10px] font-black text-slate-500 uppercase tracking-widest">{comment.name}</span>
                       <p class="text-[10px] text-red-500 font-bold truncate max-w-[150px]">{comment.email}</p>
@@ -1309,9 +1311,9 @@ app.get('/api/profile/check', async (c) => {
 app.post('/api/profile/save', async (c) => {
   const user = c.var.user;
   if (!user) return c.redirect('/admin/login');
-  
+
   const body = await c.req.parseBody();
-  
+
   await db.insert(profileTable).values({
     email: user.email,
     fullName: body.fullName as string,
@@ -1320,8 +1322,53 @@ app.post('/api/profile/save', async (c) => {
     district: body.districtName as string,
     occupation: body.occupation as string,
   });
-  
+
   return c.redirect(c.req.header('referer') || '/');
+});
+
+app.post('/api/integrations/telegram/blog', async (c) => {
+  const auth = c.req.header('authorization') || '';
+  const expected = process.env.TELEGRAM_BOT_ADMIN_TOKEN;
+  if (!expected || auth !== `Bearer ${expected}`) {
+    return c.json({ error: 'unauthorized' }, 401);
+  }
+
+  const payload = await c.req.json().catch(() => null) as any;
+  const schema = zod.object({
+    title: zod.string().min(1).max(200),
+    content: zod.string().min(1),
+    category: zod.string().max(60).optional(),
+    tags: zod.string().max(200).optional(),
+    coverImage: zod.string().max(500).optional(),
+    status: zod.enum(['draft', 'published']).optional(),
+    slug: zod.string().max(220).optional(),
+  });
+
+  const parsed = schema.safeParse(payload);
+  if (!parsed.success) {
+    return c.json({ error: 'invalid_payload', issues: parsed.error.issues }, 400);
+  }
+
+  const data = parsed.data;
+  const slug = data.slug || data.title
+    .toLowerCase()
+    .trim()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/(^-|-$)/g, '')
+    .slice(0, 80) + '-' + Date.now().toString(36);
+
+  await db.insert(blogPosts).values({
+    title: data.title,
+    slug,
+    content: data.content,
+    category: data.category,
+    tags: data.tags,
+    coverImage: data.coverImage,
+    status: data.status || 'draft',
+    updatedAt: new Date(),
+  });
+
+  return c.json({ ok: true, slug });
 });
 
 app.get('/admin/visitors', async (c) => {
@@ -1347,15 +1394,15 @@ app.get('/admin/visitors', async (c) => {
         </header>
 
         {/* STATS CARDS */}
-        <div class="grid md:grid-cols-2 lg:grid-cols-4 gap-6 mb-12">
-          <div class="bg-white/5 border border-white/10 p-8 rounded-[2rem] backdrop-blur-xl">
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-12">
+          <div class="bg-white/5 border border-white/10 p-6 sm:p-8 rounded-[2rem] backdrop-blur-xl">
             <p class="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2">Total Visitors</p>
-            <h4 class="text-4xl font-black">{visitorProfiles.length}</h4>
+            <h4 class="text-3xl sm:text-4xl font-black">{visitorProfiles.length}</h4>
           </div>
           {provinceStats.slice(0, 3).map(stat => (
-            <div class="bg-white/5 border border-white/10 p-8 rounded-[2rem] backdrop-blur-xl">
+            <div class="bg-white/5 border border-white/10 p-6 sm:p-8 rounded-[2rem] backdrop-blur-xl">
               <p class="text-[10px] font-black text-red-500 uppercase tracking-widest mb-2">{stat.province || 'Unknown'}</p>
-              <h4 class="text-4xl font-black">{stat.count} <span class="text-xs text-slate-500">Profiles</span></h4>
+              <h4 class="text-3xl sm:text-4xl font-black">{stat.count} <span class="text-xs text-slate-500">Profiles</span></h4>
             </div>
           ))}
         </div>
@@ -1363,51 +1410,68 @@ app.get('/admin/visitors', async (c) => {
         <div class="grid lg:grid-cols-3 gap-12 mb-12">
           <div class="lg:col-span-2 space-y-8">
             {/* SEARCH & FILTER UI */}
-            <div class="bg-white/5 border border-white/10 p-6 rounded-[2.5rem] backdrop-blur-xl flex flex-wrap gap-4 items-center">
-              <div class="flex-grow relative">
+            <div class="bg-white/5 border border-white/10 p-6 rounded-[2.5rem] backdrop-blur-xl flex flex-col sm:flex-row gap-4 items-stretch sm:items-center">
+              <div class="flex-grow relative w-full">
                 <input id="v-search" type="text" placeholder="Search by name, occupation, or location..." class="w-full bg-slate-950/50 border border-white/10 rounded-xl px-12 py-3 text-sm focus:border-red-500 transition-all outline-none" />
                 <svg class="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500" xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
               </div>
-              <select id="v-prov-filter" class="bg-slate-950/50 border border-white/10 rounded-xl px-4 py-3 text-sm text-slate-300 outline-none focus:border-red-500">
+              <select id="v-prov-filter" class="w-full sm:w-auto bg-slate-950/50 border border-white/10 rounded-xl px-4 py-3 text-sm text-slate-300 outline-none focus:border-red-500">
                 <option value="all">All Provinces</option>
                 {provinceStats.map(s => <option value={s.province}>{s.province}</option>)}
               </select>
             </div>
 
-            <div class="bg-white/5 border border-white/10 rounded-[3rem] overflow-hidden backdrop-blur-xl">
-              <table class="w-full text-left" id="visitor-table">
-                <thead>
-                  <tr class="border-b border-white/10">
-                    <th class="px-8 py-6 text-[10px] font-black uppercase tracking-widest text-slate-500">Researcher</th>
-                    <th class="px-8 py-6 text-[10px] font-black uppercase tracking-widest text-slate-500">Location</th>
-                    <th class="px-8 py-6 text-[10px] font-black uppercase tracking-widest text-slate-500">Joined</th>
-                  </tr>
-                </thead>
-                <tbody class="divide-y divide-white/5">
-                  {visitorProfiles.map(p => (
-                    <tr class="hover:bg-white/5 transition-all group v-row" data-search={`${p.fullName} ${p.occupation} ${p.province} ${p.regency} ${p.district}`.toLowerCase()} data-province={p.province}>
-                      <td class="px-8 py-6">
-                        <p class="font-bold text-white group-hover:text-red-500 transition-colors">{p.fullName}</p>
-                        <p class="text-[10px] font-black text-red-500 uppercase tracking-widest mt-1">{p.occupation}</p>
-                        <p class="text-[10px] text-slate-500">{p.email}</p>
-                      </td>
-                      <td class="px-8 py-6">
-                        <p class="text-sm font-bold text-slate-300">{p.district}, {p.regency}</p>
-                        <p class="text-[10px] text-slate-500 uppercase tracking-tight">{p.province}</p>
-                      </td>
-                      <td class="px-8 py-6 text-xs text-slate-500 font-bold">
-                        {new Date(p.createdAt!).toLocaleDateString()}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+            <div class="space-y-4" id="visitor-list">
+              {visitorProfiles.map(p => (
+                <div class="bg-white/5 border border-white/10 p-6 rounded-[2rem] backdrop-blur-xl flex flex-col md:flex-row md:items-center justify-between gap-6 hover:border-red-500/30 transition-all duration-300 group v-row" data-search={`${p.fullName} ${p.occupation} ${p.province} ${p.regency} ${p.district}`.toLowerCase()} data-province={p.province}>
+                  
+                  <div class="flex items-start md:items-center gap-5">
+                    <div class="w-14 h-14 rounded-full bg-red-900/20 flex-shrink-0 flex items-center justify-center border border-red-500/30 group-hover:scale-110 group-hover:bg-red-900/40 transition-all duration-500">
+                      <span class="text-red-500 font-black text-xl">{p.fullName[0].toUpperCase()}</span>
+                    </div>
+                    <div>
+                      <h4 class="font-bold text-white text-lg group-hover:text-red-400 transition-colors">{p.fullName}</h4>
+                      <p class="text-xs text-slate-400 mt-0.5">{p.email}</p>
+                      <div class="mt-3 flex flex-wrap gap-2">
+                        <span class="px-3 py-1 bg-red-500/10 border border-red-500/20 rounded-lg text-[9px] font-black text-red-500 uppercase tracking-widest shadow-sm">{p.occupation}</span>
+                        <span class="px-3 py-1 bg-white/5 border border-white/10 rounded-lg text-[9px] font-bold text-slate-400 uppercase tracking-widest shadow-sm">{p.province}</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div class="flex flex-row md:flex-col justify-between md:justify-center items-center md:items-end gap-2 md:gap-3 pt-5 md:pt-0 border-t border-white/10 md:border-0 w-full md:w-auto">
+                    <div class="text-left md:text-right">
+                      <p class="text-xs font-bold text-slate-300">{p.district}, {p.regency}</p>
+                      <p class="text-[10px] text-slate-500 uppercase tracking-tight flex items-center md:justify-end gap-1.5 mt-1">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"/><circle cx="12" cy="10" r="3"/></svg>
+                        Location
+                      </p>
+                    </div>
+                    <div class="text-right">
+                      <p class="text-xs text-slate-300 font-bold">{new Date(p.createdAt!).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' })}</p>
+                      <p class="text-[10px] text-slate-500 uppercase tracking-tight mt-1 flex items-center justify-end gap-1.5">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+                        Joined
+                      </p>
+                    </div>
+                  </div>
+
+                </div>
+              ))}
+              {visitorProfiles.length === 0 && (
+                <div class="bg-white/5 border border-dashed border-white/10 p-12 rounded-[2.5rem] text-center">
+                  <div class="w-16 h-16 bg-white/5 rounded-full flex items-center justify-center mx-auto mb-4 border border-white/10">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-slate-500"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+                  </div>
+                  <p class="text-slate-400 font-bold tracking-widest text-sm uppercase">No visitors found</p>
+                </div>
+              )}
             </div>
           </div>
 
           <div class="space-y-8">
-            <div class="bg-white/5 border border-white/10 p-8 rounded-[2.5rem] backdrop-blur-xl">
-              <h3 class="text-xl font-black italic mb-6">OCCUPATION <span class="text-red-700">MIX</span></h3>
+            <div class="bg-white/5 border border-white/10 p-6 sm:p-8 rounded-[2.5rem] backdrop-blur-xl">
+              <h3 class="text-lg sm:text-xl font-black italic mb-6">OCCUPATION <span class="text-red-700">MIX</span></h3>
               <div class="space-y-4">
                 {occupationStats.map(stat => (
                   <div>
@@ -1423,8 +1487,8 @@ app.get('/admin/visitors', async (c) => {
               </div>
             </div>
             
-            <div class="bg-white/5 border border-white/10 p-8 rounded-[2.5rem] backdrop-blur-xl">
-              <h3 class="text-xl font-black italic mb-6">REGIONAL <span class="text-cyan-500">DENSITY</span></h3>
+            <div class="bg-white/5 border border-white/10 p-6 sm:p-8 rounded-[2.5rem] backdrop-blur-xl">
+              <h3 class="text-lg sm:text-xl font-black italic mb-6">REGIONAL <span class="text-cyan-500">DENSITY</span></h3>
               <div class="space-y-4">
                 {provinceStats.map(stat => (
                   <div class="flex items-center justify-between p-4 bg-slate-950/50 rounded-xl border border-white/5">
@@ -1477,7 +1541,6 @@ function renderBlogForm(c: any, post: any = null, user: any = null) {
 
   return c.html(
     <Layout title={`${post ? 'Edit' : 'New'} Post | Admin`} user={user}>
-      <link href="https://cdn.quilljs.com/1.3.6/quill.snow.css" rel="stylesheet" />
       <div class="max-w-4xl mx-auto px-6 pt-10 pb-32">
 
         <h1 class="text-4xl font-black mb-12 italic tracking-tight">{post ? 'EDIT' : 'NEW'} <span class="text-red-700">POST</span></h1>
@@ -1495,10 +1558,9 @@ function renderBlogForm(c: any, post: any = null, user: any = null) {
             </div>
           </div>
 
-          <div class="relative bg-slate-950/50 border border-white/10 rounded-2xl p-2 min-h-[400px]">
-            <p class="text-[10px] font-black text-slate-500 uppercase tracking-widest p-4 mb-2">Content</p>
-            <div id="editor" class="text-white text-lg min-h-[300px]"></div>
-            <input type="hidden" name="content" id="content-input" value={post?.content || ''} />
+          <div class="relative">
+            <textarea name="content" id="content-input" placeholder=" " required class={`${inputClass} leading-relaxed min-h-[400px] font-mono text-sm`}>{post?.content || ''}</textarea>
+            <label for="content-input" class={labelClass}>Markdown Content</label>
           </div>
 
           <div class="grid md:grid-cols-2 gap-6">
@@ -1528,38 +1590,39 @@ function renderBlogForm(c: any, post: any = null, user: any = null) {
             <a href="/admin" class="px-10 py-4 border border-white/10 rounded-xl font-black text-slate-400 hover:text-white transition-all text-center flex items-center justify-center">CANCEL</a>
           </div>
         </form>
-
-        <script src="https://cdn.quilljs.com/1.3.6/quill.js"></script>
-        <script dangerouslySetInnerHTML={{ __html: `
-          var quill = new Quill('#editor', {
-            theme: 'snow',
-            modules: {
-              toolbar: [
-                [{ 'header': [1, 2, 3, false] }],
-                ['bold', 'italic', 'underline', 'strike'],
-                ['blockquote', 'code-block'],
-                [{ 'list': 'ordered'}, { 'list': 'bullet' }],
-                ['link', 'image'],
-                ['clean']
-              ]
-            }
-          });
-          
-          // Set initial content (handling Markdown or HTML)
-          var initialContent = document.getElementById('content-input').value;
-          quill.root.innerHTML = initialContent;
-
-          document.getElementById('blog-form').onsubmit = function() {
-            var content = document.querySelector('input[name=content]');
-            content.value = quill.root.innerHTML;
-          };
-        `}} />
       </div>
     </Layout>
   );
 }
 
 // --- HELPERS & SERVICES ---
+const s3Client = new S3Client({
+  endpoint: process.env.S3_ENDPOINT,
+  region: process.env.S3_REGION || 'us-east-1',
+  credentials: {
+    accessKeyId: process.env.S3_ACCESS_KEY || '',
+    secretAccessKey: process.env.S3_SECRET_KEY || '',
+  },
+  forcePathStyle: process.env.S3_FORCE_PATH_STYLE === 'true',
+});
+
+async function uploadToS3(file: File, folder: string): Promise<string> {
+  const safeName = `${Date.now()}-${file.name.replace(/\s+/g, '-').replace(/[^a-zA-Z0-9._-]/g, '')}`;
+  const key = `${folder}/${safeName}`;
+  const buffer = await file.arrayBuffer();
+  
+  await s3Client.send(new PutObjectCommand({
+    Bucket: process.env.S3_BUCKET,
+    Key: key,
+    Body: Buffer.from(buffer),
+    ContentType: file.type,
+  }));
+
+  const baseUrl = process.env.S3_PUBLIC_BASE_URL?.replace(/\/$/, '');
+  const bucket = process.env.S3_BUCKET;
+  return `${baseUrl}/${bucket}/${key}`;
+}
+
 async function notifySubscribers(post: { title: string; slug: string }) {
   try {
     const apiKey = process.env.RESEND_API_KEY;
@@ -1618,10 +1681,7 @@ app.post('/admin/blog/save', async (c) => {
   const coverImageFile = body.coverImageFile;
   let coverImage = (body.coverImage as string) || '';
   if (coverImageFile instanceof File && coverImageFile.size > 0) {
-    await mkdir('public/uploads', { recursive: true });
-    const safeName = `${Date.now()}-${coverImageFile.name.replace(/\s+/g, '-').replace(/[^a-zA-Z0-9._-]/g, '')}`;
-    await Bun.write(`public/uploads/${safeName}`, await coverImageFile.arrayBuffer());
-    coverImage = `/static/uploads/${safeName}`;
+    coverImage = await uploadToS3(coverImageFile, 'blog-covers');
   }
   const data = {
     title: body.title as string,
@@ -1667,10 +1727,7 @@ app.post('/admin/projects/save', async (c) => {
   const projectImageFile = body.projectImageFile;
   let image = (body.image as string) || '';
   if (projectImageFile instanceof File && projectImageFile.size > 0) {
-    await mkdir('public/uploads', { recursive: true });
-    const safeName = `${Date.now()}-${projectImageFile.name.replace(/\s+/g, '-').replace(/[^a-zA-Z0-9._-]/g, '')}`;
-    await Bun.write(`public/uploads/${safeName}`, await projectImageFile.arrayBuffer());
-    image = `/static/uploads/${safeName}`;
+    image = await uploadToS3(projectImageFile, 'project-thumbnails');
   }
   const data = {
     title: body.title as string,
