@@ -1573,8 +1573,9 @@ function renderBlogForm(c: any, post: any = null, user: any = null) {
               <label for="cover" class={labelClass}>Cover Image URL</label>
             </div>
           </div>
-          <div class="relative">
-            <input type="file" name="coverImageFile" accept="image/*" class="w-full bg-slate-950/50 border border-white/10 rounded-2xl px-5 py-4 text-sm text-slate-300 file:mr-4 file:rounded-lg file:border-0 file:bg-red-700 file:px-4 file:py-2 file:text-xs file:font-black file:text-white hover:file:bg-red-800" />
+          <div class="relative space-y-2 mt-4">
+            <label class="text-[10px] font-black text-slate-500 uppercase tracking-widest pl-1">Atau Upload Cover Image Baru</label>
+            <input type="file" name="coverImageFile" accept="image/*" class="w-full bg-slate-950/50 border border-white/10 rounded-2xl px-5 py-4 text-sm text-slate-300 file:mr-4 file:rounded-lg file:border-0 file:bg-red-700 file:px-4 file:py-2 file:text-xs file:font-black file:text-white hover:file:bg-red-800 cursor-pointer transition-all" />
           </div>
 
           <div class="relative">
@@ -1586,10 +1587,62 @@ function renderBlogForm(c: any, post: any = null, user: any = null) {
           </div>
 
           <div class="flex gap-4 pt-4">
-            <button type="submit" class="px-10 py-4 bg-red-700 text-white font-black rounded-xl btn-shadow hover:scale-[1.02] active:scale-[0.98] transition-all tracking-widest uppercase">SAVE POST</button>
+            <button id="submit-btn" type="submit" class="px-10 py-4 bg-red-700 text-white font-black rounded-xl btn-shadow hover:scale-[1.02] disabled:opacity-50 disabled:scale-100 transition-all tracking-widest uppercase relative overflow-hidden group">
+              <span id="btn-text" class="transition-opacity">SAVE POST</span>
+              <div id="btn-loader" class="absolute inset-0 flex items-center justify-center bg-red-900 opacity-0 pointer-events-none transition-opacity">
+                <span id="loader-msg" class="text-sm font-black">UPLOADING...</span>
+              </div>
+            </button>
             <a href="/admin" class="px-10 py-4 border border-white/10 rounded-xl font-black text-slate-400 hover:text-white transition-all text-center flex items-center justify-center">CANCEL</a>
           </div>
         </form>
+
+        <script dangerouslySetInnerHTML={{ __html: `
+          const form = document.getElementById('blog-form');
+          const fileInput = document.querySelector('input[type="file"]');
+          const btn = document.getElementById('submit-btn');
+          const btnText = document.getElementById('btn-text');
+          const btnLoader = document.getElementById('btn-loader');
+          const loaderMsg = document.getElementById('loader-msg');
+          
+          form.addEventListener('submit', async function(e) {
+            e.preventDefault();
+            
+            if (fileInput.files.length > 0) {
+              loaderMsg.innerHTML = '<span class="animate-pulse">UPLOADING TO RUSTFS...</span>';
+            } else {
+              loaderMsg.innerHTML = '<span class="animate-pulse">SAVING...</span>';
+            }
+            
+            btn.disabled = true;
+            btnText.style.opacity = '0';
+            btnLoader.style.opacity = '1';
+            
+            try {
+              const formData = new FormData(form);
+              const res = await fetch(form.action, {
+                method: 'POST',
+                body: formData
+              });
+              
+              if (res.ok) {
+                loaderMsg.innerHTML = '<span class="text-green-400">SUCCESS!</span>';
+                setTimeout(() => window.location.href = '/admin', 800);
+              } else {
+                const errorText = await res.text();
+                alert('Upload Gagal: ' + errorText);
+                btn.disabled = false;
+                btnText.style.opacity = '1';
+                btnLoader.style.opacity = '0';
+              }
+            } catch (err) {
+              alert('Network Error: ' + err.message);
+              btn.disabled = false;
+              btnText.style.opacity = '1';
+              btnLoader.style.opacity = '0';
+            }
+          });
+        `}} />
       </div>
     </Layout>
   );
@@ -1680,8 +1733,12 @@ app.post('/admin/blog/save', async (c) => {
   const id = body.id ? parseInt(body.id as string) : null;
   const coverImageFile = body.coverImageFile;
   let coverImage = (body.coverImage as string) || '';
-  if (coverImageFile instanceof File && coverImageFile.size > 0) {
-    coverImage = await uploadToS3(coverImageFile, 'blog-covers');
+  try {
+    if (coverImageFile instanceof File && coverImageFile.size > 0) {
+      coverImage = await uploadToS3(coverImageFile, 'blog-covers');
+    }
+  } catch (err: any) {
+    return c.text(err.message || 'Failed to upload to RustFS', 500);
   }
   const data = {
     title: body.title as string,
@@ -1726,8 +1783,12 @@ app.post('/admin/projects/save', async (c) => {
   const id = body.id ? parseInt(body.id as string) : null;
   const projectImageFile = body.projectImageFile;
   let image = (body.image as string) || '';
-  if (projectImageFile instanceof File && projectImageFile.size > 0) {
-    image = await uploadToS3(projectImageFile, 'project-thumbnails');
+  try {
+    if (projectImageFile instanceof File && projectImageFile.size > 0) {
+      image = await uploadToS3(projectImageFile, 'project-thumbnails');
+    }
+  } catch (err: any) {
+    return c.text(err.message || 'Failed to upload to RustFS', 500);
   }
   const data = {
     title: body.title as string,
@@ -1840,8 +1901,9 @@ function renderProjectForm(c: any, project: any = null, user: any = null) {
               <input type="text" name="image" id="p-image" value={project?.image || ''} placeholder=" " class={inputClass} />
               <label for="p-image" class={labelClass}>Thumbnail Image URL</label>
             </div>
-            <div class="relative">
-              <input type="file" name="projectImageFile" accept="image/*" class="w-full bg-slate-950/50 border border-white/10 rounded-2xl px-5 py-4 text-sm text-slate-300 file:mr-4 file:rounded-lg file:border-0 file:bg-red-700 file:px-4 file:py-2 file:text-xs file:font-black file:text-white hover:file:bg-red-800" />
+            <div class="relative space-y-2 mt-4 md:mt-0">
+              <label class="text-[10px] font-black text-slate-500 uppercase tracking-widest pl-1">Atau Upload Thumbnail Baru</label>
+              <input type="file" name="projectImageFile" accept="image/*" class="w-full bg-slate-950/50 border border-white/10 rounded-2xl px-5 py-4 text-sm text-slate-300 file:mr-4 file:rounded-lg file:border-0 file:bg-red-700 file:px-4 file:py-2 file:text-xs file:font-black file:text-white hover:file:bg-red-800 cursor-pointer transition-all" />
             </div>
           </div>
 
@@ -1857,7 +1919,12 @@ function renderProjectForm(c: any, project: any = null, user: any = null) {
           </div>
 
           <div class="flex gap-4 pt-4">
-            <button type="submit" class="px-10 py-4 bg-red-700 text-white font-black rounded-xl btn-shadow hover:scale-[1.02] active:scale-[0.98] transition-all tracking-widest uppercase">SAVE PROJECT</button>
+            <button id="p-submit-btn" type="submit" class="px-10 py-4 bg-red-700 text-white font-black rounded-xl btn-shadow hover:scale-[1.02] disabled:opacity-50 disabled:scale-100 transition-all tracking-widest uppercase relative overflow-hidden group">
+              <span id="p-btn-text" class="transition-opacity">SAVE PROJECT</span>
+              <div id="p-btn-loader" class="absolute inset-0 flex items-center justify-center bg-red-900 opacity-0 pointer-events-none transition-opacity">
+                <span id="p-loader-msg" class="text-sm font-black">UPLOADING...</span>
+              </div>
+            </button>
             <a href="/admin" class="px-10 py-4 border border-white/10 rounded-xl font-black text-slate-400 hover:text-white transition-all text-center flex items-center justify-center">CANCEL</a>
           </div>
         </form>
@@ -1881,9 +1948,51 @@ function renderProjectForm(c: any, project: any = null, user: any = null) {
           var initialContent = document.getElementById('p-content-input').value;
           quill.root.innerHTML = initialContent;
 
-          document.getElementById('project-form').onsubmit = function() {
+          document.getElementById('project-form').onsubmit = async function(e) {
+            e.preventDefault();
             var content = document.querySelector('input[id=p-content-input]');
             content.value = quill.root.innerHTML;
+            
+            const form = e.target;
+            const fileInput = form.querySelector('input[type="file"]');
+            const btn = document.getElementById('p-submit-btn');
+            const btnText = document.getElementById('p-btn-text');
+            const btnLoader = document.getElementById('p-btn-loader');
+            const loaderMsg = document.getElementById('p-loader-msg');
+            
+            if (fileInput.files.length > 0) {
+              loaderMsg.innerHTML = '<span class="animate-pulse">UPLOADING TO RUSTFS...</span>';
+            } else {
+              loaderMsg.innerHTML = '<span class="animate-pulse">SAVING...</span>';
+            }
+            
+            btn.disabled = true;
+            btnText.style.opacity = '0';
+            btnLoader.style.opacity = '1';
+            
+            try {
+              const formData = new FormData(form);
+              const res = await fetch(form.action, {
+                method: 'POST',
+                body: formData
+              });
+              
+              if (res.ok) {
+                loaderMsg.innerHTML = '<span class="text-green-400">SUCCESS!</span>';
+                setTimeout(() => window.location.href = '/admin', 800);
+              } else {
+                const errorText = await res.text();
+                alert('Upload Gagal: ' + errorText);
+                btn.disabled = false;
+                btnText.style.opacity = '1';
+                btnLoader.style.opacity = '0';
+              }
+            } catch (err) {
+              alert('Network Error: ' + err.message);
+              btn.disabled = false;
+              btnText.style.opacity = '1';
+              btnLoader.style.opacity = '0';
+            }
           };
         `}} />
       </div>
