@@ -1863,7 +1863,6 @@ function renderProjectForm(c: any, project: any = null, user: any = null) {
 
   return c.html(
     <Layout title={`${project ? 'Edit' : 'New'} Project | Admin`} user={user}>
-      <link href="https://cdn.quilljs.com/1.3.6/quill.snow.css" rel="stylesheet" />
       <div class="max-w-4xl mx-auto px-6 pt-10 pb-32">
 
         <h1 class="text-4xl font-black mb-12 italic tracking-tight">{project ? 'EDIT' : 'NEW'} <span class="text-red-700">PROJECT</span></h1>
@@ -1886,10 +1885,9 @@ function renderProjectForm(c: any, project: any = null, user: any = null) {
             <label for="desc" class={labelClass}>Short Description</label>
           </div>
 
-          <div class="relative bg-slate-950/50 border border-white/10 rounded-2xl p-2 min-h-[300px]">
-            <p class="text-[10px] font-black text-slate-500 uppercase tracking-widest p-4 mb-2">Case Study Content</p>
-            <div id="p-editor" class="text-white text-lg min-h-[200px]"></div>
-            <input type="hidden" name="content" id="p-content-input" value={project?.content || ''} />
+          <div class="relative">
+            <textarea name="content" id="p-content-input" placeholder=" " required class={`${inputClass} leading-relaxed min-h-[300px] font-mono text-sm`}>{project?.content || ''}</textarea>
+            <label for="p-content-input" class={labelClass}>Case Study Markdown</label>
           </div>
 
           <div class="relative">
@@ -1929,29 +1927,9 @@ function renderProjectForm(c: any, project: any = null, user: any = null) {
           </div>
         </form>
 
-        <script src="https://cdn.quilljs.com/1.3.6/quill.js"></script>
         <script dangerouslySetInnerHTML={{ __html: `
-          var quill = new Quill('#p-editor', {
-            theme: 'snow',
-            modules: {
-              toolbar: [
-                [{ 'header': [1, 2, 3, false] }],
-                ['bold', 'italic', 'underline', 'strike'],
-                ['blockquote', 'code-block'],
-                [{ 'list': 'ordered'}, { 'list': 'bullet' }],
-                ['link', 'image'],
-                ['clean']
-              ]
-            }
-          });
-          
-          var initialContent = document.getElementById('p-content-input').value;
-          quill.root.innerHTML = initialContent;
-
           document.getElementById('project-form').onsubmit = async function(e) {
             e.preventDefault();
-            var content = document.querySelector('input[id=p-content-input]');
-            content.value = quill.root.innerHTML;
             
             const form = e.target;
             const fileInput = form.querySelector('input[type="file"]');
