@@ -1034,6 +1034,16 @@ app.get('/auth/google/callback', async (c) => {
 
     const googleUser = await userResponse.json();
 
+    if (googleUser.picture) {
+      try {
+        await db.update(commentTable)
+          .set({ picture: googleUser.picture })
+          .where(eq(commentTable.email, googleUser.email));
+      } catch (err) {
+        console.error('Failed to retroactively update comment pictures', err);
+      }
+    }
+
     const isAdmin = googleUser.email === 'the.real.ferilee@gmail.com';
     const sessionUser: SessionUser = {
       email: googleUser.email,
