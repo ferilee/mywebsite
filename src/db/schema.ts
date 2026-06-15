@@ -71,6 +71,7 @@ export const comments = sqliteTable('comments', {
   parentId: integer('parent_id'), // To support threaded comments
   name: text('name').notNull(),
   email: text('email').notNull(),
+  picture: text('picture'),
   content: text('content').notNull(),
   createdAt: integer('created_at', { mode: 'timestamp' }).$defaultFn(() => new Date()),
 });

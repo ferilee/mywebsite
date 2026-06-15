@@ -709,7 +709,9 @@ app.get('/blog/:slug', async (c) => {
                   <div class="bg-white/5 border border-white/5 p-6 rounded-2xl">
                     <div class="flex justify-between items-start mb-4">
                       <div class="flex items-center gap-3">
-                        <div class="w-8 h-8 rounded-full bg-red-900/20 flex items-center justify-center text-red-500 text-xs font-bold">{comment.name[0]}</div>
+                        <div class="w-8 h-8 rounded-full overflow-hidden bg-red-900/20 flex items-center justify-center text-red-500 text-xs font-bold">
+                          {comment.picture ? <img src={comment.picture} class="w-full h-full object-cover" /> : comment.name[0]}
+                        </div>
                         <div>
                           <p class="text-sm font-bold">{comment.name}</p>
                           <p class="text-[10px] text-slate-500">{new Date(comment.createdAt!).toLocaleString()}</p>
@@ -728,7 +730,9 @@ app.get('/blog/:slug', async (c) => {
                       <div class="bg-white/5 border border-white/5 p-6 rounded-2xl">
                         <div class="flex justify-between items-start mb-4">
                           <div class="flex items-center gap-3">
-                            <div class="w-8 h-8 rounded-full bg-cyan-900/20 flex items-center justify-center text-cyan-400 text-xs font-bold">{reply.name[0]}</div>
+                            <div class="w-8 h-8 rounded-full overflow-hidden bg-cyan-900/20 flex items-center justify-center text-cyan-400 text-xs font-bold">
+                              {reply.picture ? <img src={reply.picture} class="w-full h-full object-cover" /> : reply.name[0]}
+                            </div>
                             <div>
                               <p class="text-sm font-bold">{reply.name}</p>
                               <p class="text-[10px] text-slate-500">{new Date(reply.createdAt!).toLocaleString()}</p>
@@ -768,6 +772,7 @@ app.post('/blog/:id/comment', async (c) => {
     parentId,
     name: user.name,
     email: user.email,
+    picture: user.picture,
     content,
   });
 
