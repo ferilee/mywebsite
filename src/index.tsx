@@ -359,7 +359,7 @@ app.get('/projects/:slug', async (c) => {
   if (!project) return c.notFound();
 
   const contentHtml = await marked.parse(project.content || 'Case study content coming soon...');
-  const ogImage = `/api/og?title=${encodeURIComponent(project.title)}&category=Case Study`;
+  const ogImage = project.image || `/api/og?title=${encodeURIComponent(project.title)}&category=Case Study`;
 
   return c.html(
     <Layout title={`${project.title} | Case Study`} user={user} ogImage={ogImage} needsProfiling={c.var.needsProfiling} currentPath="/projects">
@@ -545,7 +545,7 @@ app.get('/blog/:slug', async (c) => {
     if (!post) return c.notFound();
     
     const contentHtml = await marked.parse(post.content || '');
-    const ogImage = `/api/og?title=${encodeURIComponent(post.title)}&category=${encodeURIComponent(post.category || 'Blog')}`;
+    const ogImage = post.coverImage || `/api/og?title=${encodeURIComponent(post.title)}&category=${encodeURIComponent(post.category || 'Blog')}`;
     
     // Reading Time Calculation
     const words = post.content?.split(/\s+/).length || 0;
