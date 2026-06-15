@@ -375,7 +375,7 @@ app.get('/projects/:slug', async (c) => {
         </header>
 
         <div class="grid lg:grid-cols-3 gap-12 mb-20">
-          <div class="lg:col-span-2 prose prose-invert prose-red max-w-none text-slate-300 leading-relaxed text-lg" dangerouslySetInnerHTML={{ __html: contentHtml }} />
+          <div class="lg:col-span-2 prose prose-invert prose-red prose-p:text-justify max-w-none text-slate-300 leading-relaxed text-lg" dangerouslySetInnerHTML={{ __html: contentHtml }} />
           <div class="space-y-8">
             <div class="bg-white/5 border border-white/10 rounded-3xl p-8 sticky top-24">
               <h3 class="text-sm font-black text-slate-500 uppercase tracking-widest mb-6">Quick Links</h3>
@@ -595,7 +595,7 @@ app.get('/blog/:slug', async (c) => {
             <h1 class="text-3xl md:text-5xl font-black mb-8 leading-tight break-words">{post.title}</h1>
           </header>
           
-          <div class="prose prose-invert prose-cyan max-w-none text-slate-300 leading-relaxed text-lg mb-16" dangerouslySetInnerHTML={{ __html: contentHtml }} />
+          <div class="prose prose-invert prose-cyan prose-p:text-justify max-w-none text-slate-300 leading-relaxed text-lg mb-16" dangerouslySetInnerHTML={{ __html: contentHtml }} />
           
           {/* Interactive Section: Reactions & Share */}
           <div class="mt-16 pt-8 space-y-8">

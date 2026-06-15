@@ -31,7 +31,7 @@ export const Layout = (props: { title: string; children: any; notificationCount?
       <meta name="theme-color" content="#b91c1c" />
       <link rel="apple-touch-icon" href="/static/favicon.png" />
       
-      <script src="https://cdn.tailwindcss.com"></script>
+      <script src="https://cdn.tailwindcss.com?plugins=typography"></script>
       <script dangerouslySetInnerHTML={{ __html: `
         (function () {
           function setOfflineBadge() {
