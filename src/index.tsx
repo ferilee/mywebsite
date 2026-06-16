@@ -224,7 +224,7 @@ app.get('/', async (c) => {
             </div>
             <div class="relative flex justify-center items-center order-1 lg:order-2">
               <div class="absolute w-[300px] md:w-[500px] h-[300px] md:h-[500px] bg-red-900/10 rounded-full blur-[100px] animate-pulse"></div>
-              <img src="/static/ferilee.png" alt="Ferilee Profile" class="relative w-full max-w-[280px] md:max-w-[500px] aspect-[4/5] object-cover scale-105 md:scale-110 lg:scale-125 z-10 brightness-95" style="mask-image: linear-gradient(to bottom, black 80%, transparent 100%); -webkit-mask-image: linear-gradient(to bottom, black 80%, transparent 100%);" />
+              <img src="/static/ferilee.webp" alt="Ferilee Profile" class="relative w-full max-w-[280px] md:max-w-[500px] aspect-[4/5] object-cover scale-105 md:scale-110 lg:scale-125 z-10 brightness-95" style="mask-image: linear-gradient(to bottom, black 80%, transparent 100%); -webkit-mask-image: linear-gradient(to bottom, black 80%, transparent 100%);" />
             </div>
             <div class="z-20 text-center lg:text-right order-3">
               <h2 class="text-4xl md:text-6xl font-black mb-6 leading-[1.1] tracking-tight" dangerouslySetInnerHTML={{ __html: philTitle }}></h2>

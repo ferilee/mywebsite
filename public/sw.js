@@ -8,7 +8,7 @@ const STATIC_ASSETS = [
   '/contact',
   '/static/style.css',
   '/static/manifest.json',
-  '/static/ferilee.png',
+  '/static/ferilee.webp',
   '/static/favicon.png'
 ];
 

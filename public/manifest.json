@@ -14,7 +14,7 @@
       "purpose": "any maskable"
     },
     {
-      "src": "/static/ferilee.png",
+      "src": "/static/ferilee.webp",
       "sizes": "512x512",
       "type": "image/png"
     }

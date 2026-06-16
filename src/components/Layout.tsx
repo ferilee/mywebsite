@@ -17,14 +17,14 @@ export const Layout = (props: { title: string; children: any; notificationCount?
       <meta property="og:url" content="https://ferilee.dev/" />
       <meta property="og:title" content={props.title} />
       <meta property="og:description" content="Explore my portfolio, technical blog, and career journey in fullstack development." />
-      <meta property="og:image" content={props.ogImage || "/static/ferilee.png"} />
+      <meta property="og:image" content={props.ogImage || "/static/ferilee.webp"} />
 
       {/* Twitter */}
       <meta property="twitter:card" content="summary_large_image" />
       <meta property="twitter:url" content="https://ferilee.dev/" />
       <meta property="twitter:title" content={props.title} />
       <meta property="twitter:description" content="Explore my portfolio, technical blog, and career journey in fullstack development." />
-      <meta property="twitter:image" content={props.ogImage || "/static/ferilee.png"} />
+      <meta property="twitter:image" content={props.ogImage || "/static/ferilee.webp"} />
 
       <link rel="icon" type="image/png" href="/static/favicon.png" />
       <link rel="manifest" href="/static/manifest.json" />
