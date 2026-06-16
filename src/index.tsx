@@ -372,6 +372,11 @@ app.get('/projects/:slug', async (c) => {
               <span class="px-4 py-1.5 bg-red-900/20 border border-red-500/30 rounded-lg text-xs font-bold uppercase tracking-widest text-red-400">{tech.trim()}</span>
             ))}
           </div>
+          {project.image && (
+            <div class="mt-8 rounded-[2rem] overflow-hidden border border-white/10 bg-white/5 shadow-2xl">
+              <img src={project.image} alt={project.title} class="w-full max-h-[60vh] object-cover" />
+            </div>
+          )}
         </header>
 
         <div class="grid lg:grid-cols-3 gap-12 mb-20">
@@ -593,6 +598,11 @@ app.get('/blog/:slug', async (c) => {
               </span>
             </div>
             <h1 class="text-3xl md:text-5xl font-black mb-8 leading-tight break-words">{post.title}</h1>
+            {post.coverImage && (
+              <div class="mt-8 rounded-[2rem] overflow-hidden border border-white/10 bg-white/5 shadow-2xl">
+                <img src={post.coverImage} alt={post.title} class="w-full max-h-[60vh] object-cover" />
+              </div>
+            )}
           </header>
           
           <div class="prose prose-invert prose-cyan prose-p:text-justify max-w-none text-slate-300 leading-relaxed text-lg mb-16" dangerouslySetInnerHTML={{ __html: contentHtml }} />
