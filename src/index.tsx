@@ -33,6 +33,8 @@ interface Env {
 const app = new Hono<Env>();
 const adminUpdates = new EventEmitter();
 
+app.get('/healthz', (c) => c.json({ ok: true }));
+
 async function ensureColumn(table: string, column: string, definition: string) {
   const columns = await db.all(sql.raw(`PRAGMA table_info(${table})`)) as Array<{ name: string }>;
   if (!columns.some((entry) => entry.name === column)) {
@@ -54,7 +56,7 @@ try {
 app.use('*', async (c, next) => {
   const path = c.req.path;
   // Skip analytics for admin and static files
-  if (!path.startsWith('/admin') && !path.startsWith('/static') && !path.startsWith('/auth')) {
+  if (!path.startsWith('/admin') && !path.startsWith('/static') && !path.startsWith('/auth') && path !== '/healthz') {
     try {
       await db.insert(viewTable)
         .values({ path, count: 1 })

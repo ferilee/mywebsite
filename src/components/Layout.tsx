@@ -62,7 +62,7 @@ export const Layout = (props: { title: string; children: any; notificationCount?
 
       <script src="https://unpkg.com/@dotlottie/player-component@latest/dist/dotlottie-player.mjs" type="module"></script>
       <link rel="preconnect" href="https://fonts.googleapis.com" />
-      <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+      <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
       <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;800&display=swap" rel="stylesheet" />
       <style>{`
         body { font-family: 'Outfit', sans-serif; }
@@ -233,7 +233,7 @@ export const Layout = (props: { title: string; children: any; notificationCount?
               <p class="text-slate-400 text-sm">Welcome to Ferilee's Research. Please tell us a bit about yourself to continue.</p>
             </header>
 
-            <form action="/api/profile/save" method="POST" class="space-y-6 relative">
+            <form action="/api/profile/save" method="post" class="space-y-6 relative">
               <div class="space-y-4">
                 <input type="text" name="fullName" placeholder="Full Name" required class="w-full bg-white/5 border border-white/10 rounded-2xl px-6 py-4 text-white focus:border-red-500 transition-all outline-none" />
                 <input type="text" name="occupation" placeholder="Occupation" required class="w-full bg-white/5 border border-white/10 rounded-2xl px-6 py-4 text-white focus:border-red-500 transition-all outline-none" />

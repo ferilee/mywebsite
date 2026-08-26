@@ -44,7 +44,14 @@ Jika Anda ingin menjalankan aplikasi menggunakan Docker:
    ```
 
 2. **Akses Aplikasi**
-   Buka `http://localhost:4128` di browser Anda.
+Buka `http://localhost:4128` di browser Anda.
+
+## 🚀 Deployment ke Proxmox
+
+Panduan migrasi dari VPS ke VM Linux di Proxmox tersedia di
+[`DEPLOYMENT_PROXMOX.md`](DEPLOYMENT_PROXMOX.md). Aplikasi dan Telegram bot
+dijalankan melalui Docker Compose, sedangkan RustFS/S3 tetap menjadi storage
+eksternal.
 
 ## 📁 Struktur Proyek
 - `src/index.tsx`: Titik masuk utama aplikasi (Routing & Page Logic).

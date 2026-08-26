@@ -34,6 +34,12 @@ mock.module("../src/db/index", () => {
 });
 
 describe("Public API Endpoints", () => {
+  it("GET /healthz returns a successful health response", async () => {
+    const res = await app.request("/healthz");
+    expect(res.status).toBe(200);
+    expect(await res.json()).toEqual({ ok: true });
+  });
+
   it("GET /api/projects returns projects list", async () => {
     const res = await app.request("/api/projects");
     expect(res.status).toBe(200);
@@ -140,4 +146,3 @@ describe("POST Endpoints", () => {
     expect(res.status).toBe(302);
   });
 });
-

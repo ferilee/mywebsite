@@ -1,17 +1,38 @@
-version: '3.8'
-
 services:
   mywebsite:
-    image: ghcr.io/ferilee/mywebsite:latest
+    image: ghcr.io/ferilee/mywebsite:${IMAGE_TAG:-latest}
+    container_name: mywebsite
     ports:
-      - "4128:4128"
+      - "127.0.0.1:4128:4128"
     volumes:
       - ./data:/app/data
     environment:
       - NODE_ENV=production
+      - PORT=4128
+      - DATABASE_URL=file:/app/data/sqlite.db
     env_file:
       - .env
-    restart: always
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "bun", "-e", "fetch('http://127.0.0.1:4128/healthz').then(r => process.exit(r.ok ? 0 : 1)).catch(() => process.exit(1))"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+    networks:
+      - ferileenet
+
+  telegram-bot:
+    image: ghcr.io/ferilee/mywebsite:${IMAGE_TAG:-latest}
+    container_name: ferilee_telegram_bot
+    command: ["bun", "run", "bot:telegram"]
+    env_file:
+      - .env
+    environment:
+      - NODE_ENV=production
+    depends_on:
+      - mywebsite
+    restart: unless-stopped
     networks:
       - ferileenet
 

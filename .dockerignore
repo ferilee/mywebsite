@@ -1,0 +1,16 @@
+.git
+.github
+.env
+.env.*
+!.env.example
+node_modules
+.bun
+data
+drizzle
+*.db
+*.db-journal
+*.log
+Dockerfile*
+docker-compose*.yml
+DEPLOYMENT_PROXMOX.md
+Caddyfile.example

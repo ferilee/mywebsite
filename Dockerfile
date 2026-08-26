@@ -12,5 +12,6 @@ RUN mkdir -p data
 
 EXPOSE 4128
 
-# Run database push then start the app
-CMD ["sh", "-c", "bun run db:push && bun src/index.tsx"]
+# Schema changes are applied explicitly during deployment so a container restart
+# cannot unexpectedly mutate the production database.
+CMD ["bun", "src/index.tsx"]

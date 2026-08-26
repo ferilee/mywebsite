@@ -8,6 +8,8 @@ type TelegramUpdate = {
   };
 };
 
+export {};
+
 const BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN;
 const ADMIN_TOKEN = process.env.TELEGRAM_BOT_ADMIN_TOKEN;
 const API_BASE_URL = (process.env.APP_BASE_URL || 'http://localhost:3000').replace(/\/$/, '');
