@@ -22,20 +22,6 @@ services:
     networks:
       - ferileenet
 
-  telegram-bot:
-    image: ghcr.io/ferilee/mywebsite:${IMAGE_TAG:-latest}
-    container_name: ferilee_telegram_bot
-    command: ["bun", "run", "bot:telegram"]
-    env_file:
-      - .env
-    environment:
-      - NODE_ENV=production
-    depends_on:
-      - mywebsite
-    restart: always
-    networks:
-      - ferileenet
-
 networks:
   ferileenet:
     driver: bridge

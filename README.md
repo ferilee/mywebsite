@@ -49,9 +49,9 @@ Buka `http://localhost:4128` di browser Anda.
 ## 🚀 Deployment ke Proxmox
 
 Panduan migrasi dari VPS ke VM Linux di Proxmox tersedia di
-[`DEPLOYMENT_PROXMOX.md`](DEPLOYMENT_PROXMOX.md). Aplikasi dan Telegram bot
-dijalankan melalui Docker Compose, Nginx Proxy Manager menangani reverse proxy,
-sedangkan RustFS/S3 tetap menjadi storage eksternal.
+[`DEPLOYMENT_PROXMOX.md`](DEPLOYMENT_PROXMOX.md). Aplikasi dijalankan melalui
+Docker Compose, Nginx Proxy Manager menangani reverse proxy, sedangkan
+RustFS/S3 tetap menjadi storage eksternal.
 
 ## 📁 Struktur Proyek
 - `src/index.tsx`: Titik masuk utama aplikasi (Routing & Page Logic).

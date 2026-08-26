@@ -1,8 +1,8 @@
 # Deployment on Proxmox
 
 This application is intended to run in a Linux VM on Proxmox. Docker runs the
-web application and the Telegram bot, Nginx Proxy Manager handles HTTPS and
-reverse proxying, and RustFS/S3 remains an external service.
+web application, Nginx Proxy Manager handles HTTPS and reverse proxying, and
+RustFS/S3 remains an external service.
 
 ## Target VM
 
@@ -51,7 +51,7 @@ database is `data/sqlite.db` inside the application deployment directory.
 On the old VPS, from its deployment directory:
 
 ```sh
-docker compose stop telegram-bot mywebsite
+docker compose stop mywebsite
 tar -czf /tmp/ferilee-data.tgz -C data sqlite.db
 ```
 
@@ -80,7 +80,6 @@ docker compose pull
 docker compose run --rm mywebsite bun run db:push
 docker compose up -d mywebsite
 curl --fail http://127.0.0.1:4128/healthz
-docker compose up -d telegram-bot
 docker compose ps
 ```
 
@@ -118,8 +117,6 @@ Before changing DNS, verify through the VM:
 - A cover image uploads successfully to RustFS.
 - Google OAuth callback uses the production redirect URI.
 - Contact/newsletter email integrations work.
-- Telegram `/start` responds and `/post` creates a draft.
-- Only one Telegram bot process is polling `getUpdates`.
 - Restarting `mywebsite` does not remove `/srv/data/ferilee/sqlite/sqlite.db`.
 - An existing RustFS object is reachable through its public URL.
 - Nginx Proxy Manager meneruskan request ke port 4128 dan HTTPS aktif.
@@ -129,10 +126,10 @@ repeat the checks over HTTPS.
 
 ## Rollback
 
-If rollback is needed, stop the new bot first, point DNS back to the old VPS,
-and start the old application and bot. If new writes were accepted on the new
-VM, do not blindly switch databases: restore the agreed backup or reconcile
-the new writes before reactivating the old instance.
+If rollback is needed, point DNS back to the old VPS and start the old
+application. If new writes were accepted on the new VM, do not blindly switch
+databases: restore the agreed backup or reconcile the new writes before
+reactivating the old instance.
 
 Keep the old VPS and its final backup available until the new deployment has
 been stable for several days.

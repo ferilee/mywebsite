@@ -21,17 +21,13 @@ fi
 mkdir -p "$backup_dir"
 
 website_was_running="$(docker compose -f "$compose_file" ps --status running --services | grep -Fx 'mywebsite' || true)"
-bot_was_running="$(docker compose -f "$compose_file" ps --status running --services | grep -Fx 'telegram-bot' || true)"
 
 printf 'Menghentikan service sementara agar backup SQLite konsisten...\n'
-docker compose -f "$compose_file" stop telegram-bot mywebsite
+docker compose -f "$compose_file" stop mywebsite
 
 restart_services() {
   if [[ -n "$website_was_running" ]]; then
     docker compose -f "$compose_file" start mywebsite >/dev/null
-  fi
-  if [[ -n "$bot_was_running" ]]; then
-    docker compose -f "$compose_file" start telegram-bot >/dev/null
   fi
 }
 trap restart_services EXIT
