@@ -101,6 +101,9 @@ describe("Main Pages", () => {
   it("GET /jejak returns 200 OK", async () => {
     const res = await app.request("/jejak");
     expect(res.status).toBe(200);
+    const html = await res.text();
+    expect(html).toContain("text-justify");
+    expect(html).toContain("/api/og?title=Test");
   });
 
   it("GET /timeline redirects to the Jejak module", async () => {

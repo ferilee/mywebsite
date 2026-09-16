@@ -642,16 +642,24 @@ app.get('/jejak', async (c) => {
                 <section>
                   <div class="flex items-center gap-4 mb-6"><span class="text-3xl md:text-4xl font-black text-red-500">{year}</span><div class="h-px bg-white/10 flex-1"></div></div>
                   <div class="grid md:grid-cols-2 gap-5">
-                    {activities.map(activity => (
-                      <a href={`/jejak/${activity.slug}`} class="group bg-white/5 border border-white/10 rounded-3xl p-6 hover:border-red-500/40 hover:-translate-y-1 transition-all">
-                        <div class="flex items-start justify-between gap-4">
-                          <div><p class="text-[10px] text-red-500 uppercase tracking-widest font-black">{activity.category}</p><h3 class="text-xl font-black mt-2 leading-snug">{activity.title}</h3></div>
-                          <span class="text-slate-600 group-hover:text-red-500 transition-colors">→</span>
+                    {activities.map(activity => {
+                      const fallbackCover = `/api/og?title=${encodeURIComponent(activity.title)}&category=${encodeURIComponent(activity.category)}`;
+                      const coverImage = activity.coverImage || fallbackCover;
+                      return <a href={`/jejak/${activity.slug}`} class="group overflow-hidden rounded-3xl border border-white/10 bg-white/5 transition-all hover:-translate-y-1 hover:border-red-500/40">
+                        <div class="relative h-44 overflow-hidden border-b border-white/10 bg-gradient-to-br from-red-950 to-slate-950">
+                          <img src={coverImage} alt={activity.title} loading="lazy" class="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105" />
+                          <div class="pointer-events-none absolute inset-0 bg-gradient-to-t from-slate-950/70 via-transparent to-transparent"></div>
                         </div>
-                        <p class="text-slate-400 text-sm leading-relaxed mt-4 line-clamp-2">{activity.summary}</p>
-                        <div class="flex flex-wrap gap-3 mt-5 text-[10px] text-slate-500 uppercase tracking-widest font-bold"><span>{activity.role}</span>{activity.location && <span>• {activity.location}</span>}<span>• {activity.eventDate}</span></div>
-                      </a>
-                    ))}
+                        <div class="p-6">
+                          <div class="flex items-start justify-between gap-4">
+                            <div><p class="text-[10px] text-red-500 uppercase tracking-widest font-black">{activity.category}</p><h3 class="text-xl font-black mt-2 leading-snug">{activity.title}</h3></div>
+                            <span class="text-slate-600 group-hover:text-red-500 transition-colors">→</span>
+                          </div>
+                          <p class="text-slate-400 text-sm leading-relaxed mt-4 line-clamp-3 text-justify">{activity.summary}</p>
+                          <div class="flex flex-wrap gap-3 mt-5 text-[10px] text-slate-500 uppercase tracking-widest font-bold"><span>{activity.role}</span>{activity.location && <span>• {activity.location}</span>}<span>• {activity.eventDate}</span></div>
+                        </div>
+                      </a>;
+                    })}
                   </div>
                 </section>
               ))}
