@@ -10,7 +10,7 @@ import { EventEmitter } from 'node:events';
 import { mkdir } from 'node:fs/promises';
 import { db } from './db';
 import { projects as projectTable, blogPosts, skills as skillTable, experience as expTable, settings as settingsTable, contacts as contactTable, comments as commentTable, reactions as reactionTable, subscriptions as subTable, pageViews as viewTable, milestones as milestonesTable, activities as activityTable, activityMedia as activityMediaTable, profiles as profileTable } from './db/schema';
-import { eq, desc, or, like, and, sql } from 'drizzle-orm';
+import { eq, desc, or, like, and, inArray, sql } from 'drizzle-orm';
 import { Layout } from './components/Layout';
 import { AdminLayout } from './components/AdminLayout';
 import { marked } from 'marked';
@@ -1272,13 +1272,120 @@ app.get('/admin/inbox', async (c) => {
   const user = c.var.user;
   const messages = await db.select().from(contactTable).orderBy(desc(contactTable.id));
   const comments = await db.select().from(commentTable).orderBy(desc(commentTable.createdAt));
+  const posts = await db.select({ id: blogPosts.id, title: blogPosts.title }).from(blogPosts);
   const unreadCount = messages.filter(message => !message.isRead).length;
+
+  const repliesByParent = new Map<number, typeof comments>();
+  const rootIds = new Set(comments.filter(comment => !comment.parentId).map(comment => comment.id));
+  for (const comment of comments) {
+    if (comment.parentId) {
+      const replies = repliesByParent.get(comment.parentId) || [];
+      replies.push(comment);
+      repliesByParent.set(comment.parentId, replies);
+    }
+  }
+
+  const commentThreads = comments
+    .filter(comment => !comment.parentId)
+    .map(parent => ({ parent, replies: repliesByParent.get(parent.id) || [] }));
+
+  // Keep a malformed/orphaned reply visible instead of losing it from moderation.
+  for (const comment of comments) {
+    if (comment.parentId && !rootIds.has(comment.parentId)) {
+      commentThreads.push({ parent: comment, replies: [] });
+    }
+  }
+
+  const commentTime = (comment: typeof comments[number]) => comment.createdAt ? new Date(comment.createdAt).getTime() : 0;
+  commentThreads.sort((a, b) => {
+    const aLatest = Math.max(commentTime(a.parent), ...a.replies.map(commentTime));
+    const bLatest = Math.max(commentTime(b.parent), ...b.replies.map(commentTime));
+    return bLatest - aLatest;
+  });
+
+  const commentsPerPage = 10;
+  const requestedCommentPage = Number.parseInt(c.req.query('commentPage') || '1', 10);
+  const totalCommentPages = Math.max(1, Math.ceil(commentThreads.length / commentsPerPage));
+  const commentPage = Number.isFinite(requestedCommentPage)
+    ? Math.min(Math.max(requestedCommentPage, 1), totalCommentPages)
+    : 1;
+  const visibleThreads = commentThreads.slice((commentPage - 1) * commentsPerPage, commentPage * commentsPerPage);
+  const postTitles = new Map(posts.map(post => [post.id, post.title]));
 
   return c.html(
     <AdminLayout title="Inbox | Admin" notificationCount={unreadCount} user={user} currentPath="/admin/inbox">
       <div class="mx-auto max-w-7xl px-6 py-10 md:py-16">
         <header class="mb-10 flex flex-col gap-5 md:flex-row md:items-end md:justify-between"><div><a href="/admin" class="text-xs font-black uppercase tracking-widest text-cyan-400 hover:text-white">← Dashboard</a><h1 class="mt-5 text-4xl font-black italic tracking-tight">INBOX <span class="text-red-500">CENTER</span></h1><p class="mt-3 text-slate-500">Kelola pesan kontak dan moderasi komentar dari satu tempat.</p></div><div class="rounded-xl border border-red-500/20 bg-red-500/5 px-4 py-3 text-xs font-black uppercase tracking-widest text-red-300">{unreadCount} unread messages</div></header>
-        <div class="grid gap-8 lg:grid-cols-2"><section class="rounded-[2rem] border border-white/10 bg-white/5 p-6 backdrop-blur-xl md:p-8"><h2 class="mb-8 text-2xl font-black italic">INBOX <span class="text-red-500">MESSAGES</span></h2><div class="space-y-4">{messages.map(message => <article class={`rounded-2xl border ${!message.isRead ? 'border-red-500/30 ring-1 ring-red-500/20' : 'border-white/5'} bg-slate-950/40 p-4`}><div class="flex items-start justify-between gap-4"><div class="min-w-0"><p class="truncate text-[10px] font-black uppercase tracking-widest text-red-500">{message.subject}</p><h3 class="mt-1 truncate font-bold text-white">{message.name}</h3><p class="truncate text-[10px] text-slate-500">{message.email}</p></div><div class="flex shrink-0 gap-1">{!message.isRead && <form action={`/admin/contacts/read/${message.id}`} method="post"><button type="submit" class="rounded-lg p-2 text-slate-500 hover:text-green-400" title="Mark as read">✓</button></form>}<form action={`/admin/contacts/delete/${message.id}`} method="post"><button type="submit" class="rounded-lg p-2 text-slate-500 hover:text-red-400" title="Delete message">×</button></form></div></div><p class="mt-4 line-clamp-3 text-sm italic leading-relaxed text-slate-400">"{message.message}"</p><p class="mt-3 text-[9px] font-bold uppercase tracking-widest text-slate-600">{new Date(message.createdAt!).toLocaleString()}</p></article>)}{messages.length === 0 && <p class="py-12 text-center text-sm font-bold text-slate-500">Belum ada pesan.</p>}</div></section><section class="rounded-[2rem] border border-white/10 bg-white/5 p-6 backdrop-blur-xl md:p-8"><h2 class="mb-8 text-2xl font-black italic">COMMENT <span class="text-red-500">MODERATION</span></h2><div class="space-y-4">{comments.map(comment => <article class="rounded-2xl border border-white/5 bg-slate-950/40 p-4"><div class="flex items-start justify-between gap-4"><div><p class="text-[10px] font-black uppercase tracking-widest text-slate-500">{comment.name}</p><p class="mt-1 text-[10px] font-bold text-red-400">{comment.email}</p></div><form action={`/admin/comments/delete/${comment.id}`} method="post" onsubmit="return confirm('Delete this comment?')"><button type="submit" class="rounded-lg p-2 text-slate-500 hover:text-red-400" title="Delete comment">×</button></form></div><p class="mt-4 line-clamp-3 text-sm italic leading-relaxed text-slate-400">"{comment.content}"</p></article>)}{comments.length === 0 && <p class="py-12 text-center text-sm font-bold text-slate-500">Belum ada komentar.</p>}</div></section></div>
+        <div class="mb-6 grid grid-cols-2 gap-2 md:hidden" role="tablist" aria-label="Inbox sections">
+          <button type="button" data-inbox-tab="messages" class="rounded-xl border border-cyan-400/30 bg-cyan-400/10 px-3 py-3 text-xs font-black uppercase tracking-widest text-cyan-300" role="tab" aria-selected="true">Messages <span class="text-slate-400">({messages.length})</span></button>
+          <button type="button" data-inbox-tab="comments" class="rounded-xl border border-white/10 bg-white/5 px-3 py-3 text-xs font-black uppercase tracking-widest text-slate-500" role="tab" aria-selected="false">Comments <span class="text-slate-400">({comments.length})</span></button>
+        </div>
+
+        <div class="grid gap-8 lg:grid-cols-2">
+          <section id="inbox-messages" class="rounded-[2rem] border border-white/10 bg-white/5 p-5 backdrop-blur-xl md:p-8">
+            <div class="mb-6 flex items-center justify-between gap-4"><h2 class="text-2xl font-black italic">INBOX <span class="text-red-500">MESSAGES</span></h2><span class="rounded-full bg-white/5 px-3 py-1 text-[10px] font-black text-slate-500">{messages.length}</span></div>
+            <div class="space-y-3">{messages.map(message => <article class={`rounded-2xl border ${!message.isRead ? 'border-red-500/30 ring-1 ring-red-500/20' : 'border-white/5'} bg-slate-950/40 p-4`}><div class="flex items-start justify-between gap-4"><div class="min-w-0"><p class="truncate text-[10px] font-black uppercase tracking-widest text-red-500">{message.subject}</p><h3 class="mt-1 truncate font-bold text-white">{message.name}</h3><p class="truncate text-[10px] text-slate-500">{message.email}</p></div><div class="flex shrink-0 gap-1">{!message.isRead && <form action={`/admin/contacts/read/${message.id}`} method="post"><button type="submit" class="rounded-lg p-2 text-slate-500 hover:text-green-400" title="Mark as read">✓</button></form>}<form action={`/admin/contacts/delete/${message.id}`} method="post"><button type="submit" class="rounded-lg p-2 text-slate-500 hover:text-red-400" title="Delete message">×</button></form></div></div><p class="mt-3 line-clamp-3 text-sm italic leading-relaxed text-slate-400">"{message.message}"</p><p class="mt-3 text-[9px] font-bold uppercase tracking-widest text-slate-600">{new Date(message.createdAt!).toLocaleString()}</p></article>)}{messages.length === 0 && <p class="py-12 text-center text-sm font-bold text-slate-500">Belum ada pesan.</p>}</div>
+          </section>
+
+          <section id="inbox-comments" class="hidden rounded-[2rem] border border-white/10 bg-white/5 p-5 backdrop-blur-xl md:block md:p-8">
+            <div class="mb-6 flex items-start justify-between gap-4"><div><h2 class="text-2xl font-black italic">COMMENT <span class="text-red-500">MODERATION</span></h2><p class="mt-2 text-xs text-slate-500">{commentThreads.length} threads · {comments.length} comments</p></div><span class="rounded-full bg-white/5 px-3 py-1 text-[10px] font-black text-slate-500">Page {commentPage}/{totalCommentPages}</span></div>
+            <div class="space-y-3">
+              {visibleThreads.map(thread => {
+                const threadId = `comment-thread-${thread.parent.id}`;
+                const postTitle = postTitles.get(thread.parent.postId) || 'Unknown post';
+                return <article class="rounded-2xl border border-white/5 bg-slate-950/40 p-4">
+                  <div class="flex items-start gap-3">
+                    <div class="flex h-9 w-9 shrink-0 items-center justify-center overflow-hidden rounded-xl bg-red-900/20 text-xs font-black text-red-400">{thread.parent.picture ? <img src={thread.parent.picture} alt="" class="h-full w-full object-cover" /> : thread.parent.name.charAt(0).toUpperCase()}</div>
+                    <div class="min-w-0 flex-1"><div class="flex items-start justify-between gap-3"><div class="min-w-0"><p class="truncate text-xs font-black uppercase tracking-widest text-slate-300">{thread.parent.name}</p><p class="truncate text-[10px] font-bold text-red-400">{thread.parent.email}</p></div><form action={`/admin/comments/delete/${thread.parent.id}`} method="post" onsubmit="return confirm('Delete this comment and its replies?')"><button type="submit" class="rounded-lg p-1 text-slate-600 hover:text-red-400" title="Delete thread">×</button></form></div><p class="mt-3 line-clamp-2 text-sm italic leading-relaxed text-slate-400">"{thread.parent.content}"</p><div class="mt-3 flex flex-wrap items-center gap-x-2 gap-y-1 text-[9px] font-black uppercase tracking-widest text-slate-600"><span>{postTitle}</span><span>•</span><span>{new Date(thread.parent.createdAt!).toLocaleString()}</span>{thread.replies.length > 0 && <span class="contents"><span>•</span><button type="button" data-thread-toggle={threadId} data-reply-count={thread.replies.length} aria-expanded="false" class="text-cyan-400 hover:text-white">{thread.replies.length} {thread.replies.length === 1 ? 'reply' : 'replies'}</button></span>}</div></div>
+                  </div>
+                  {thread.replies.length > 0 && <div id={threadId} class="mt-3 hidden space-y-2 border-l-2 border-cyan-500/20 pl-4">
+                    {thread.replies.map(reply => <div class="rounded-xl border border-white/5 bg-white/[0.03] p-3"><div class="flex items-start justify-between gap-3"><div class="min-w-0"><p class="truncate text-[10px] font-black uppercase tracking-widest text-cyan-300">{reply.name}</p><p class="truncate text-[9px] text-slate-500">{reply.email}</p></div><form action={`/admin/comments/delete/${reply.id}`} method="post" onsubmit="return confirm('Delete this reply?')"><button type="submit" class="rounded-lg p-1 text-slate-600 hover:text-red-400" title="Delete reply">×</button></form></div><p class="mt-2 text-xs italic leading-relaxed text-slate-400">"{reply.content}"</p></div>)}
+                  </div>}
+                </article>;
+              })}
+              {commentThreads.length === 0 && <p class="py-12 text-center text-sm font-bold text-slate-500">Belum ada komentar.</p>}
+            </div>
+            {commentThreads.length > commentsPerPage && <div class="mt-6 flex items-center justify-between border-t border-white/5 pt-5"><a href={commentPage > 1 ? `/admin/inbox?commentPage=${commentPage - 1}#comments` : '#comments'} class={`rounded-xl border border-white/10 px-3 py-2 text-xs font-bold ${commentPage > 1 ? 'text-slate-300 hover:text-white' : 'pointer-events-none text-slate-700'}`}>← Previous</a><span class="text-[10px] font-black uppercase tracking-widest text-slate-600">{(commentPage - 1) * commentsPerPage + 1}-{Math.min(commentPage * commentsPerPage, commentThreads.length)} of {commentThreads.length}</span><a href={commentPage < totalCommentPages ? `/admin/inbox?commentPage=${commentPage + 1}#comments` : '#comments'} class={`rounded-xl border border-white/10 px-3 py-2 text-xs font-bold ${commentPage < totalCommentPages ? 'text-slate-300 hover:text-white' : 'pointer-events-none text-slate-700'}`}>Next →</a></div>}
+          </section>
+        </div>
+        <script dangerouslySetInnerHTML={{ __html: `
+          (() => {
+            const tabs = document.querySelectorAll('[data-inbox-tab]');
+            const messages = document.getElementById('inbox-messages');
+            const comments = document.getElementById('inbox-comments');
+            const activateTab = (name) => {
+              const isComments = name === 'comments';
+              if (window.innerWidth < 768) {
+                messages?.classList.toggle('hidden', isComments);
+                comments?.classList.toggle('hidden', !isComments);
+              }
+              tabs.forEach((tab) => {
+                const active = tab.getAttribute('data-inbox-tab') === name;
+                tab.setAttribute('aria-selected', String(active));
+                tab.classList.toggle('border-cyan-400/30', active);
+                tab.classList.toggle('bg-cyan-400/10', active);
+                tab.classList.toggle('text-cyan-300', active);
+                tab.classList.toggle('border-white/10', !active);
+                tab.classList.toggle('bg-white/5', !active);
+                tab.classList.toggle('text-slate-500', !active);
+              });
+            };
+            activateTab(window.location.hash === '#comments' ? 'comments' : 'messages');
+            tabs.forEach((tab) => tab.addEventListener('click', () => {
+              const name = tab.getAttribute('data-inbox-tab') || 'messages';
+              activateTab(name);
+              history.replaceState(null, '', name === 'comments' ? '#comments' : '#messages');
+            }));
+            document.querySelectorAll('[data-thread-toggle]').forEach((button) => button.addEventListener('click', () => {
+              const target = document.getElementById(button.getAttribute('data-thread-toggle'));
+              if (!target) return;
+              const hidden = target.classList.toggle('hidden');
+              const count = button.getAttribute('data-reply-count') || '0';
+              button.setAttribute('aria-expanded', String(!hidden));
+              button.textContent = hidden ? count + (count === '1' ? ' reply' : ' replies') : 'Hide replies';
+            }));
+          })();
+        ` }} />
       </div>
     </AdminLayout>
   );
@@ -2012,12 +2119,12 @@ app.post('/admin/activities/delete/:id', async (c) => {
 // --- CONTACT ADMIN ---
 app.post('/admin/contacts/delete/:id', async (c) => {
   await db.delete(contactTable).where(eq(contactTable.id, parseInt(c.req.param('id'))));
-  return c.redirect('/admin');
+  return c.redirect('/admin/inbox');
 });
 
 app.post('/admin/contacts/read/:id', async (c) => {
   await db.update(contactTable).set({ isRead: 1 }).where(eq(contactTable.id, parseInt(c.req.param('id'))));
-  return c.redirect('/admin');
+  return c.redirect('/admin/inbox');
 });
 
 // --- SETTINGS ADMIN ---
@@ -2301,17 +2408,30 @@ app.post('/admin/milestones/delete/:id', async (c) => {
 // --- MODERATION & INBOX ROUTES ---
 app.post('/admin/contacts/read/:id', async (c) => {
   await db.update(contactTable).set({ isRead: 1 }).where(eq(contactTable.id, parseInt(c.req.param('id'))));
-  return c.redirect('/admin');
+  return c.redirect('/admin/inbox');
 });
 
 app.post('/admin/contacts/delete/:id', async (c) => {
   await db.delete(contactTable).where(eq(contactTable.id, parseInt(c.req.param('id'))));
-  return c.redirect('/admin');
+  return c.redirect('/admin/inbox');
 });
 
 app.post('/admin/comments/delete/:id', async (c) => {
-  await db.delete(commentTable).where(eq(commentTable.id, parseInt(c.req.param('id'))));
-  return c.redirect('/admin');
+  const id = parseInt(c.req.param('id'));
+  const allComments = await db.select({ id: commentTable.id, parentId: commentTable.parentId }).from(commentTable);
+  const idsToDelete = new Set([id]);
+  let expanded = true;
+  while (expanded) {
+    expanded = false;
+    for (const comment of allComments) {
+      if (comment.parentId && idsToDelete.has(comment.parentId) && !idsToDelete.has(comment.id)) {
+        idsToDelete.add(comment.id);
+        expanded = true;
+      }
+    }
+  }
+  await db.delete(commentTable).where(inArray(commentTable.id, Array.from(idsToDelete)));
+  return c.redirect('/admin/inbox#comments');
 });
 
 // Profile saving moved to main profiling section above

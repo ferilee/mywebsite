@@ -160,7 +160,10 @@ describe("Admin Access Control", () => {
 
     const inboxRes = await app.request("/admin/inbox", { headers });
     expect(inboxRes.status).toBe(200);
-    expect(await inboxRes.text()).toContain("Inbox | Admin");
+    const inboxHtml = await inboxRes.text();
+    expect(inboxHtml).toContain("Inbox | Admin");
+    expect(inboxHtml).toContain('aria-label="Inbox sections"');
+    expect(inboxHtml).toContain('id="inbox-comments"');
   });
 });
 
