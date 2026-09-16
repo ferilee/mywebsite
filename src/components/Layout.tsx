@@ -108,7 +108,7 @@ export const Layout = (props: { title: string; children: any; notificationCount?
           <nav class="hidden md:flex items-center space-x-1 bg-white/5 backdrop-blur-xl border border-white/10 rounded-full p-1 shadow-2xl">
             <a href="/" class={`nav-item px-6 py-2 rounded-full hover:bg-white/5 font-bold transition-all text-sm ${currentPath === '/' ? 'active text-red-500' : 'text-slate-300'}`}>Home</a>
             <a href="/projects" class={`nav-item px-6 py-2 rounded-full hover:bg-white/5 font-bold transition-all text-sm ${currentPath === '/projects' ? 'active text-red-500' : 'text-slate-300'}`}>Portfolio</a>
-            <a href="/timeline" class={`nav-item px-6 py-2 rounded-full hover:bg-white/5 font-bold transition-all text-sm ${currentPath === '/timeline' ? 'active text-red-500' : 'text-slate-300'}`}>Timeline</a>
+            <a href="/jejak" class={`nav-item px-6 py-2 rounded-full hover:bg-white/5 font-bold transition-all text-sm ${currentPath?.startsWith('/jejak') ? 'active text-red-500' : 'text-slate-300'}`}>Jejak</a>
             <a href="/blog" class={`nav-item px-6 py-2 rounded-full hover:bg-white/5 font-bold transition-all text-sm ${currentPath === '/blog' ? 'active text-red-500' : 'text-slate-300'}`}>Blog</a>
             <a href="/contact" class={`nav-item px-6 py-2 rounded-full hover:bg-white/5 font-bold transition-all text-sm ${currentPath === '/contact' ? 'active text-red-500' : 'text-slate-300'}`}>Contact</a>
           </nav>
@@ -179,9 +179,9 @@ export const Layout = (props: { title: string; children: any; notificationCount?
           <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="20" height="14" x="2" y="7" rx="2" ry="2"/><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/></svg>
           <span class="text-[10px] font-black uppercase tracking-widest">Work</span>
         </a>
-        <a href="/timeline" class={`nav-bottom-item flex flex-col items-center transition-all ${currentPath === '/timeline' ? 'active text-red-500' : 'text-slate-400'}`}>
+        <a href="/jejak" class={`nav-bottom-item flex flex-col items-center transition-all ${currentPath?.startsWith('/jejak') ? 'active text-red-500' : 'text-slate-400'}`}>
           <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
-          <span class="text-[10px] font-black uppercase tracking-widest">Journey</span>
+          <span class="text-[10px] font-black uppercase tracking-widest">Jejak</span>
         </a>
         <a href="/blog" class={`nav-bottom-item flex flex-col items-center transition-all ${currentPath?.startsWith('/blog') ? 'active text-red-500' : 'text-slate-400'}`}>
           <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H20v20H6.5a2.5 2.5 0 0 1-2.5-2.5Z"/><path d="M8 7h6"/><path d="M8 11h8"/></svg>

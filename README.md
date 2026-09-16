@@ -7,6 +7,7 @@ A high-performance, mobile-first portfolio and blog application built with **Bun
 - **Styling**: Tailwind CSS (via CDN) dengan desain premium dan glassmorphism.
 - **Blog Engine**: Dukungan Markdown dengan `marked`.
 - **Admin CMS**: Dashboard sederhana untuk mengelola konten.
+- **Jejak Profesional**: Arsip kegiatan di `/jejak` dengan timeline, filter, detail dokumentasi, galeri, dan pilihan kegiatan unggulan untuk halaman utama/CV.
 
 ## 🛠️ Prasyarat
 Pastikan Anda sudah menginstal **Bun** di sistem Anda. Jika belum, instal dengan:
@@ -33,6 +34,9 @@ curl -fsSL https://bun.sh/install | bash
    bun run dev
    ```
    Aplikasi akan berjalan di `http://localhost:4128`.
+
+Saat menambahkan atau mengubah tabel database, jalankan kembali `bun run db:push`
+sebelum memulai aplikasi dengan data produksi.
 
 ## 🐳 Menjalankan dengan Docker
 

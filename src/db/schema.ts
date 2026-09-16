@@ -55,6 +55,38 @@ export const milestones = sqliteTable('milestones', {
   createdAt: integer('created_at', { mode: 'timestamp' }).$defaultFn(() => new Date()),
 });
 
+export const activities = sqliteTable('activities', {
+  id: integer('id').primaryKey({ autoIncrement: true }),
+  title: text('title').notNull(),
+  slug: text('slug').notNull().unique(),
+  eventDate: text('event_date').notNull(), // ISO date: YYYY-MM-DD
+  endDate: text('end_date'),
+  year: integer('year').notNull(),
+  location: text('location'),
+  organizer: text('organizer'),
+  role: text('role').notNull(),
+  category: text('category').notNull(),
+  summary: text('summary').notNull(),
+  description: text('description'), // Markdown
+  coverImage: text('cover_image'),
+  materialUrl: text('material_url'),
+  certificateUrl: text('certificate_url'),
+  publicationUrl: text('publication_url'),
+  featuredOnCv: integer('featured_on_cv', { mode: 'boolean' }).default(false),
+  status: text('status').$type<'draft' | 'published'>().default('draft'),
+  createdAt: integer('created_at', { mode: 'timestamp' }).$defaultFn(() => new Date()),
+  updatedAt: integer('updated_at', { mode: 'timestamp' }).$defaultFn(() => new Date()),
+});
+
+export const activityMedia = sqliteTable('activity_media', {
+  id: integer('id').primaryKey({ autoIncrement: true }),
+  activityId: integer('activity_id').notNull().references(() => activities.id),
+  url: text('url').notNull(),
+  caption: text('caption'),
+  sortOrder: integer('sort_order').default(0),
+  mediaType: text('media_type').default('image'),
+});
+
 export const contacts = sqliteTable('contacts', {
   id: integer('id').primaryKey({ autoIncrement: true }),
   name: text('name').notNull(),

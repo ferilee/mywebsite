@@ -86,6 +86,10 @@ docker compose ps
 The schema command is deliberately separate from the container startup. A
 normal restart must not mutate the production database.
 
+For the Jejak module, the schema command creates the `activities` and
+`activity_media` tables. Run it after pulling an image that contains the Jejak
+feature, and take a database backup before applying schema changes.
+
 ## Nginx Proxy Manager
 
 Buat Proxy Host baru di Nginx Proxy Manager dengan nilai:
@@ -112,7 +116,9 @@ Before changing DNS, verify through the VM:
 
 - `GET /healthz` returns `{ "ok": true }`.
 - The home, project, blog, and contact pages load.
+- `/jejak` loads, filters work, and a published activity detail page opens.
 - Admin login works.
+- An activity can be created as draft, published, marked as a CV highlight, and edited from `/admin`.
 - A blog post can be created and edited.
 - A cover image uploads successfully to RustFS.
 - Google OAuth callback uses the production redirect URI.

@@ -62,6 +62,12 @@ describe("Public API Endpoints", () => {
     expect(Array.isArray(data)).toBe(true);
   });
 
+  it("GET /api/activities returns published activities", async () => {
+    const res = await app.request("/api/activities");
+    expect(res.status).toBe(200);
+    expect(Array.isArray(await res.json())).toBe(true);
+  });
+
   it("GET /api/search with query returns results", async () => {
     const res = await app.request("/api/search?q=test");
     expect(res.status).toBe(200);
@@ -90,6 +96,17 @@ describe("Main Pages", () => {
   it("GET /contact returns 200 OK", async () => {
     const res = await app.request("/contact");
     expect(res.status).toBe(200);
+  });
+
+  it("GET /jejak returns 200 OK", async () => {
+    const res = await app.request("/jejak");
+    expect(res.status).toBe(200);
+  });
+
+  it("GET /timeline redirects to the Jejak module", async () => {
+    const res = await app.request("/timeline");
+    expect(res.status).toBe(302);
+    expect(res.headers.get("Location")).toBe("/jejak");
   });
 });
 

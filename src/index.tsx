@@ -9,7 +9,7 @@ import { setCookie, getCookie } from 'hono/cookie';
 import { EventEmitter } from 'node:events';
 import { mkdir } from 'node:fs/promises';
 import { db } from './db';
-import { projects as projectTable, blogPosts, skills as skillTable, experience as expTable, settings as settingsTable, contacts as contactTable, comments as commentTable, reactions as reactionTable, subscriptions as subTable, pageViews as viewTable, milestones as milestonesTable, profiles as profileTable } from './db/schema';
+import { projects as projectTable, blogPosts, skills as skillTable, experience as expTable, settings as settingsTable, contacts as contactTable, comments as commentTable, reactions as reactionTable, subscriptions as subTable, pageViews as viewTable, milestones as milestonesTable, activities as activityTable, activityMedia as activityMediaTable, profiles as profileTable } from './db/schema';
 import { eq, desc, or, like, and, sql } from 'drizzle-orm';
 import { Layout } from './components/Layout';
 import { marked } from 'marked';
@@ -120,7 +120,7 @@ app.get('/api/skills', async (c) => c.json(await db.select().from(skillTable)));
 
 app.get('/api/search', async (c) => {
   const query = c.req.query('q') || '';
-  if (!query) return c.json({ projects: [], blog: [] });
+  if (!query) return c.json({ projects: [], blog: [], activities: [] });
 
   const projects = await db.select().from(projectTable)
     .where(or(
@@ -140,7 +140,19 @@ app.get('/api/search', async (c) => {
     ))
     .limit(5);
 
-  return c.json({ projects, blog });
+  const activities = await db.select().from(activityTable)
+    .where(and(
+      eq(activityTable.status, 'published'),
+      or(
+        like(activityTable.title, `%${query}%`),
+        like(activityTable.summary, `%${query}%`),
+        like(activityTable.category, `%${query}%`),
+        like(activityTable.organizer, `%${query}%`)
+      )
+    ))
+    .limit(5);
+
+  return c.json({ projects, blog, activities });
 });
 
 app.get('/api/admin/updates', (c) => {
@@ -204,6 +216,7 @@ app.get('/', async (c) => {
   const projects = await db.select().from(projectTable).limit(3);
   const skills = await db.select().from(skillTable);
   const experience = await db.select().from(expTable);
+  const featuredActivities = await db.select().from(activityTable).where(and(eq(activityTable.status, 'published'), eq(activityTable.featuredOnCv, true))).orderBy(desc(activityTable.eventDate)).limit(3);
   const cvSetting = await db.select().from(settingsTable).where(eq(settingsTable.key, 'cv_url')).limit(1);
   const cvUrl = cvSetting[0]?.value || '#';
 
@@ -237,6 +250,17 @@ app.get('/', async (c) => {
             </div>
           </div>
         </section>
+        {featuredActivities.length > 0 && (
+          <section class="pb-24 px-6 md:px-12">
+            <div class="flex flex-col sm:flex-row justify-between sm:items-end gap-4 mb-8">
+              <div><p class="text-xs font-black text-cyan-400 uppercase tracking-[0.3em] mb-3">Selected Activities</p><h2 class="text-3xl md:text-4xl font-black italic">FEATURED <span class="text-red-700">JEJAK</span></h2></div>
+              <a href="/jejak" class="text-xs font-black text-slate-400 uppercase tracking-widest hover:text-white">View all activities →</a>
+            </div>
+            <div class="grid md:grid-cols-3 gap-5">
+              {featuredActivities.map(activity => <a href={`/jejak/${activity.slug}`} class="group bg-white/5 border border-white/10 rounded-3xl overflow-hidden hover:border-cyan-500/40 transition-all"><div class="h-36 bg-gradient-to-br from-red-950 to-slate-950">{activity.coverImage && <img src={activity.coverImage} alt={activity.title} class="w-full h-full object-cover group-hover:scale-105 transition-transform" />}</div><div class="p-5"><p class="text-[10px] text-cyan-400 uppercase tracking-widest font-black">{activity.year} • {activity.role}</p><h3 class="font-bold mt-2 leading-snug">{activity.title}</h3></div></a>)}
+            </div>
+          </section>
+        )}
       </div>
     </Layout>
   );
@@ -514,37 +538,164 @@ app.get('/blog', async (c) => {
   );
 });
 
-app.get('/timeline', async (c) => {
+app.get('/timeline', (c) => c.redirect('/jejak'));
+
+app.get('/api/activities', async (c) => {
+  const conditions = [eq(activityTable.status, 'published')];
+  const year = Number(c.req.query('year'));
+  const category = c.req.query('category');
+  if (Number.isInteger(year) && year > 0) conditions.push(eq(activityTable.year, year));
+  if (category) conditions.push(eq(activityTable.category, category));
+
+  return c.json(await db.select().from(activityTable).where(and(...conditions)).orderBy(desc(activityTable.eventDate)));
+});
+
+app.get('/jejak', async (c) => {
   const user = c.var.user;
+  const selectedYear = c.req.query('year') || '';
+  const selectedCategory = c.req.query('category') || '';
+  const publishedCondition = eq(activityTable.status, 'published');
+  const allActivities = await db.select().from(activityTable).where(publishedCondition).orderBy(desc(activityTable.eventDate));
   const milestones = await db.select().from(milestonesTable).orderBy(desc(milestonesTable.year));
+  const years = [...new Set(allActivities.map(activity => activity.year))].sort((a, b) => b - a);
+  const categories = [...new Set(allActivities.map(activity => activity.category))].sort();
+  const filteredActivities = allActivities.filter(activity =>
+    (!selectedYear || String(activity.year) === selectedYear) &&
+    (!selectedCategory || activity.category === selectedCategory)
+  );
+  const featuredActivities = allActivities.filter(activity => activity.featuredOnCv).slice(0, 3);
+  const groupedActivities = new Map<number, typeof filteredActivities>();
+  for (const activity of filteredActivities) {
+    const current = groupedActivities.get(activity.year) || [];
+    current.push(activity);
+    groupedActivities.set(activity.year, current);
+  }
 
   return c.html(
-    <Layout title="Ferilee | Timeline" user={user} needsProfiling={c.var.needsProfiling} currentPath="/timeline">
-      <div class="max-w-4xl mx-auto px-6 py-32">
-        <header class="text-center mb-24">
-          <h1 class="text-6xl font-black mb-6 tracking-tight italic">MY <span class="text-red-700">JOURNEY</span></h1>
-          <p class="text-slate-400 max-w-md mx-auto">A visual timeline of my career milestones, academic achievements, and personal growth.</p>
+    <Layout title="Ferilee | Jejak" user={user} needsProfiling={c.var.needsProfiling} currentPath="/jejak">
+      <div class="max-w-7xl mx-auto px-6 py-28 md:py-32">
+        <header class="max-w-4xl mx-auto text-center mb-16">
+          <p class="text-xs font-black text-red-500 uppercase tracking-[0.35em] mb-5">Professional Activity Journal</p>
+          <h1 class="text-5xl md:text-7xl font-black tracking-tight italic">JEJAK <span class="text-red-700">FERI LEE</span></h1>
+          <p class="text-slate-400 text-lg max-w-2xl mx-auto mt-6 leading-relaxed">Belajar • Berbagi • Berkolaborasi • Berdampak</p>
+          <p class="text-slate-500 max-w-2xl mx-auto mt-3 leading-relaxed">Dokumentasi perjalanan berbagi, mendampingi, dan bertumbuh bersama pendidik Indonesia.</p>
         </header>
 
-        <div class="relative border-l-2 border-white/5 ml-4 md:ml-0 md:left-1/2">
-          {milestones.map((item, idx) => (
-            <div class={`mb-20 relative ${idx % 2 === 0 ? 'md:pr-12 md:text-right md:left-[-100%]' : 'md:pl-12 md:left-0'}`}>
-              <div class={`absolute top-0 w-8 h-8 rounded-full border-4 border-slate-950 flex items-center justify-center z-10 ${idx % 2 === 0 ? 'right-[-17px] md:right-[-17px]' : 'left-[-17px] md:left-[-17px]'} ${item.type === 'work' ? 'bg-blue-500' : item.type === 'education' ? 'bg-green-500' : 'bg-red-700'}`}>
-                {item.type === 'work' ? (
-                  <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" class="text-white"><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/></svg>
-                ) : (
-                  <div class="w-2 h-2 bg-white rounded-full"></div>
-                )}
-              </div>
-              <div class={`w-full md:w-[450px] bg-white/5 border border-white/10 p-8 rounded-3xl backdrop-blur-xl hover:border-red-500/30 transition-all ${idx % 2 === 0 ? 'md:ml-auto' : ''}`}>
-                <span class="text-xs font-black text-red-500 uppercase tracking-widest mb-2 block">{item.year}</span>
-                <h3 class="text-2xl font-bold mb-4">{item.title}</h3>
-                <p class="text-slate-400 text-sm leading-relaxed">{item.description}</p>
-              </div>
+        <div class="grid grid-cols-2 md:grid-cols-4 gap-4 max-w-5xl mx-auto mb-20">
+          {[
+            { label: 'Kegiatan', value: allActivities.length },
+            { label: 'Tahun aktif', value: years.length },
+            { label: 'Kategori', value: categories.length },
+            { label: 'Featured', value: featuredActivities.length },
+          ].map(stat => (
+            <div class="bg-white/5 border border-white/10 rounded-2xl p-5 text-center backdrop-blur-xl">
+              <p class="text-2xl md:text-3xl font-black text-white">{stat.value}+</p>
+              <p class="text-[10px] text-slate-500 uppercase tracking-widest font-black mt-2">{stat.label}</p>
             </div>
           ))}
         </div>
+
+        {featuredActivities.length > 0 && (
+          <section class="max-w-5xl mx-auto mb-20">
+            <div class="flex items-center justify-between mb-6">
+              <h2 class="text-2xl md:text-3xl font-black italic">FEATURED <span class="text-red-700">JEJAK</span></h2>
+              <span class="text-[10px] text-slate-500 uppercase tracking-widest font-black">Selected for CV</span>
+            </div>
+            <div class="grid md:grid-cols-3 gap-5">
+              {featuredActivities.map(activity => (
+                <a href={`/jejak/${activity.slug}`} class="group bg-white/5 border border-white/10 rounded-3xl overflow-hidden hover:border-red-500/40 transition-all">
+                  {activity.coverImage ? <img src={activity.coverImage} alt={activity.title} class="w-full h-40 object-cover group-hover:scale-105 transition-transform" /> : <div class="h-40 bg-gradient-to-br from-red-950 to-slate-950"></div>}
+                  <div class="p-5">
+                    <p class="text-[10px] text-red-500 uppercase tracking-widest font-black">{activity.year} • {activity.role}</p>
+                    <h3 class="font-bold mt-2 leading-snug">{activity.title}</h3>
+                  </div>
+                </a>
+              ))}
+            </div>
+          </section>
+        )}
+
+        <section class="max-w-5xl mx-auto">
+          <div class="flex flex-col lg:flex-row lg:items-end justify-between gap-6 mb-10">
+            <div>
+              <h2 class="text-3xl md:text-4xl font-black italic">ACTIVITY <span class="text-red-700">TIMELINE</span></h2>
+              <p class="text-slate-500 mt-2">Pilih tahun atau kategori untuk menelusuri perjalanan.</p>
+            </div>
+            <form action="/jejak" method="get" class="flex flex-col sm:flex-row gap-3">
+              <select name="year" class="bg-slate-950/70 border border-white/10 rounded-xl px-4 py-3 text-sm text-slate-300">
+                <option value="">Semua tahun</option>
+                {years.map(year => <option value={year} selected={String(year) === selectedYear}>{year}</option>)}
+              </select>
+              <select name="category" class="bg-slate-950/70 border border-white/10 rounded-xl px-4 py-3 text-sm text-slate-300">
+                <option value="">Semua kategori</option>
+                {categories.map(category => <option value={category} selected={category === selectedCategory}>{category}</option>)}
+              </select>
+              <button type="submit" class="px-5 py-3 bg-red-700 hover:bg-red-800 rounded-xl text-xs font-black uppercase tracking-widest">Filter</button>
+            </form>
+          </div>
+
+          {filteredActivities.length > 0 ? (
+            <div class="space-y-14">
+              {Array.from(groupedActivities.entries()).map(([year, activities]) => (
+                <section>
+                  <div class="flex items-center gap-4 mb-6"><span class="text-3xl md:text-4xl font-black text-red-500">{year}</span><div class="h-px bg-white/10 flex-1"></div></div>
+                  <div class="grid md:grid-cols-2 gap-5">
+                    {activities.map(activity => (
+                      <a href={`/jejak/${activity.slug}`} class="group bg-white/5 border border-white/10 rounded-3xl p-6 hover:border-red-500/40 hover:-translate-y-1 transition-all">
+                        <div class="flex items-start justify-between gap-4">
+                          <div><p class="text-[10px] text-red-500 uppercase tracking-widest font-black">{activity.category}</p><h3 class="text-xl font-black mt-2 leading-snug">{activity.title}</h3></div>
+                          <span class="text-slate-600 group-hover:text-red-500 transition-colors">→</span>
+                        </div>
+                        <p class="text-slate-400 text-sm leading-relaxed mt-4 line-clamp-2">{activity.summary}</p>
+                        <div class="flex flex-wrap gap-3 mt-5 text-[10px] text-slate-500 uppercase tracking-widest font-bold"><span>{activity.role}</span>{activity.location && <span>• {activity.location}</span>}<span>• {activity.eventDate}</span></div>
+                      </a>
+                    ))}
+                  </div>
+                </section>
+              ))}
+            </div>
+          ) : (
+            <div class="py-20 text-center bg-white/5 border border-dashed border-white/10 rounded-3xl"><p class="text-slate-500 font-bold">Belum ada kegiatan yang cocok dengan filter ini.</p></div>
+          )}
+        </section>
+
+        {milestones.length > 0 && (
+          <section class="max-w-5xl mx-auto mt-24 pt-12 border-t border-white/10">
+            <h2 class="text-2xl md:text-3xl font-black italic mb-8">CAREER <span class="text-cyan-400">MILESTONES</span></h2>
+            <div class="grid md:grid-cols-3 gap-4">
+              {milestones.slice(0, 6).map(item => <div class="bg-white/5 border border-white/10 rounded-2xl p-5"><p class="text-xs font-black text-cyan-400">{item.year}</p><h3 class="font-bold mt-2">{item.title}</h3><p class="text-sm text-slate-500 mt-2">{item.description}</p></div>)}
+            </div>
+          </section>
+        )}
       </div>
+    </Layout>
+  );
+});
+
+app.get('/jejak/:slug', async (c) => {
+  const user = c.var.user;
+  const results = await db.select().from(activityTable).where(and(eq(activityTable.slug, c.req.param('slug')), eq(activityTable.status, 'published'))).limit(1);
+  const activity = results[0];
+  if (!activity) return c.notFound();
+  const media = await db.select().from(activityMediaTable).where(eq(activityMediaTable.activityId, activity.id)).orderBy(activityMediaTable.sortOrder);
+  const descriptionHtml = activity.description ? await marked.parse(activity.description) : '';
+
+  return c.html(
+    <Layout title={`${activity.title} | Jejak Ferilee`} user={user} needsProfiling={c.var.needsProfiling} currentPath="/jejak" ogImage={activity.coverImage || `/api/og?title=${encodeURIComponent(activity.title)}&category=${encodeURIComponent(activity.category)}`}>
+      <article class="max-w-5xl mx-auto px-6 py-28 md:py-32">
+        <a href="/jejak" class="text-xs font-black text-red-500 uppercase tracking-widest hover:text-white transition-colors">← Kembali ke Jejak</a>
+        <header class="mt-8 grid lg:grid-cols-[1.1fr_0.9fr] gap-10 items-center">
+          <div><p class="text-xs font-black text-red-500 uppercase tracking-[0.3em]">{activity.category} • {activity.role}</p><h1 class="text-4xl md:text-6xl font-black tracking-tight mt-4 leading-tight">{activity.title}</h1><p class="text-slate-400 text-lg mt-6 leading-relaxed">{activity.summary}</p><div class="flex flex-wrap gap-3 mt-8 text-xs text-slate-400"><span class="px-3 py-2 rounded-lg bg-white/5 border border-white/10">{activity.eventDate}{activity.endDate ? ` — ${activity.endDate}` : ''}</span>{activity.location && <span class="px-3 py-2 rounded-lg bg-white/5 border border-white/10">{activity.location}</span>}{activity.organizer && <span class="px-3 py-2 rounded-lg bg-white/5 border border-white/10">{activity.organizer}</span>}</div></div>
+          {activity.coverImage ? <img src={activity.coverImage} alt={activity.title} class="w-full max-h-[420px] object-cover rounded-[2rem] border border-white/10 shadow-2xl" /> : <div class="w-full h-72 rounded-[2rem] bg-gradient-to-br from-red-950 to-slate-950 border border-white/10"></div>}
+        </header>
+
+        <div class="grid lg:grid-cols-[1fr_280px] gap-12 mt-16">
+          <div class="prose prose-invert prose-red max-w-none text-slate-300 leading-relaxed" dangerouslySetInnerHTML={{ __html: descriptionHtml }} />
+          <aside class="space-y-3"><p class="text-xs font-black text-slate-500 uppercase tracking-widest mb-4">Links</p>{activity.materialUrl && <a href={activity.materialUrl} target="_blank" rel="noreferrer" class="block px-5 py-4 rounded-xl bg-white/5 border border-white/10 hover:border-red-500/40 font-bold text-sm">Lihat Materi ↗</a>}{activity.certificateUrl && <a href={activity.certificateUrl} target="_blank" rel="noreferrer" class="block px-5 py-4 rounded-xl bg-white/5 border border-white/10 hover:border-red-500/40 font-bold text-sm">Sertifikat ↗</a>}{activity.publicationUrl && <a href={activity.publicationUrl} target="_blank" rel="noreferrer" class="block px-5 py-4 rounded-xl bg-white/5 border border-white/10 hover:border-red-500/40 font-bold text-sm">Publikasi ↗</a>}<button onclick="navigator.clipboard.writeText(window.location.href); this.textContent='Tautan tersalin'" class="w-full text-left px-5 py-4 rounded-xl bg-red-700 hover:bg-red-800 font-bold text-sm">Bagikan kegiatan</button></aside>
+        </div>
+
+        {media.length > 0 && <section class="mt-20"><h2 class="text-2xl md:text-3xl font-black italic mb-8">DOKUMENTASI <span class="text-red-700">KEGIATAN</span></h2><div class="grid sm:grid-cols-2 md:grid-cols-3 gap-5">{media.map(item => <figure class="group"><img src={item.url} alt={item.caption || activity.title} class="w-full aspect-[4/3] object-cover rounded-2xl border border-white/10 group-hover:border-red-500/40 transition-all" />{item.caption && <figcaption class="text-xs text-slate-500 mt-2">{item.caption}</figcaption>}</figure>)}</div></section>}
+      </article>
     </Layout>
   );
 });
@@ -1102,6 +1253,7 @@ app.get('/admin', async (c) => {
   const user = c.var.user;
   const posts = await db.select().from(blogPosts).orderBy(desc(blogPosts.id));
   const projects = await db.select().from(projectTable).orderBy(desc(projectTable.id));
+  const activities = await db.select().from(activityTable).orderBy(desc(activityTable.eventDate));
   const messages = await db.select().from(contactTable).orderBy(desc(contactTable.id));
   const unreadCount = messages.filter(m => !m.isRead).length;
 
@@ -1131,6 +1283,7 @@ app.get('/admin', async (c) => {
             <a href="/admin/settings" class="px-6 py-3 bg-white/5 border border-white/10 rounded-xl text-sm font-bold hover:bg-white/10 transition-all">Home Settings</a>
             <a href="/admin/blog/new" class="px-6 py-3 bg-white/5 border border-white/10 rounded-xl text-sm font-bold hover:bg-white/10 transition-all">+ New Post</a>
             <a href="/admin/projects/new" class="px-6 py-3 bg-red-700 text-white rounded-xl text-sm font-bold hover:bg-red-800 transition-all btn-shadow">+ New Project</a>
+            <a href="/admin/activities/new" class="px-6 py-3 bg-cyan-700 text-white rounded-xl text-sm font-bold hover:bg-cyan-800 transition-all">+ New Activity</a>
           </div>
         </header>
 
@@ -1258,6 +1411,23 @@ app.get('/admin', async (c) => {
               ))}
               {projects.length === 0 && <p class="text-slate-500 font-bold italic">No projects yet</p>}
             </div>
+          </div>
+        </div>
+
+
+        <div class="bg-white/5 border border-white/10 rounded-[2.5rem] p-6 sm:p-8 backdrop-blur-xl mb-12">
+          <div class="flex flex-col sm:flex-row justify-between gap-4 items-start sm:items-center mb-8">
+            <h2 class="text-xl sm:text-2xl font-black italic">JEJAK <span class="text-cyan-400">ACTIVITIES</span></h2>
+            <a href="/admin/activities/new" class="px-5 py-3 bg-cyan-700 hover:bg-cyan-800 rounded-xl text-xs font-black uppercase tracking-widest">+ New Activity</a>
+          </div>
+          <div class="space-y-4 max-h-[420px] overflow-y-auto pr-2 custom-scrollbar">
+            {activities.map(activity => (
+              <div class="flex flex-col sm:flex-row justify-between gap-4 sm:items-center p-5 bg-slate-950/50 border border-white/5 rounded-2xl">
+                <div><div class="flex flex-wrap gap-2 items-center"><p class="font-bold text-sm">{activity.title}</p><span class={`text-[9px] px-2 py-1 rounded-md uppercase font-black ${activity.status === 'published' ? 'bg-green-900/30 text-green-400' : 'bg-amber-900/30 text-amber-400'}`}>{activity.status}</span>{activity.featuredOnCv && <span class="text-[9px] px-2 py-1 rounded-md bg-cyan-900/30 text-cyan-400 uppercase font-black">CV</span>}</div><p class="text-[10px] text-slate-500 uppercase mt-2">{activity.eventDate} • {activity.category} • {activity.role}</p></div>
+                <div class="flex items-center gap-2"><a href={`/jejak/${activity.slug}`} target="_blank" class="p-2 bg-white/5 border border-white/10 rounded-lg text-slate-400 hover:text-white transition-all" title="View Activity">↗</a><a href={`/admin/activities/edit/${activity.id}`} class="p-2 bg-white/5 border border-white/10 rounded-lg text-slate-400 hover:text-white transition-all" title="Edit Activity">✎</a><form action={`/admin/activities/delete/${activity.id}`} method="post" onsubmit="return confirm('Delete this activity?')"><button type="submit" class="p-2 bg-white/5 border border-white/10 rounded-lg text-slate-700 hover:text-red-500 transition-all" title="Delete Activity">×</button></form></div>
+              </div>
+            ))}
+            {activities.length === 0 && <p class="text-slate-500 font-bold italic">No activities yet</p>}
           </div>
         </div>
 
@@ -1849,6 +2019,86 @@ app.post('/admin/projects/delete/:id', async (c) => {
   return c.redirect('/admin');
 });
 
+// --- ACTIVITIES ADMIN ---
+app.get('/admin/activities/new', (c) => renderActivityForm(c, null, [], c.var.user));
+app.get('/admin/activities/edit/:id', async (c) => {
+  const id = parseInt(c.req.param('id'));
+  const results = await db.select().from(activityTable).where(eq(activityTable.id, id)).limit(1);
+  const media = await db.select().from(activityMediaTable).where(eq(activityMediaTable.activityId, id)).orderBy(activityMediaTable.sortOrder);
+  return renderActivityForm(c, results[0], media, c.var.user);
+});
+
+function slugify(value: string) {
+  return value.toLowerCase().trim().replace(/[^\w\s-]/g, '').replace(/[\s_-]+/g, '-').replace(/^-+|-+$/g, '');
+}
+
+app.post('/admin/activities/save', async (c) => {
+  const body = await c.req.parseBody();
+  const id = body.id ? parseInt(body.id as string) : null;
+  const eventDate = String(body.eventDate || '');
+  const title = String(body.title || '').trim();
+  const slug = slugify(String(body.slug || title));
+  const coverImageFile = body.coverImageFile;
+  let coverImage = String(body.coverImage || '').trim();
+
+  if (!title || !slug || !eventDate || !body.role || !body.category || !body.summary) {
+    return c.text('Title, date, role, category, and summary are required.', 400);
+  }
+
+  try {
+    if (coverImageFile instanceof File && coverImageFile.size > 0) {
+      coverImage = await uploadToS3(coverImageFile, 'activity-covers');
+    }
+  } catch (err: any) {
+    return c.text(err.message || 'Failed to upload activity cover to RustFS', 500);
+  }
+
+  const data = {
+    title,
+    slug,
+    eventDate,
+    endDate: String(body.endDate || '').trim() || null,
+    year: Number(body.year) || Number(eventDate.slice(0, 4)),
+    location: String(body.location || '').trim() || null,
+    organizer: String(body.organizer || '').trim() || null,
+    role: String(body.role).trim(),
+    category: String(body.category).trim(),
+    summary: String(body.summary).trim(),
+    description: String(body.description || '').trim() || null,
+    coverImage: coverImage || null,
+    materialUrl: String(body.materialUrl || '').trim() || null,
+    certificateUrl: String(body.certificateUrl || '').trim() || null,
+    publicationUrl: String(body.publicationUrl || '').trim() || null,
+    featuredOnCv: body.featuredOnCv === 'on' || body.featuredOnCv === 'true',
+    status: (body.status === 'published' ? 'published' : 'draft') as 'draft' | 'published',
+    updatedAt: new Date(),
+  };
+
+  let activityId = id;
+  if (id) {
+    await db.update(activityTable).set(data).where(eq(activityTable.id, id));
+    await db.delete(activityMediaTable).where(eq(activityMediaTable.activityId, id));
+  } else {
+    const inserted = await db.insert(activityTable).values({ ...data, createdAt: new Date() }).returning({ id: activityTable.id });
+    activityId = inserted[0]?.id || null;
+  }
+
+  const galleryUrls = String(body.galleryUrls || '').split('\n').map(url => url.trim()).filter(Boolean);
+  if (activityId && galleryUrls.length > 0) {
+    await db.insert(activityMediaTable).values(galleryUrls.map((url, index) => ({ activityId: activityId!, url, sortOrder: index, mediaType: 'image' })));
+  }
+  adminUpdates.emit('update');
+  return c.redirect('/admin');
+});
+
+app.post('/admin/activities/delete/:id', async (c) => {
+  const id = parseInt(c.req.param('id'));
+  await db.delete(activityMediaTable).where(eq(activityMediaTable.activityId, id));
+  await db.delete(activityTable).where(eq(activityTable.id, id));
+  adminUpdates.emit('update');
+  return c.redirect('/admin');
+});
+
 // --- CONTACT ADMIN ---
 app.post('/admin/contacts/delete/:id', async (c) => {
   await db.delete(contactTable).where(eq(contactTable.id, parseInt(c.req.param('id'))));
@@ -1893,6 +2143,58 @@ app.get('/admin/projects/edit/:id', async (c) => {
   const results = await db.select().from(projectTable).where(eq(projectTable.id, id)).limit(1);
   return renderProjectForm(c, results[0], c.var.user);
 });
+
+function renderActivityForm(c: any, activity: any = null, media: any[] = [], user: any = null) {
+  const inputClass = "peer w-full bg-slate-950/50 border border-white/10 rounded-2xl px-5 pt-7 pb-3 focus:outline-none focus:border-cyan-500 transition-all text-white text-lg placeholder-transparent";
+  const labelClass = "absolute left-5 top-5 text-slate-500 text-xs font-bold uppercase tracking-widest transition-all pointer-events-none peer-placeholder-shown:text-slate-500 peer-placeholder-shown:text-base peer-placeholder-shown:top-5 peer-placeholder-shown:font-medium peer-focus:top-2 peer-focus:text-[10px] peer-focus:text-cyan-500 peer-focus:uppercase peer-focus:font-bold peer-[:not(:placeholder-shown)]:top-2 peer-[:not(:placeholder-shown)]:text-[10px] peer-[:not(:placeholder-shown)]:text-cyan-500 peer-[:not(:placeholder-shown)]:uppercase peer-[:not(:placeholder-shown)]:font-bold";
+  const galleryUrls = media.map(item => item.url).join('\n');
+
+  return c.html(
+    <Layout title={(activity ? 'Edit' : 'New') + ' Activity | Admin'} user={user}>
+      <div class="max-w-5xl mx-auto px-6 pt-10 pb-32">
+        <a href="/admin" class="text-xs font-black text-cyan-400 uppercase tracking-widest hover:text-white">← Admin Dashboard</a>
+        <h1 class="text-4xl font-black mt-8 mb-12 italic tracking-tight">{activity ? 'EDIT' : 'NEW'} <span class="text-cyan-400">JEJAK</span></h1>
+        <form action="/admin/activities/save" method="post" enctype="multipart/form-data" class="space-y-8 bg-white/5 p-8 rounded-[2.5rem] border border-white/10 backdrop-blur-xl">
+          {activity && <input type="hidden" name="id" value={activity.id} />}
+          <div class="grid md:grid-cols-2 gap-6">
+            <div class="relative"><input type="text" name="title" id="a-title" value={activity?.title || ''} placeholder=" " required class={inputClass} /><label for="a-title" class={labelClass}>Activity Title</label></div>
+            <div class="relative"><input type="text" name="slug" id="a-slug" value={activity?.slug || ''} placeholder=" " class={inputClass} /><label for="a-slug" class={labelClass}>Slug (optional)</label></div>
+          </div>
+          <div class="grid md:grid-cols-3 gap-6">
+            <div class="relative"><input type="date" name="eventDate" id="a-date" value={activity?.eventDate || ''} required class={inputClass} /><label for="a-date" class={labelClass}>Event Date</label></div>
+            <div class="relative"><input type="date" name="endDate" id="a-end-date" value={activity?.endDate || ''} class={inputClass} /><label for="a-end-date" class={labelClass}>End Date (optional)</label></div>
+            <div class="relative"><input type="number" name="year" id="a-year" value={activity?.year || ''} placeholder=" " min="1900" max="2200" class={inputClass} /><label for="a-year" class={labelClass}>Year (optional)</label></div>
+          </div>
+          <div class="grid md:grid-cols-2 gap-6">
+            <div class="relative"><input type="text" name="role" id="a-role" value={activity?.role || ''} placeholder=" " required class={inputClass} /><label for="a-role" class={labelClass}>Role (e.g. Pemateri)</label></div>
+            <div class="relative"><input type="text" name="category" id="a-category" value={activity?.category || ''} placeholder=" " required class={inputClass} /><label for="a-category" class={labelClass}>Category (e.g. AI & EdTech)</label></div>
+          </div>
+          <div class="grid md:grid-cols-2 gap-6">
+            <div class="relative"><input type="text" name="location" id="a-location" value={activity?.location || ''} placeholder=" " class={inputClass} /><label for="a-location" class={labelClass}>Location</label></div>
+            <div class="relative"><input type="text" name="organizer" id="a-organizer" value={activity?.organizer || ''} placeholder=" " class={inputClass} /><label for="a-organizer" class={labelClass}>Organizer</label></div>
+          </div>
+          <div class="relative"><textarea name="summary" id="a-summary" placeholder=" " required class={inputClass + ' min-h-[110px] leading-relaxed'}>{activity?.summary || ''}</textarea><label for="a-summary" class={labelClass}>Short Summary</label></div>
+          <div class="relative"><textarea name="description" id="a-description" placeholder=" " class={inputClass + ' min-h-[280px] font-mono text-sm leading-relaxed'}>{activity?.description || ''}</textarea><label for="a-description" class={labelClass}>Description (Markdown)</label></div>
+          <div class="grid md:grid-cols-2 gap-6">
+            <div class="relative"><input type="text" name="coverImage" id="a-cover" value={activity?.coverImage || ''} placeholder=" " class={inputClass} /><label for="a-cover" class={labelClass}>Cover Image URL</label></div>
+            <div class="space-y-2"><label class="text-[10px] font-black text-slate-500 uppercase tracking-widest pl-1">Or Upload Cover to RustFS</label><input type="file" name="coverImageFile" accept="image/*" class="w-full bg-slate-950/50 border border-white/10 rounded-2xl px-5 py-4 text-sm text-slate-300 file:mr-4 file:rounded-lg file:border-0 file:bg-cyan-700 file:px-4 file:py-2 file:text-xs file:font-black file:text-white" /></div>
+          </div>
+          <div class="relative"><textarea name="galleryUrls" id="a-gallery" placeholder=" " class={inputClass + ' min-h-[140px] font-mono text-sm leading-relaxed'}>{galleryUrls}</textarea><label for="a-gallery" class={labelClass}>Gallery URLs (one URL per line)</label></div>
+          <div class="grid md:grid-cols-3 gap-6">
+            <div class="relative"><input type="url" name="materialUrl" id="a-material" value={activity?.materialUrl || ''} placeholder=" " class={inputClass} /><label for="a-material" class={labelClass}>Material URL</label></div>
+            <div class="relative"><input type="url" name="certificateUrl" id="a-certificate" value={activity?.certificateUrl || ''} placeholder=" " class={inputClass} /><label for="a-certificate" class={labelClass}>Certificate URL</label></div>
+            <div class="relative"><input type="url" name="publicationUrl" id="a-publication" value={activity?.publicationUrl || ''} placeholder=" " class={inputClass} /><label for="a-publication" class={labelClass}>Publication URL</label></div>
+          </div>
+          <div class="flex flex-col sm:flex-row gap-6 sm:items-center p-5 bg-slate-950/40 border border-white/5 rounded-2xl">
+            <label class="flex items-center gap-3 text-sm font-bold text-slate-300"><input type="checkbox" name="featuredOnCv" checked={Boolean(activity?.featuredOnCv)} class="w-5 h-5 accent-cyan-600" /> Feature on CV / selected highlights</label>
+            <select name="status" class="bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-sm text-slate-300"><option value="draft" selected={activity?.status !== 'published'}>Draft</option><option value="published" selected={activity?.status === 'published'}>Published</option></select>
+          </div>
+          <div class="flex gap-4 pt-4"><button type="submit" class="px-10 py-4 bg-cyan-700 hover:bg-cyan-800 text-white font-black rounded-xl transition-all uppercase tracking-widest">Save Activity</button><a href="/admin" class="px-10 py-4 border border-white/10 rounded-xl font-black text-slate-400 hover:text-white transition-all">Cancel</a></div>
+        </form>
+      </div>
+    </Layout>
+  );
+}
 
 function renderProjectForm(c: any, project: any = null, user: any = null) {
   const inputClass = "peer w-full bg-slate-950/50 border border-white/10 rounded-2xl px-5 pt-7 pb-3 focus:outline-none focus:border-red-500 transition-all text-white text-lg placeholder-transparent";
