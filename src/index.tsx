@@ -700,9 +700,94 @@ app.get('/jejak/:slug', async (c) => {
         </header>
 
         <div class="grid lg:grid-cols-[1fr_280px] gap-12 mt-16">
-          <div class="prose prose-invert prose-red max-w-none text-slate-300 leading-relaxed" dangerouslySetInnerHTML={{ __html: descriptionHtml }} />
-          <aside class="space-y-3"><p class="text-xs font-black text-slate-500 uppercase tracking-widest mb-4">Links</p>{activity.materialUrl && <a href={activity.materialUrl} target="_blank" rel="noreferrer" class="block px-5 py-4 rounded-xl bg-white/5 border border-white/10 hover:border-red-500/40 font-bold text-sm">Lihat Materi ↗</a>}{activity.certificateUrl && <a href={activity.certificateUrl} target="_blank" rel="noreferrer" class="block px-5 py-4 rounded-xl bg-white/5 border border-white/10 hover:border-red-500/40 font-bold text-sm">Sertifikat ↗</a>}{activity.publicationUrl && <a href={activity.publicationUrl} target="_blank" rel="noreferrer" class="block px-5 py-4 rounded-xl bg-white/5 border border-white/10 hover:border-red-500/40 font-bold text-sm">Publikasi ↗</a>}<button onclick="navigator.clipboard.writeText(window.location.href); this.textContent='Tautan tersalin'" class="w-full text-left px-5 py-4 rounded-xl bg-red-700 hover:bg-red-800 font-bold text-sm">Bagikan kegiatan</button></aside>
+          <div class="prose prose-invert prose-red prose-p:text-justify max-w-none text-slate-300 leading-relaxed" dangerouslySetInnerHTML={{ __html: descriptionHtml }} />
+          <aside class="space-y-3"><p class="text-xs font-black text-slate-500 uppercase tracking-widest mb-4">Links</p>{activity.materialUrl && <a href={activity.materialUrl} target="_blank" rel="noreferrer" class="block px-5 py-4 rounded-xl bg-white/5 border border-white/10 hover:border-red-500/40 font-bold text-sm">Lihat Materi ↗</a>}{activity.certificateUrl && <a href={activity.certificateUrl} target="_blank" rel="noreferrer" class="block px-5 py-4 rounded-xl bg-white/5 border border-white/10 hover:border-red-500/40 font-bold text-sm">Sertifikat ↗</a>}{activity.publicationUrl && <a href={activity.publicationUrl} target="_blank" rel="noreferrer" class="block px-5 py-4 rounded-xl bg-white/5 border border-white/10 hover:border-red-500/40 font-bold text-sm">Publikasi ↗</a>}<div class="relative" data-share-root><button type="button" data-share-button data-share-title={activity.title} onclick="shareActivity(this)" aria-expanded="false" aria-haspopup="menu" class="w-full text-left px-5 py-4 rounded-xl bg-red-700 hover:bg-red-800 font-bold text-sm">Bagikan kegiatan</button><div data-share-menu role="menu" class="hidden absolute right-0 top-full z-20 mt-2 w-full min-w-56 overflow-hidden rounded-2xl border border-white/10 bg-slate-950 p-2 shadow-2xl"><a data-share-link="whatsapp" role="menuitem" target="_blank" rel="noreferrer" class="block rounded-xl px-4 py-3 text-sm font-bold text-slate-300 transition-colors hover:bg-green-500/15 hover:text-green-300">WhatsApp</a><a data-share-link="telegram" role="menuitem" target="_blank" rel="noreferrer" class="block rounded-xl px-4 py-3 text-sm font-bold text-slate-300 transition-colors hover:bg-sky-500/15 hover:text-sky-300">Telegram</a><a data-share-link="facebook" role="menuitem" target="_blank" rel="noreferrer" class="block rounded-xl px-4 py-3 text-sm font-bold text-slate-300 transition-colors hover:bg-blue-500/15 hover:text-blue-300">Facebook</a><a data-share-link="x" role="menuitem" target="_blank" rel="noreferrer" class="block rounded-xl px-4 py-3 text-sm font-bold text-slate-300 transition-colors hover:bg-white/10 hover:text-white">X</a><a data-share-link="linkedin" role="menuitem" target="_blank" rel="noreferrer" class="block rounded-xl px-4 py-3 text-sm font-bold text-slate-300 transition-colors hover:bg-cyan-500/15 hover:text-cyan-300">LinkedIn</a><button type="button" role="menuitem" onclick="copyActivityLink(this)" class="block w-full rounded-xl px-4 py-3 text-left text-sm font-bold text-slate-400 transition-colors hover:bg-white/10 hover:text-white">Salin tautan</button></div></div></aside>
         </div>
+
+        <script dangerouslySetInnerHTML={{ __html: `
+          (() => {
+            const root = document.querySelector('[data-share-root]');
+            const menu = root?.querySelector('[data-share-menu]');
+            const shareButton = root?.querySelector('[data-share-button]');
+
+            const getShareData = () => ({
+              title: shareButton?.dataset.shareTitle || document.title,
+              url: window.location.href,
+            });
+
+            const closeShareMenu = () => {
+              menu?.classList.add('hidden');
+              shareButton?.setAttribute('aria-expanded', 'false');
+            };
+
+            const prepareShareLinks = () => {
+              const { title, url } = getShareData();
+              const encodedTitle = encodeURIComponent(title);
+              const encodedUrl = encodeURIComponent(url);
+              const encodedMessage = encodeURIComponent(title + ' — ' + url);
+              const links = {
+                whatsapp: 'https://wa.me/?text=' + encodedMessage,
+                telegram: 'https://t.me/share/url?url=' + encodedUrl + '&text=' + encodedTitle,
+                facebook: 'https://www.facebook.com/sharer/sharer.php?u=' + encodedUrl,
+                x: 'https://twitter.com/intent/tweet?text=' + encodedTitle + '&url=' + encodedUrl,
+                linkedin: 'https://www.linkedin.com/sharing/share-offsite/?url=' + encodedUrl,
+              };
+
+              Object.entries(links).forEach(([platform, href]) => {
+                const link = root?.querySelector('[data-share-link="' + platform + '"]');
+                if (link) link.href = href;
+              });
+            };
+
+            window.shareActivity = async (button) => {
+              const { title, url } = getShareData();
+              if (navigator.share) {
+                try {
+                  await navigator.share({ title, text: title, url });
+                  return;
+                } catch (error) {
+                  if (error?.name === 'AbortError') return;
+                }
+              }
+
+              prepareShareLinks();
+              const isOpening = menu?.classList.contains('hidden');
+              menu?.classList.toggle('hidden', !isOpening);
+              button?.setAttribute('aria-expanded', String(isOpening));
+            };
+
+            window.copyActivityLink = async (button) => {
+              const { url } = getShareData();
+              try {
+                if (navigator.clipboard?.writeText) {
+                  await navigator.clipboard.writeText(url);
+                } else {
+                  const input = document.createElement('textarea');
+                  input.value = url;
+                  input.setAttribute('readonly', '');
+                  input.style.position = 'fixed';
+                  input.style.opacity = '0';
+                  document.body.appendChild(input);
+                  input.select();
+                  document.execCommand('copy');
+                  input.remove();
+                }
+                button.textContent = 'Tautan tersalin';
+                setTimeout(() => { button.textContent = 'Salin tautan'; }, 1800);
+                closeShareMenu();
+              } catch (error) {
+                window.prompt('Salin tautan kegiatan:', url);
+              }
+            };
+
+            document.addEventListener('click', (event) => {
+              if (root && !root.contains(event.target)) closeShareMenu();
+            });
+            document.addEventListener('keydown', (event) => {
+              if (event.key === 'Escape') closeShareMenu();
+            });
+          })();
+        `}} />
 
         {(media.length > 0 || activity.galleryAlbumUrl) && <section class="mt-20"><div class="mb-8 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between"><h2 class="text-2xl md:text-3xl font-black italic">DOKUMENTASI <span class="text-red-700">KEGIATAN</span></h2>{activity.galleryAlbumUrl && <a href={activity.galleryAlbumUrl} target="_blank" rel="noreferrer" class="shrink-0 rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-xs font-black uppercase tracking-widest text-red-300 transition-all hover:bg-red-500/20">Lihat Album Lengkap ↗</a>}</div>{media.length > 0 && <div class="grid sm:grid-cols-2 md:grid-cols-3 gap-5">{media.map(item => <figure class="group"><div class="relative aspect-[4/3] overflow-hidden rounded-2xl border border-white/10 group-hover:border-red-500/40 transition-all"><img src={item.url} alt={item.caption || activity.title} class="h-full w-full object-cover transition-transform group-hover:scale-105" onerror="this.classList.add('hidden'); this.nextElementSibling.classList.remove('hidden'); this.nextElementSibling.classList.add('flex')" /><div class="absolute inset-0 hidden items-center justify-center bg-slate-950/80 px-4 text-center text-xs font-bold text-slate-500">Gambar tidak tersedia</div></div>{item.caption && <figcaption class="text-xs text-slate-500 mt-2">{item.caption}</figcaption>}</figure>)}</div>}</section>}
       </article>

@@ -106,6 +106,16 @@ describe("Main Pages", () => {
     expect(html).toContain("/api/og?title=Test");
   });
 
+  it("GET /jejak/:slug renders justified details and social sharing options", async () => {
+    const res = await app.request("/jejak/test");
+    expect(res.status).toBe(200);
+    const html = await res.text();
+    expect(html).toContain("prose-p:text-justify");
+    expect(html).toContain('data-share-link="whatsapp"');
+    expect(html).toContain("navigator.share");
+    expect(html).toContain("Salin tautan");
+  });
+
   it("GET /timeline redirects to the Jejak module", async () => {
     const res = await app.request("/timeline");
     expect(res.status).toBe(302);
