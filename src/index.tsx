@@ -49,6 +49,7 @@ try {
   await ensureColumn('projects', 'content', 'text');
   await ensureColumn('projects', 'github', 'text');
   await ensureColumn('blog_posts', 'cover_image', 'text');
+  await ensureColumn('activities', 'gallery_album_url', 'text');
 } catch (error) {
   console.error('Schema compatibility check failed:', error);
 }
@@ -695,7 +696,7 @@ app.get('/jejak/:slug', async (c) => {
           <aside class="space-y-3"><p class="text-xs font-black text-slate-500 uppercase tracking-widest mb-4">Links</p>{activity.materialUrl && <a href={activity.materialUrl} target="_blank" rel="noreferrer" class="block px-5 py-4 rounded-xl bg-white/5 border border-white/10 hover:border-red-500/40 font-bold text-sm">Lihat Materi ↗</a>}{activity.certificateUrl && <a href={activity.certificateUrl} target="_blank" rel="noreferrer" class="block px-5 py-4 rounded-xl bg-white/5 border border-white/10 hover:border-red-500/40 font-bold text-sm">Sertifikat ↗</a>}{activity.publicationUrl && <a href={activity.publicationUrl} target="_blank" rel="noreferrer" class="block px-5 py-4 rounded-xl bg-white/5 border border-white/10 hover:border-red-500/40 font-bold text-sm">Publikasi ↗</a>}<button onclick="navigator.clipboard.writeText(window.location.href); this.textContent='Tautan tersalin'" class="w-full text-left px-5 py-4 rounded-xl bg-red-700 hover:bg-red-800 font-bold text-sm">Bagikan kegiatan</button></aside>
         </div>
 
-        {media.length > 0 && <section class="mt-20"><h2 class="text-2xl md:text-3xl font-black italic mb-8">DOKUMENTASI <span class="text-red-700">KEGIATAN</span></h2><div class="grid sm:grid-cols-2 md:grid-cols-3 gap-5">{media.map(item => <figure class="group"><img src={item.url} alt={item.caption || activity.title} class="w-full aspect-[4/3] object-cover rounded-2xl border border-white/10 group-hover:border-red-500/40 transition-all" />{item.caption && <figcaption class="text-xs text-slate-500 mt-2">{item.caption}</figcaption>}</figure>)}</div></section>}
+        {(media.length > 0 || activity.galleryAlbumUrl) && <section class="mt-20"><div class="mb-8 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between"><h2 class="text-2xl md:text-3xl font-black italic">DOKUMENTASI <span class="text-red-700">KEGIATAN</span></h2>{activity.galleryAlbumUrl && <a href={activity.galleryAlbumUrl} target="_blank" rel="noreferrer" class="shrink-0 rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-xs font-black uppercase tracking-widest text-red-300 transition-all hover:bg-red-500/20">Lihat Album Lengkap ↗</a>}</div>{media.length > 0 && <div class="grid sm:grid-cols-2 md:grid-cols-3 gap-5">{media.map(item => <figure class="group"><div class="relative aspect-[4/3] overflow-hidden rounded-2xl border border-white/10 group-hover:border-red-500/40 transition-all"><img src={item.url} alt={item.caption || activity.title} class="h-full w-full object-cover transition-transform group-hover:scale-105" onerror="this.classList.add('hidden'); this.nextElementSibling.classList.remove('hidden'); this.nextElementSibling.classList.add('flex')" /><div class="absolute inset-0 hidden items-center justify-center bg-slate-950/80 px-4 text-center text-xs font-bold text-slate-500">Gambar tidak tersedia</div></div>{item.caption && <figcaption class="text-xs text-slate-500 mt-2">{item.caption}</figcaption>}</figure>)}</div>}</section>}
       </article>
     </Layout>
   );
@@ -2056,7 +2057,10 @@ app.post('/admin/activities/save', async (c) => {
   const title = String(body.title || '').trim();
   const slug = slugify(String(body.slug || title));
   const coverImageFile = body.coverImageFile;
+  const galleryFilesValue = body.galleryFiles;
+  const galleryFiles = (Array.isArray(galleryFilesValue) ? galleryFilesValue : [galleryFilesValue]).filter((file): file is File => file instanceof File && file.size > 0);
   let coverImage = String(body.coverImage || '').trim();
+  let uploadedGalleryUrls: string[] = [];
 
   if (!title || !slug || !eventDate || !body.role || !body.category || !body.summary) {
     return c.text('Title, date, role, category, and summary are required.', 400);
@@ -2066,8 +2070,9 @@ app.post('/admin/activities/save', async (c) => {
     if (coverImageFile instanceof File && coverImageFile.size > 0) {
       coverImage = await uploadToS3(coverImageFile, 'activity-covers');
     }
+    uploadedGalleryUrls = await Promise.all(galleryFiles.map(file => uploadToS3(file, 'activity-gallery')));
   } catch (err: any) {
-    return c.text(err.message || 'Failed to upload activity cover to RustFS', 500);
+    return c.text(err.message || 'Failed to upload activity media to RustFS', 500);
   }
 
   const data = {
@@ -2083,6 +2088,7 @@ app.post('/admin/activities/save', async (c) => {
     summary: String(body.summary).trim(),
     description: String(body.description || '').trim() || null,
     coverImage: coverImage || null,
+    galleryAlbumUrl: String(body.galleryAlbumUrl || '').trim() || null,
     materialUrl: String(body.materialUrl || '').trim() || null,
     certificateUrl: String(body.certificateUrl || '').trim() || null,
     publicationUrl: String(body.publicationUrl || '').trim() || null,
@@ -2101,8 +2107,9 @@ app.post('/admin/activities/save', async (c) => {
   }
 
   const galleryUrls = String(body.galleryUrls || '').split('\n').map(url => url.trim()).filter(Boolean);
-  if (activityId && galleryUrls.length > 0) {
-    await db.insert(activityMediaTable).values(galleryUrls.map((url, index) => ({ activityId: activityId!, url, sortOrder: index, mediaType: 'image' })));
+  const allGalleryUrls = [...uploadedGalleryUrls, ...galleryUrls];
+  if (activityId && allGalleryUrls.length > 0) {
+    await db.insert(activityMediaTable).values(allGalleryUrls.map((url, index) => ({ activityId: activityId!, url, sortOrder: index, mediaType: 'image' })));
   }
   adminUpdates.emit('update');
   return c.redirect('/admin');
@@ -2196,7 +2203,11 @@ function renderActivityForm(c: any, activity: any = null, media: any[] = [], use
             <div class="relative"><input type="text" name="coverImage" id="a-cover" value={activity?.coverImage || ''} placeholder=" " class={inputClass} /><label for="a-cover" class={labelClass}>Cover Image URL</label></div>
             <div class="space-y-2"><label class="text-[10px] font-black text-slate-500 uppercase tracking-widest pl-1">Or Upload Cover to RustFS</label><input type="file" name="coverImageFile" accept="image/*" class="w-full bg-slate-950/50 border border-white/10 rounded-2xl px-5 py-4 text-sm text-slate-300 file:mr-4 file:rounded-lg file:border-0 file:bg-cyan-700 file:px-4 file:py-2 file:text-xs file:font-black file:text-white" /></div>
           </div>
-          <div class="relative"><textarea name="galleryUrls" id="a-gallery" placeholder=" " class={inputClass + ' min-h-[140px] font-mono text-sm leading-relaxed'}>{galleryUrls}</textarea><label for="a-gallery" class={labelClass}>Gallery URLs (one URL per line)</label></div>
+          <div class="grid gap-6 md:grid-cols-2">
+            <div class="space-y-2"><label class="text-[10px] font-black text-slate-500 uppercase tracking-widest pl-1">Upload Gallery Photos to RustFS</label><input type="file" name="galleryFiles" accept="image/*" multiple class="w-full bg-slate-950/50 border border-white/10 rounded-2xl px-5 py-4 text-sm text-slate-300 file:mr-4 file:rounded-lg file:border-0 file:bg-cyan-700 file:px-4 file:py-2 file:text-xs file:font-black file:text-white" /><p class="text-xs leading-relaxed text-slate-500">Pilih beberapa foto sekaligus agar tampil stabil di galeri.</p></div>
+            <div class="relative"><textarea name="galleryUrls" id="a-gallery" placeholder=" " class={inputClass + ' min-h-[140px] font-mono text-sm leading-relaxed'}>{galleryUrls}</textarea><label for="a-gallery" class={labelClass}>Direct Image URLs (optional)</label><p class="mt-2 text-xs leading-relaxed text-amber-400/80">Gunakan URL file gambar langsung, bukan link album Google Photos.</p></div>
+          </div>
+          <div class="relative"><input type="url" name="galleryAlbumUrl" id="a-gallery-album" value={activity?.galleryAlbumUrl || ''} placeholder=" " class={inputClass} /><label for="a-gallery-album" class={labelClass}>Google Photos Album URL (optional)</label></div>
           <div class="grid md:grid-cols-3 gap-6">
             <div class="relative"><input type="url" name="materialUrl" id="a-material" value={activity?.materialUrl || ''} placeholder=" " class={inputClass} /><label for="a-material" class={labelClass}>Material URL</label></div>
             <div class="relative"><input type="url" name="certificateUrl" id="a-certificate" value={activity?.certificateUrl || ''} placeholder=" " class={inputClass} /><label for="a-certificate" class={labelClass}>Certificate URL</label></div>

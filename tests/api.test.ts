@@ -165,6 +165,22 @@ describe("Admin Access Control", () => {
     expect(inboxHtml).toContain('aria-label="Inbox sections"');
     expect(inboxHtml).toContain('id="inbox-comments"');
   });
+
+  it("GET /admin/activities/new exposes RustFS gallery upload and album link fields", async () => {
+    const session = encodeURIComponent(JSON.stringify({
+      email: "admin@example.com",
+      name: "Admin User",
+      role: "admin",
+    }));
+    const res = await app.request("/admin/activities/new", {
+      headers: { Cookie: `user_session=${session}` },
+    });
+    expect(res.status).toBe(200);
+    const html = await res.text();
+    expect(html).toContain('name="galleryFiles"');
+    expect(html).toContain('name="galleryAlbumUrl"');
+    expect(html).toContain("Google Photos Album URL");
+  });
 });
 
 describe("POST Endpoints", () => {

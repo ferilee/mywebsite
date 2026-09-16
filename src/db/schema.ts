@@ -69,6 +69,7 @@ export const activities = sqliteTable('activities', {
   summary: text('summary').notNull(),
   description: text('description'), // Markdown
   coverImage: text('cover_image'),
+  galleryAlbumUrl: text('gallery_album_url'),
   materialUrl: text('material_url'),
   certificateUrl: text('certificate_url'),
   publicationUrl: text('publication_url'),
