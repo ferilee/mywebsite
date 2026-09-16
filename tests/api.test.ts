@@ -111,10 +111,36 @@ describe("Main Pages", () => {
 });
 
 describe("Admin Access Control", () => {
+  it("GET /admin/login uses the focused admin shell", async () => {
+    const res = await app.request("/admin/login");
+    expect(res.status).toBe(200);
+    const html = await res.text();
+    expect(html).toContain("AUTHENTICATE");
+    expect(html).toContain("FERILEE");
+    expect(html).not.toContain('href="/projects"');
+  });
+
   it("GET /admin redirects to login when not authenticated", async () => {
     const res = await app.request("/admin");
     expect(res.status).toBe(302);
     expect(res.headers.get("Location")).toContain("/admin/login");
+  });
+
+  it("GET /admin uses the admin shell without public navigation", async () => {
+    const session = encodeURIComponent(JSON.stringify({
+      email: "admin@example.com",
+      name: "Admin User",
+      role: "admin",
+    }));
+    const res = await app.request("/admin", {
+      headers: { Cookie: `user_session=${session}` },
+    });
+    expect(res.status).toBe(200);
+    const html = await res.text();
+    expect(html).toContain("Admin workspace");
+    expect(html).toContain('href="/admin#jejak"');
+    expect(html).not.toContain('href="/projects"');
+    expect(html).not.toContain('href="/jejak"');
   });
 });
 

@@ -12,6 +12,7 @@ import { db } from './db';
 import { projects as projectTable, blogPosts, skills as skillTable, experience as expTable, settings as settingsTable, contacts as contactTable, comments as commentTable, reactions as reactionTable, subscriptions as subTable, pageViews as viewTable, milestones as milestonesTable, activities as activityTable, activityMedia as activityMediaTable, profiles as profileTable } from './db/schema';
 import { eq, desc, or, like, and, sql } from 'drizzle-orm';
 import { Layout } from './components/Layout';
+import { AdminLayout } from './components/AdminLayout';
 import { marked } from 'marked';
 import { z as zod } from 'zod';
 import { S3Client, PutObjectCommand } from '@aws-sdk/client-s3';
@@ -1102,7 +1103,7 @@ app.get('/admin/login', (c) => {
   if (user?.role === 'admin') return c.redirect('/admin');
   
   return c.html(
-    <Layout title="Admin Login | Ferilee" user={user}>
+    <AdminLayout title="Admin Login | Ferilee" user={user} currentPath="/admin/login" showNavigation={false}>
       <div class="max-w-md mx-auto px-6 py-20">
 
         <div class="bg-white/5 border border-white/10 p-8 rounded-[2rem] backdrop-blur-xl relative overflow-hidden">
@@ -1142,7 +1143,7 @@ app.get('/admin/login', (c) => {
           {c.req.query('error') && <p class="mt-6 text-center text-red-500 text-xs font-bold uppercase tracking-widest">Invalid credentials</p>}
         </div>
       </div>
-    </Layout>
+      </AdminLayout>
   );
 });
 
@@ -1263,7 +1264,7 @@ app.get('/admin', async (c) => {
   const totalSubs = await db.select().from(subTable);
 
   return c.html(
-    <Layout title="Admin Dashboard | Ferilee" notificationCount={unreadCount} user={user}>
+    <AdminLayout title="Admin Dashboard | Ferilee" notificationCount={unreadCount} user={user} currentPath="/admin">
       <div class="max-w-7xl mx-auto px-6 py-20">
 
         <script dangerouslySetInnerHTML={{ __html: `
@@ -1415,7 +1416,7 @@ app.get('/admin', async (c) => {
         </div>
 
 
-        <div class="bg-white/5 border border-white/10 rounded-[2.5rem] p-6 sm:p-8 backdrop-blur-xl mb-12">
+        <div id="jejak" class="scroll-mt-24 bg-white/5 border border-white/10 rounded-[2.5rem] p-6 sm:p-8 backdrop-blur-xl mb-12">
           <div class="flex flex-col sm:flex-row justify-between gap-4 items-start sm:items-center mb-8">
             <h2 class="text-xl sm:text-2xl font-black italic">JEJAK <span class="text-cyan-400">ACTIVITIES</span></h2>
             <a href="/admin/activities/new" class="px-5 py-3 bg-cyan-700 hover:bg-cyan-800 rounded-xl text-xs font-black uppercase tracking-widest">+ New Activity</a>
@@ -1434,7 +1435,7 @@ app.get('/admin', async (c) => {
 
 
         {/* MODERATION & INBOX */}
-        <div class="grid lg:grid-cols-2 gap-12 mb-12">
+        <div id="inbox" class="scroll-mt-24 grid lg:grid-cols-2 gap-12 mb-12">
           {/* Inbox Messages */}
           <div class="bg-white/5 border border-white/10 rounded-[2.5rem] p-6 sm:p-8 backdrop-blur-xl overflow-hidden">
             <h2 class="text-xl sm:text-2xl font-black italic mb-8">INBOX <span class="text-red-700">MESSAGES</span></h2>
@@ -1502,7 +1503,7 @@ app.get('/admin', async (c) => {
 
 
       </div>
-    </Layout>
+      </AdminLayout>
   );
 });
 
@@ -1587,7 +1588,7 @@ app.get('/admin/visitors', async (c) => {
   const occupationStats = await db.select({ occupation: profileTable.occupation, count: sql<number>`count(*)` }).from(profileTable).groupBy(profileTable.occupation).orderBy(desc(sql`count(*)`));
 
   return c.html(
-    <Layout title="Visitor Insights | Admin" user={user}>
+    <AdminLayout title="Visitor Insights | Admin" user={user} currentPath="/admin/visitors">
       <div class="max-w-7xl mx-auto px-6 py-20">
         <header class="mb-16 flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
           <div>
@@ -1730,7 +1731,7 @@ app.get('/admin/visitors', async (c) => {
           })();
         `}} />
       </div>
-    </Layout>
+      </AdminLayout>
   );
 });
 
@@ -1747,7 +1748,7 @@ function renderBlogForm(c: any, post: any = null, user: any = null) {
   const labelClass = "absolute left-5 top-5 text-slate-500 text-xs font-bold uppercase tracking-widest transition-all pointer-events-none peer-placeholder-shown:text-slate-500 peer-placeholder-shown:text-base peer-placeholder-shown:top-5 peer-placeholder-shown:font-medium peer-placeholder-shown:lowercase peer-focus:top-2 peer-focus:text-[10px] peer-focus:text-red-500 peer-focus:uppercase peer-focus:font-bold peer-[:not(:placeholder-shown)]:top-2 peer-[:not(:placeholder-shown)]:text-[10px] peer-[:not(:placeholder-shown)]:text-red-500 peer-[:not(:placeholder-shown)]:uppercase peer-[:not(:placeholder-shown)]:font-bold";
 
   return c.html(
-    <Layout title={`${post ? 'Edit' : 'New'} Post | Admin`} user={user}>
+    <AdminLayout title={`${post ? 'Edit' : 'New'} Post | Admin`} user={user} currentPath="/admin/blog" showNavigation={false}>
       <div class="max-w-4xl mx-auto px-6 pt-10 pb-32">
 
         <h1 class="text-4xl font-black mb-12 italic tracking-tight">{post ? 'EDIT' : 'NEW'} <span class="text-red-700">POST</span></h1>
@@ -1851,7 +1852,7 @@ function renderBlogForm(c: any, post: any = null, user: any = null) {
           });
         `}} />
       </div>
-    </Layout>
+      </AdminLayout>
   );
 }
 
@@ -2150,7 +2151,7 @@ function renderActivityForm(c: any, activity: any = null, media: any[] = [], use
   const galleryUrls = media.map(item => item.url).join('\n');
 
   return c.html(
-    <Layout title={(activity ? 'Edit' : 'New') + ' Activity | Admin'} user={user}>
+    <AdminLayout title={(activity ? 'Edit' : 'New') + ' Activity | Admin'} user={user} currentPath="/admin/activities" showNavigation={false}>
       <div class="max-w-5xl mx-auto px-6 pt-10 pb-32">
         <a href="/admin" class="text-xs font-black text-cyan-400 uppercase tracking-widest hover:text-white">← Admin Dashboard</a>
         <h1 class="text-4xl font-black mt-8 mb-12 italic tracking-tight">{activity ? 'EDIT' : 'NEW'} <span class="text-cyan-400">JEJAK</span></h1>
@@ -2192,7 +2193,7 @@ function renderActivityForm(c: any, activity: any = null, media: any[] = [], use
           <div class="flex gap-4 pt-4"><button type="submit" class="px-10 py-4 bg-cyan-700 hover:bg-cyan-800 text-white font-black rounded-xl transition-all uppercase tracking-widest">Save Activity</button><a href="/admin" class="px-10 py-4 border border-white/10 rounded-xl font-black text-slate-400 hover:text-white transition-all">Cancel</a></div>
         </form>
       </div>
-    </Layout>
+    </AdminLayout>
   );
 }
 
@@ -2201,7 +2202,7 @@ function renderProjectForm(c: any, project: any = null, user: any = null) {
   const labelClass = "absolute left-5 top-5 text-slate-500 text-xs font-bold uppercase tracking-widest transition-all pointer-events-none peer-placeholder-shown:text-slate-500 peer-placeholder-shown:text-base peer-placeholder-shown:top-5 peer-placeholder-shown:font-medium peer-placeholder-shown:lowercase peer-focus:top-2 peer-focus:text-[10px] peer-focus:text-red-500 peer-focus:uppercase peer-focus:font-bold peer-[:not(:placeholder-shown)]:top-2 peer-[:not(:placeholder-shown)]:text-[10px] peer-[:not(:placeholder-shown)]:text-red-500 peer-[:not(:placeholder-shown)]:uppercase peer-[:not(:placeholder-shown)]:font-bold";
 
   return c.html(
-    <Layout title={`${project ? 'Edit' : 'New'} Project | Admin`} user={user}>
+    <AdminLayout title={`${project ? 'Edit' : 'New'} Project | Admin`} user={user} currentPath="/admin/projects" showNavigation={false}>
       <div class="max-w-4xl mx-auto px-6 pt-10 pb-32">
 
         <h1 class="text-4xl font-black mb-12 italic tracking-tight">{project ? 'EDIT' : 'NEW'} <span class="text-red-700">PROJECT</span></h1>
@@ -2313,7 +2314,7 @@ function renderProjectForm(c: any, project: any = null, user: any = null) {
           };
         `}} />
       </div>
-    </Layout>
+    </AdminLayout>
   );
 }
 
@@ -2322,7 +2323,7 @@ function renderSettingsForm(c: any, settings: any, user: any = null) {
   const labelClass = "absolute left-5 top-5 text-slate-500 text-xs font-bold uppercase tracking-widest transition-all pointer-events-none peer-placeholder-shown:text-slate-500 peer-placeholder-shown:text-base peer-placeholder-shown:top-5 peer-placeholder-shown:font-medium peer-placeholder-shown:lowercase peer-focus:top-2 peer-focus:text-[10px] peer-focus:text-red-500 peer-focus:uppercase peer-focus:font-bold peer-[:not(:placeholder-shown)]:top-2 peer-[:not(:placeholder-shown)]:text-[10px] peer-[:not(:placeholder-shown)]:text-red-500 peer-[:not(:placeholder-shown)]:uppercase peer-[:not(:placeholder-shown)]:font-bold";
 
   return c.html(
-    <Layout title="Home Settings | Admin" user={user}>
+    <AdminLayout title="Home Settings | Admin" user={user} currentPath="/admin/settings">
       <div class="max-w-4xl mx-auto px-6 py-20">
 
         <h1 class="text-4xl font-black mb-12 italic tracking-tight">HOME <span class="text-red-700">SETTINGS</span></h1>
@@ -2358,7 +2359,7 @@ function renderSettingsForm(c: any, settings: any, user: any = null) {
           </div>
         </form>
       </div>
-    </Layout>
+      </AdminLayout>
   );
 }
 
