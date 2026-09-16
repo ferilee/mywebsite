@@ -1250,6 +1250,40 @@ app.get('/auth/logout', (c) => {
 
 
 
+app.get('/admin/activities', async (c) => {
+  const user = c.var.user;
+  const activities = await db.select().from(activityTable).orderBy(desc(activityTable.eventDate));
+  const unreadCount = (await db.select().from(contactTable)).filter(message => !message.isRead).length;
+  const publishedCount = activities.filter(activity => activity.status === 'published').length;
+  const featuredCount = activities.filter(activity => activity.featuredOnCv).length;
+
+  return c.html(
+    <AdminLayout title="Jejak Activities | Admin" notificationCount={unreadCount} user={user} currentPath="/admin/activities">
+      <div class="mx-auto max-w-7xl px-6 py-10 md:py-16">
+        <header class="mb-10 flex flex-col gap-6 md:flex-row md:items-end md:justify-between"><div><a href="/admin" class="text-xs font-black uppercase tracking-widest text-cyan-400 hover:text-white">← Dashboard</a><h1 class="mt-5 text-4xl font-black italic tracking-tight md:text-5xl">JEJAK <span class="text-cyan-400">ACTIVITIES</span></h1><p class="mt-3 max-w-xl text-slate-500">Kelola dokumentasi kegiatan profesional, publikasi, galeri, dan highlight CV.</p></div><a href="/admin/activities/new" class="rounded-xl bg-cyan-700 px-5 py-3 text-center text-xs font-black uppercase tracking-widest text-white transition-all hover:bg-cyan-800">+ New Activity</a></header>
+        <div class="mb-10 grid grid-cols-3 gap-3 md:gap-5"><div class="rounded-2xl border border-white/10 bg-white/5 p-4 md:p-6"><p class="text-2xl font-black">{activities.length}</p><p class="mt-2 text-[10px] font-black uppercase tracking-widest text-slate-500">Total</p></div><div class="rounded-2xl border border-white/10 bg-white/5 p-4 md:p-6"><p class="text-2xl font-black text-green-400">{publishedCount}</p><p class="mt-2 text-[10px] font-black uppercase tracking-widest text-slate-500">Published</p></div><div class="rounded-2xl border border-white/10 bg-white/5 p-4 md:p-6"><p class="text-2xl font-black text-cyan-400">{featuredCount}</p><p class="mt-2 text-[10px] font-black uppercase tracking-widest text-slate-500">CV Featured</p></div></div>
+        <section class="space-y-4">{activities.map(activity => <article class="flex flex-col gap-5 rounded-2xl border border-white/10 bg-white/5 p-5 transition-all hover:border-cyan-500/30 md:flex-row md:items-center md:justify-between md:p-6"><div class="min-w-0"><div class="flex flex-wrap items-center gap-2"><h2 class="font-black text-white">{activity.title}</h2><span class={`rounded-md px-2 py-1 text-[9px] font-black uppercase ${activity.status === 'published' ? 'bg-green-900/30 text-green-400' : 'bg-amber-900/30 text-amber-400'}`}>{activity.status}</span>{activity.featuredOnCv && <span class="rounded-md bg-cyan-900/30 px-2 py-1 text-[9px] font-black uppercase text-cyan-400">CV</span>}</div><p class="mt-2 text-[10px] font-bold uppercase tracking-widest text-slate-500">{activity.eventDate} • {activity.category} • {activity.role}</p><p class="mt-3 line-clamp-2 text-sm text-slate-400">{activity.summary}</p></div><div class="flex shrink-0 items-center gap-2"><a href={`/jejak/${activity.slug}`} target="_blank" rel="noreferrer" class="rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-sm font-bold text-slate-400 hover:text-white">View ↗</a><a href={`/admin/activities/edit/${activity.id}`} class="rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-sm font-bold text-slate-400 hover:text-white">Edit</a><form action={`/admin/activities/delete/${activity.id}`} method="post" onsubmit="return confirm('Delete this activity?')"><button type="submit" class="rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-sm font-bold text-slate-500 hover:border-red-500/30 hover:text-red-400">Delete</button></form></div></article>)}{activities.length === 0 && <div class="rounded-2xl border border-dashed border-white/10 p-16 text-center text-sm font-bold text-slate-500">Belum ada kegiatan. Buat kegiatan pertama dari tombol di atas.</div>}</section>
+      </div>
+    </AdminLayout>
+  );
+});
+
+app.get('/admin/inbox', async (c) => {
+  const user = c.var.user;
+  const messages = await db.select().from(contactTable).orderBy(desc(contactTable.id));
+  const comments = await db.select().from(commentTable).orderBy(desc(commentTable.createdAt));
+  const unreadCount = messages.filter(message => !message.isRead).length;
+
+  return c.html(
+    <AdminLayout title="Inbox | Admin" notificationCount={unreadCount} user={user} currentPath="/admin/inbox">
+      <div class="mx-auto max-w-7xl px-6 py-10 md:py-16">
+        <header class="mb-10 flex flex-col gap-5 md:flex-row md:items-end md:justify-between"><div><a href="/admin" class="text-xs font-black uppercase tracking-widest text-cyan-400 hover:text-white">← Dashboard</a><h1 class="mt-5 text-4xl font-black italic tracking-tight">INBOX <span class="text-red-500">CENTER</span></h1><p class="mt-3 text-slate-500">Kelola pesan kontak dan moderasi komentar dari satu tempat.</p></div><div class="rounded-xl border border-red-500/20 bg-red-500/5 px-4 py-3 text-xs font-black uppercase tracking-widest text-red-300">{unreadCount} unread messages</div></header>
+        <div class="grid gap-8 lg:grid-cols-2"><section class="rounded-[2rem] border border-white/10 bg-white/5 p-6 backdrop-blur-xl md:p-8"><h2 class="mb-8 text-2xl font-black italic">INBOX <span class="text-red-500">MESSAGES</span></h2><div class="space-y-4">{messages.map(message => <article class={`rounded-2xl border ${!message.isRead ? 'border-red-500/30 ring-1 ring-red-500/20' : 'border-white/5'} bg-slate-950/40 p-4`}><div class="flex items-start justify-between gap-4"><div class="min-w-0"><p class="truncate text-[10px] font-black uppercase tracking-widest text-red-500">{message.subject}</p><h3 class="mt-1 truncate font-bold text-white">{message.name}</h3><p class="truncate text-[10px] text-slate-500">{message.email}</p></div><div class="flex shrink-0 gap-1">{!message.isRead && <form action={`/admin/contacts/read/${message.id}`} method="post"><button type="submit" class="rounded-lg p-2 text-slate-500 hover:text-green-400" title="Mark as read">✓</button></form>}<form action={`/admin/contacts/delete/${message.id}`} method="post"><button type="submit" class="rounded-lg p-2 text-slate-500 hover:text-red-400" title="Delete message">×</button></form></div></div><p class="mt-4 line-clamp-3 text-sm italic leading-relaxed text-slate-400">"{message.message}"</p><p class="mt-3 text-[9px] font-bold uppercase tracking-widest text-slate-600">{new Date(message.createdAt!).toLocaleString()}</p></article>)}{messages.length === 0 && <p class="py-12 text-center text-sm font-bold text-slate-500">Belum ada pesan.</p>}</div></section><section class="rounded-[2rem] border border-white/10 bg-white/5 p-6 backdrop-blur-xl md:p-8"><h2 class="mb-8 text-2xl font-black italic">COMMENT <span class="text-red-500">MODERATION</span></h2><div class="space-y-4">{comments.map(comment => <article class="rounded-2xl border border-white/5 bg-slate-950/40 p-4"><div class="flex items-start justify-between gap-4"><div><p class="text-[10px] font-black uppercase tracking-widest text-slate-500">{comment.name}</p><p class="mt-1 text-[10px] font-bold text-red-400">{comment.email}</p></div><form action={`/admin/comments/delete/${comment.id}`} method="post" onsubmit="return confirm('Delete this comment?')"><button type="submit" class="rounded-lg p-2 text-slate-500 hover:text-red-400" title="Delete comment">×</button></form></div><p class="mt-4 line-clamp-3 text-sm italic leading-relaxed text-slate-400">"{comment.content}"</p></article>)}{comments.length === 0 && <p class="py-12 text-center text-sm font-bold text-slate-500">Belum ada komentar.</p>}</div></section></div>
+      </div>
+    </AdminLayout>
+  );
+});
+
 app.get('/admin', async (c) => {
   const user = c.var.user;
   const posts = await db.select().from(blogPosts).orderBy(desc(blogPosts.id));
@@ -1364,143 +1398,18 @@ app.get('/admin', async (c) => {
           </div>
         </div>
 
-        <div class="grid lg:grid-cols-2 gap-12 mb-12">
-          {/* Blog Posts */}
-          <div class="bg-white/5 border border-white/10 rounded-[2.5rem] p-6 sm:p-8 backdrop-blur-xl">
-            <h2 class="text-xl sm:text-2xl font-black italic mb-8">BLOG <span class="text-red-700">POSTS</span></h2>
-            <div class="space-y-4 max-h-[400px] overflow-y-auto pr-2 custom-scrollbar">
-              {posts.map(post => (
-                <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center p-5 bg-slate-950/50 border border-white/5 rounded-2xl gap-4 sm:gap-0">
-                  <div>
-                    <p class="font-bold text-sm">{post.title}</p>
-                    <p class="text-[10px] text-slate-500 uppercase">{post.status}</p>
-                  </div>
-                  <div class="flex items-center gap-2">
-                    <a href={`/admin/blog/edit/${post.id}`} class="p-2 bg-white/5 border border-white/10 rounded-lg text-slate-400 hover:text-white hover:bg-white/10 transition-all" title="Edit Post">
-                      <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"/></svg>
-                    </a>
-                    <form action={`/admin/blog/delete/${post.id}`} method="post" onsubmit="return confirm('Delete this post?')">
-                      <button type="submit" class="p-2 bg-white/5 border border-white/10 rounded-lg text-slate-700 hover:text-red-500 hover:bg-red-500/10 transition-all" title="Delete Post">
-                        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></svg>
-                      </button>
-                    </form>
-                  </div>
-                </div>
-              ))}
-              {posts.length === 0 && <p class="text-slate-500 font-bold italic">No posts yet</p>}
-            </div>
+        <section class="mb-12 rounded-[2.5rem] border border-white/10 bg-white/5 p-6 backdrop-blur-xl sm:p-8">
+          <div class="mb-8 flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
+            <div><h2 class="text-xl font-black italic sm:text-2xl">CONTENT <span class="text-cyan-400">OVERVIEW</span></h2><p class="mt-2 text-sm text-slate-500">Kelola konten lengkap melalui menu masing-masing.</p></div>
+            <a href="/" class="text-xs font-black uppercase tracking-widest text-slate-500 hover:text-white">View public site →</a>
           </div>
-
-          {/* Portfolio Projects */}
-          <div class="bg-white/5 border border-white/10 rounded-[2.5rem] p-6 sm:p-8 backdrop-blur-xl">
-            <h2 class="text-xl sm:text-2xl font-black italic mb-8">PORTFOLIO <span class="text-red-700">PROJECTS</span></h2>
-            <div class="space-y-4 max-h-[400px] overflow-y-auto pr-2 custom-scrollbar">
-              {projects.map(project => (
-                <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center p-5 bg-slate-950/50 border border-white/5 rounded-2xl gap-4 sm:gap-0">
-                  <p class="font-bold text-sm truncate max-w-full sm:max-w-[200px]">{project.title}</p>
-                  <div class="flex items-center gap-2">
-                    <a href={`/admin/projects/edit/${project.id}`} class="p-2 bg-white/5 border border-white/10 rounded-lg text-slate-400 hover:text-white hover:bg-white/10 transition-all" title="Edit Project">
-                      <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"/></svg>
-                    </a>
-                    <form action={`/admin/projects/delete/${project.id}`} method="post">
-                      <button type="submit" class="p-2 bg-white/5 border border-white/10 rounded-lg text-slate-700 hover:text-red-500 hover:bg-red-500/10 transition-all" title="Delete Project">
-                        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></svg>
-                      </button>
-                    </form>
-                  </div>
-                </div>
-              ))}
-              {projects.length === 0 && <p class="text-slate-500 font-bold italic">No projects yet</p>}
-            </div>
+          <div class="grid grid-cols-2 gap-4 md:grid-cols-4">
+            <a href="/admin/blog/new" class="rounded-2xl border border-white/10 bg-slate-950/40 p-5 transition-all hover:border-red-500/40"><p class="text-2xl font-black text-white">{posts.length}</p><p class="mt-2 text-[10px] font-black uppercase tracking-widest text-slate-500">Blog posts</p></a>
+            <a href="/admin/projects/new" class="rounded-2xl border border-white/10 bg-slate-950/40 p-5 transition-all hover:border-red-500/40"><p class="text-2xl font-black text-white">{projects.length}</p><p class="mt-2 text-[10px] font-black uppercase tracking-widest text-slate-500">Projects</p></a>
+            <a href="/admin/activities" class="rounded-2xl border border-white/10 bg-slate-950/40 p-5 transition-all hover:border-cyan-500/40"><p class="text-2xl font-black text-white">{activities.length}</p><p class="mt-2 text-[10px] font-black uppercase tracking-widest text-slate-500">Jejak</p></a>
+            <a href="/admin/inbox" class="rounded-2xl border border-white/10 bg-slate-950/40 p-5 transition-all hover:border-cyan-500/40"><p class="text-2xl font-black text-white">{messages.length}</p><p class="mt-2 text-[10px] font-black uppercase tracking-widest text-slate-500">Inbox</p></a>
           </div>
-        </div>
-
-
-        <div id="jejak" class="scroll-mt-24 bg-white/5 border border-white/10 rounded-[2.5rem] p-6 sm:p-8 backdrop-blur-xl mb-12">
-          <div class="flex flex-col sm:flex-row justify-between gap-4 items-start sm:items-center mb-8">
-            <h2 class="text-xl sm:text-2xl font-black italic">JEJAK <span class="text-cyan-400">ACTIVITIES</span></h2>
-            <a href="/admin/activities/new" class="px-5 py-3 bg-cyan-700 hover:bg-cyan-800 rounded-xl text-xs font-black uppercase tracking-widest">+ New Activity</a>
-          </div>
-          <div class="space-y-4 max-h-[420px] overflow-y-auto pr-2 custom-scrollbar">
-            {activities.map(activity => (
-              <div class="flex flex-col sm:flex-row justify-between gap-4 sm:items-center p-5 bg-slate-950/50 border border-white/5 rounded-2xl">
-                <div><div class="flex flex-wrap gap-2 items-center"><p class="font-bold text-sm">{activity.title}</p><span class={`text-[9px] px-2 py-1 rounded-md uppercase font-black ${activity.status === 'published' ? 'bg-green-900/30 text-green-400' : 'bg-amber-900/30 text-amber-400'}`}>{activity.status}</span>{activity.featuredOnCv && <span class="text-[9px] px-2 py-1 rounded-md bg-cyan-900/30 text-cyan-400 uppercase font-black">CV</span>}</div><p class="text-[10px] text-slate-500 uppercase mt-2">{activity.eventDate} • {activity.category} • {activity.role}</p></div>
-                <div class="flex items-center gap-2"><a href={`/jejak/${activity.slug}`} target="_blank" class="p-2 bg-white/5 border border-white/10 rounded-lg text-slate-400 hover:text-white transition-all" title="View Activity">↗</a><a href={`/admin/activities/edit/${activity.id}`} class="p-2 bg-white/5 border border-white/10 rounded-lg text-slate-400 hover:text-white transition-all" title="Edit Activity">✎</a><form action={`/admin/activities/delete/${activity.id}`} method="post" onsubmit="return confirm('Delete this activity?')"><button type="submit" class="p-2 bg-white/5 border border-white/10 rounded-lg text-slate-700 hover:text-red-500 transition-all" title="Delete Activity">×</button></form></div>
-              </div>
-            ))}
-            {activities.length === 0 && <p class="text-slate-500 font-bold italic">No activities yet</p>}
-          </div>
-        </div>
-
-
-
-        {/* MODERATION & INBOX */}
-        <div id="inbox" class="scroll-mt-24 grid lg:grid-cols-2 gap-12 mb-12">
-          {/* Inbox Messages */}
-          <div class="bg-white/5 border border-white/10 rounded-[2.5rem] p-6 sm:p-8 backdrop-blur-xl overflow-hidden">
-            <h2 class="text-xl sm:text-2xl font-black italic mb-8">INBOX <span class="text-red-700">MESSAGES</span></h2>
-            <div class="space-y-4 max-h-[500px] overflow-y-auto pr-2 custom-scrollbar">
-              {messages.map(msg => (
-                <div class={`bg-slate-950/40 border ${!msg.isRead ? 'border-red-500/30 ring-1 ring-red-500/20' : 'border-white/5'} rounded-2xl p-4 transition-all relative group`}>
-                  <div class="flex flex-col sm:flex-row justify-between items-start gap-4">
-                    <div class="flex-grow min-w-0 w-full sm:w-auto">
-                      <div class="flex items-center gap-2 mb-1">
-                        {!msg.isRead && <div class="w-1.5 h-1.5 bg-red-500 rounded-full"></div>}
-                        <span class="text-[10px] font-black text-red-500 uppercase tracking-widest truncate">{msg.subject}</span>
-                      </div>
-                      <h3 class="font-bold text-sm text-white truncate">{msg.name}</h3>
-                      <p class="text-[10px] text-slate-500 truncate mb-3">{msg.email}</p>
-                    </div>
-                    <div class="flex gap-1">
-                      {!msg.isRead && (
-                        <form action={`/admin/contacts/read/${msg.id}`} method="post">
-                          <button type="submit" class="p-1.5 text-slate-500 hover:text-green-500 transition-colors" title="Mark as Read">
-                            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>
-                          </button>
-                        </form>
-                      )}
-                      <form action={`/admin/contacts/delete/${msg.id}`} method="post">
-                        <button type="submit" class="p-1.5 text-slate-700 hover:text-red-500 transition-colors">
-                          <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/></svg>
-                        </button>
-                      </form>
-                    </div>
-                  </div>
-                  <p class="text-slate-400 text-xs leading-relaxed italic line-clamp-2 mb-3">"{msg.message}"</p>
-                  <div class="text-[9px] font-bold text-slate-600 uppercase tracking-tighter">{new Date(msg.createdAt!).toLocaleString()}</div>
-                </div>
-              ))}
-              {messages.length === 0 && <p class="text-center py-10 text-slate-500 font-bold uppercase tracking-widest italic text-[10px]">No messages yet</p>}
-            </div>
-          </div>
-          {/* Comment Moderation */}
-          <div class="bg-white/5 border border-white/10 rounded-[2.5rem] p-6 sm:p-8 backdrop-blur-xl overflow-hidden">
-            <h2 class="text-xl sm:text-2xl font-black italic mb-8">COMMENT <span class="text-red-700">MODERATION</span></h2>
-            <div class="space-y-4 max-h-[500px] overflow-y-auto pr-2">
-              {(await db.select().from(commentTable).orderBy(desc(commentTable.createdAt))).map(comment => (
-                <div class="p-4 bg-slate-950/30 border border-white/5 rounded-xl">
-                  <div class="flex flex-col sm:flex-row justify-between items-start gap-2 mb-2">
-                    <div>
-                      <span class="text-[10px] font-black text-slate-500 uppercase tracking-widest">{comment.name}</span>
-                      <p class="text-[10px] text-red-500 font-bold truncate max-w-[150px]">{comment.email}</p>
-                    </div>
-                    <form action={`/admin/comments/delete/${comment.id}`} method="post" onsubmit="return confirm('Delete this comment?')">
-                      <button type="submit" class="text-slate-700 hover:text-red-500 transition-all">
-                        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/></svg>
-                      </button>
-                    </form>
-                  </div>
-                  <p class="text-xs text-slate-400 line-clamp-2 italic">"{comment.content}"</p>
-                </div>
-              ))}
-              {(await db.select().from(commentTable)).length === 0 && <p class="text-center text-slate-500 py-10 font-bold italic">No comments yet</p>}
-            </div>
-          </div>
-        </div>
-
-
-
-
+        </section>
 
       </div>
       </AdminLayout>

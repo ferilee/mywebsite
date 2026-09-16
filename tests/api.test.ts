@@ -138,9 +138,29 @@ describe("Admin Access Control", () => {
     expect(res.status).toBe(200);
     const html = await res.text();
     expect(html).toContain("Admin workspace");
-    expect(html).toContain('href="/admin#jejak"');
+    expect(html).toContain('href="/admin/activities"');
+    expect(html).toContain('href="/admin/inbox"');
     expect(html).not.toContain('href="/projects"');
     expect(html).not.toContain('href="/jejak"');
+    expect(html).not.toContain("INBOX MESSAGES");
+    expect(html).not.toContain("JEJAK ACTIVITIES");
+  });
+
+  it("GET /admin/activities and /admin/inbox are standalone admin pages", async () => {
+    const session = encodeURIComponent(JSON.stringify({
+      email: "admin@example.com",
+      name: "Admin User",
+      role: "admin",
+    }));
+    const headers = { Cookie: `user_session=${session}` };
+
+    const activitiesRes = await app.request("/admin/activities", { headers });
+    expect(activitiesRes.status).toBe(200);
+    expect(await activitiesRes.text()).toContain("Jejak Activities | Admin");
+
+    const inboxRes = await app.request("/admin/inbox", { headers });
+    expect(inboxRes.status).toBe(200);
+    expect(await inboxRes.text()).toContain("Inbox | Admin");
   });
 });
 
