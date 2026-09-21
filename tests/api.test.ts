@@ -193,6 +193,9 @@ describe("Admin Access Control", () => {
     expect(html).toContain('name="galleryFiles"');
     expect(html).toContain('name="galleryAlbumUrl"');
     expect(html).toContain("Google Photos Album URL");
+    expect(html).toContain('name="activityLinkLabel"');
+    expect(html).toContain('name="activityLinkUrl"');
+    expect(html).toContain("addActivityLink");
   });
 });
 

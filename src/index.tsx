@@ -9,7 +9,7 @@ import { setCookie, getCookie } from 'hono/cookie';
 import { EventEmitter } from 'node:events';
 import { mkdir } from 'node:fs/promises';
 import { db } from './db';
-import { projects as projectTable, blogPosts, skills as skillTable, experience as expTable, settings as settingsTable, contacts as contactTable, comments as commentTable, reactions as reactionTable, subscriptions as subTable, pageViews as viewTable, milestones as milestonesTable, activities as activityTable, activityMedia as activityMediaTable, profiles as profileTable } from './db/schema';
+import { projects as projectTable, blogPosts, skills as skillTable, experience as expTable, settings as settingsTable, contacts as contactTable, comments as commentTable, reactions as reactionTable, subscriptions as subTable, pageViews as viewTable, milestones as milestonesTable, activities as activityTable, activityMedia as activityMediaTable, activityLinks as activityLinkTable, profiles as profileTable } from './db/schema';
 import { eq, desc, or, like, and, inArray, sql } from 'drizzle-orm';
 import { Layout } from './components/Layout';
 import { AdminLayout } from './components/AdminLayout';
@@ -50,6 +50,13 @@ try {
   await ensureColumn('projects', 'github', 'text');
   await ensureColumn('blog_posts', 'cover_image', 'text');
   await ensureColumn('activities', 'gallery_album_url', 'text');
+  await db.run(sql.raw(`CREATE TABLE IF NOT EXISTS activity_links (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    activity_id INTEGER NOT NULL REFERENCES activities(id),
+    label TEXT NOT NULL,
+    url TEXT NOT NULL,
+    sort_order INTEGER DEFAULT 0
+  )`));
 } catch (error) {
   console.error('Schema compatibility check failed:', error);
 }
@@ -688,6 +695,8 @@ app.get('/jejak/:slug', async (c) => {
   const activity = results[0];
   if (!activity) return c.notFound();
   const media = await db.select().from(activityMediaTable).where(eq(activityMediaTable.activityId, activity.id)).orderBy(activityMediaTable.sortOrder);
+  const activityLinks = await db.select().from(activityLinkTable).where(eq(activityLinkTable.activityId, activity.id)).orderBy(activityLinkTable.sortOrder);
+  const additionalLinks = activityLinks.filter(link => link.label && link.url);
   const descriptionHtml = activity.description ? await marked.parse(activity.description) : '';
 
   return c.html(
@@ -700,7 +709,10 @@ app.get('/jejak/:slug', async (c) => {
         </header>
 
         <div class="grid lg:grid-cols-[1fr_280px] gap-12 mt-16">
-          <div class="prose prose-invert prose-red prose-p:text-justify max-w-none text-slate-300 leading-relaxed" dangerouslySetInnerHTML={{ __html: descriptionHtml }} />
+          <div>
+            <div class="prose prose-invert prose-red prose-p:text-justify max-w-none text-slate-300 leading-relaxed" dangerouslySetInnerHTML={{ __html: descriptionHtml }} />
+            {additionalLinks.length > 0 && <section class="mt-10 border-t border-white/10 pt-8"><p class="mb-4 text-xs font-black uppercase tracking-widest text-slate-500">Tautan tambahan</p><div class="flex flex-wrap gap-3">{additionalLinks.map(link => <a href={link.url} target="_blank" rel="noreferrer" class="rounded-xl border border-cyan-500/30 bg-cyan-500/10 px-5 py-3 text-sm font-bold text-cyan-200 transition-all hover:bg-cyan-500/20 hover:text-white">{link.label} ↗</a>)}</div></section>}
+          </div>
           <aside class="space-y-3"><p class="text-xs font-black text-slate-500 uppercase tracking-widest mb-4">Links</p>{activity.materialUrl && <a href={activity.materialUrl} target="_blank" rel="noreferrer" class="block px-5 py-4 rounded-xl bg-white/5 border border-white/10 hover:border-red-500/40 font-bold text-sm">Lihat Materi ↗</a>}{activity.certificateUrl && <a href={activity.certificateUrl} target="_blank" rel="noreferrer" class="block px-5 py-4 rounded-xl bg-white/5 border border-white/10 hover:border-red-500/40 font-bold text-sm">Sertifikat ↗</a>}{activity.publicationUrl && <a href={activity.publicationUrl} target="_blank" rel="noreferrer" class="block px-5 py-4 rounded-xl bg-white/5 border border-white/10 hover:border-red-500/40 font-bold text-sm">Publikasi ↗</a>}<div class="relative" data-share-root><button type="button" data-share-button data-share-title={activity.title} onclick="shareActivity(this)" aria-expanded="false" aria-haspopup="menu" class="w-full text-left px-5 py-4 rounded-xl bg-red-700 hover:bg-red-800 font-bold text-sm">Bagikan kegiatan</button><div data-share-menu role="menu" class="hidden absolute right-0 top-full z-20 mt-2 w-full min-w-56 overflow-hidden rounded-2xl border border-white/10 bg-slate-950 p-2 shadow-2xl"><a data-share-link="whatsapp" role="menuitem" target="_blank" rel="noreferrer" class="block rounded-xl px-4 py-3 text-sm font-bold text-slate-300 transition-colors hover:bg-green-500/15 hover:text-green-300">WhatsApp</a><a data-share-link="telegram" role="menuitem" target="_blank" rel="noreferrer" class="block rounded-xl px-4 py-3 text-sm font-bold text-slate-300 transition-colors hover:bg-sky-500/15 hover:text-sky-300">Telegram</a><a data-share-link="facebook" role="menuitem" target="_blank" rel="noreferrer" class="block rounded-xl px-4 py-3 text-sm font-bold text-slate-300 transition-colors hover:bg-blue-500/15 hover:text-blue-300">Facebook</a><a data-share-link="x" role="menuitem" target="_blank" rel="noreferrer" class="block rounded-xl px-4 py-3 text-sm font-bold text-slate-300 transition-colors hover:bg-white/10 hover:text-white">X</a><a data-share-link="linkedin" role="menuitem" target="_blank" rel="noreferrer" class="block rounded-xl px-4 py-3 text-sm font-bold text-slate-300 transition-colors hover:bg-cyan-500/15 hover:text-cyan-300">LinkedIn</a><button type="button" role="menuitem" onclick="copyActivityLink(this)" class="block w-full rounded-xl px-4 py-3 text-left text-sm font-bold text-slate-400 transition-colors hover:bg-white/10 hover:text-white">Salin tautan</button></div></div></aside>
         </div>
 
@@ -2131,20 +2143,30 @@ app.post('/admin/projects/delete/:id', async (c) => {
 });
 
 // --- ACTIVITIES ADMIN ---
-app.get('/admin/activities/new', (c) => renderActivityForm(c, null, [], c.var.user));
+app.get('/admin/activities/new', (c) => renderActivityForm(c, null, [], [], c.var.user));
 app.get('/admin/activities/edit/:id', async (c) => {
   const id = parseInt(c.req.param('id'));
   const results = await db.select().from(activityTable).where(eq(activityTable.id, id)).limit(1);
   const media = await db.select().from(activityMediaTable).where(eq(activityMediaTable.activityId, id)).orderBy(activityMediaTable.sortOrder);
-  return renderActivityForm(c, results[0], media, c.var.user);
+  const links = await db.select().from(activityLinkTable).where(eq(activityLinkTable.activityId, id)).orderBy(activityLinkTable.sortOrder);
+  return renderActivityForm(c, results[0], media, links, c.var.user);
 });
 
 function slugify(value: string) {
   return value.toLowerCase().trim().replace(/[^\w\s-]/g, '').replace(/[\s_-]+/g, '-').replace(/^-+|-+$/g, '');
 }
 
+function normalizeHttpUrl(value: string) {
+  try {
+    const url = new URL(value);
+    return url.protocol === 'http:' || url.protocol === 'https:' ? url.toString() : null;
+  } catch {
+    return null;
+  }
+}
+
 app.post('/admin/activities/save', async (c) => {
-  const body = await c.req.parseBody();
+  const body = await c.req.parseBody({ all: true });
   const id = body.id ? parseInt(body.id as string) : null;
   const eventDate = String(body.eventDate || '');
   const title = String(body.title || '').trim();
@@ -2154,6 +2176,14 @@ app.post('/admin/activities/save', async (c) => {
   const galleryFiles = (Array.isArray(galleryFilesValue) ? galleryFilesValue : [galleryFilesValue]).filter((file): file is File => file instanceof File && file.size > 0);
   let coverImage = String(body.coverImage || '').trim();
   let uploadedGalleryUrls: string[] = [];
+  const linkLabels = Array.isArray(body.activityLinkLabel) ? body.activityLinkLabel : body.activityLinkLabel ? [body.activityLinkLabel] : [];
+  const linkUrls = Array.isArray(body.activityLinkUrl) ? body.activityLinkUrl : body.activityLinkUrl ? [body.activityLinkUrl] : [];
+  const additionalLinks: Array<{ label: string; url: string; sortOrder: number }> = [];
+  linkLabels.forEach((rawLabel, index) => {
+    const label = String(rawLabel || '').trim();
+    const url = normalizeHttpUrl(String(linkUrls[index] || '').trim());
+    if (label && url) additionalLinks.push({ label, url, sortOrder: additionalLinks.length });
+  });
 
   if (!title || !slug || !eventDate || !body.role || !body.category || !body.summary) {
     return c.text('Title, date, role, category, and summary are required.', 400);
@@ -2204,6 +2234,12 @@ app.post('/admin/activities/save', async (c) => {
   if (activityId && allGalleryUrls.length > 0) {
     await db.insert(activityMediaTable).values(allGalleryUrls.map((url, index) => ({ activityId: activityId!, url, sortOrder: index, mediaType: 'image' })));
   }
+  if (activityId) {
+    await db.delete(activityLinkTable).where(eq(activityLinkTable.activityId, activityId));
+    if (additionalLinks.length > 0) {
+      await db.insert(activityLinkTable).values(additionalLinks.map(link => ({ ...link, activityId: activityId! })));
+    }
+  }
   adminUpdates.emit('update');
   return c.redirect('/admin');
 });
@@ -2211,6 +2247,7 @@ app.post('/admin/activities/save', async (c) => {
 app.post('/admin/activities/delete/:id', async (c) => {
   const id = parseInt(c.req.param('id'));
   await db.delete(activityMediaTable).where(eq(activityMediaTable.activityId, id));
+  await db.delete(activityLinkTable).where(eq(activityLinkTable.activityId, id));
   await db.delete(activityTable).where(eq(activityTable.id, id));
   adminUpdates.emit('update');
   return c.redirect('/admin');
@@ -2261,10 +2298,11 @@ app.get('/admin/projects/edit/:id', async (c) => {
   return renderProjectForm(c, results[0], c.var.user);
 });
 
-function renderActivityForm(c: any, activity: any = null, media: any[] = [], user: any = null) {
+function renderActivityForm(c: any, activity: any = null, media: any[] = [], links: any[] = [], user: any = null) {
   const inputClass = "peer w-full bg-slate-950/50 border border-white/10 rounded-2xl px-5 pt-7 pb-3 focus:outline-none focus:border-cyan-500 transition-all text-white text-lg placeholder-transparent";
   const labelClass = "absolute left-5 top-5 text-slate-500 text-xs font-bold uppercase tracking-widest transition-all pointer-events-none peer-placeholder-shown:text-slate-500 peer-placeholder-shown:text-base peer-placeholder-shown:top-5 peer-placeholder-shown:font-medium peer-focus:top-2 peer-focus:text-[10px] peer-focus:text-cyan-500 peer-focus:uppercase peer-focus:font-bold peer-[:not(:placeholder-shown)]:top-2 peer-[:not(:placeholder-shown)]:text-[10px] peer-[:not(:placeholder-shown)]:text-cyan-500 peer-[:not(:placeholder-shown)]:uppercase peer-[:not(:placeholder-shown)]:font-bold";
   const galleryUrls = media.map(item => item.url).join('\n');
+  const additionalLinks = links.filter(link => link.label && link.url);
 
   return c.html(
     <AdminLayout title={(activity ? 'Edit' : 'New') + ' Activity | Admin'} user={user} currentPath="/admin/activities" showNavigation={false}>
@@ -2306,6 +2344,26 @@ function renderActivityForm(c: any, activity: any = null, media: any[] = [], use
             <div class="relative"><input type="url" name="certificateUrl" id="a-certificate" value={activity?.certificateUrl || ''} placeholder=" " class={inputClass} /><label for="a-certificate" class={labelClass}>Certificate URL</label></div>
             <div class="relative"><input type="url" name="publicationUrl" id="a-publication" value={activity?.publicationUrl || ''} placeholder=" " class={inputClass} /><label for="a-publication" class={labelClass}>Publication URL</label></div>
           </div>
+          <section class="space-y-5 rounded-2xl border border-cyan-500/20 bg-cyan-500/5 p-5 md:p-6">
+            <div class="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between"><div><h2 class="text-sm font-black uppercase tracking-widest text-cyan-300">Additional Links</h2><p class="mt-2 max-w-2xl text-xs leading-relaxed text-slate-500">Tambahkan tautan opsional lain. Setiap baris akan tampil sebagai satu tombol di bawah deskripsi aktivitas.</p></div><button type="button" onclick="addActivityLink()" class="shrink-0 rounded-xl bg-cyan-700 px-4 py-3 text-xs font-black uppercase tracking-widest text-white transition-all hover:bg-cyan-800">+ Tambah tautan</button></div>
+            <div id="activity-links-list" class="space-y-3">{additionalLinks.map(link => <div data-activity-link-row class="grid items-center gap-3 rounded-2xl border border-white/10 bg-slate-950/40 p-3 md:grid-cols-[1fr_1.5fr_auto]"><input type="text" name="activityLinkLabel" value={link.label} placeholder="Nama tombol, contoh: Berita Kegiatan" aria-label="Nama tombol" class="w-full rounded-xl border border-white/10 bg-slate-950/60 px-4 py-3 text-sm text-white placeholder:text-slate-600 focus:border-cyan-500 focus:outline-none" /><input type="url" name="activityLinkUrl" value={link.url} placeholder="https://contoh.com" aria-label="URL tautan" class="w-full rounded-xl border border-white/10 bg-slate-950/60 px-4 py-3 text-sm text-white placeholder:text-slate-600 focus:border-cyan-500 focus:outline-none" /><button type="button" onclick="removeActivityLink(this)" class="rounded-xl border border-white/10 px-4 py-3 text-xs font-bold text-slate-500 transition-colors hover:border-red-500/30 hover:text-red-400">Hapus</button></div>)}</div>
+            <p id="activity-links-empty" class={`${additionalLinks.length > 0 ? 'hidden ' : ''}text-xs italic text-slate-600`}>Belum ada tautan tambahan.</p>
+            <template id="activity-link-template"><div data-activity-link-row class="grid items-center gap-3 rounded-2xl border border-white/10 bg-slate-950/40 p-3 md:grid-cols-[1fr_1.5fr_auto]"><input type="text" name="activityLinkLabel" placeholder="Nama tombol, contoh: Berita Kegiatan" aria-label="Nama tombol" class="w-full rounded-xl border border-white/10 bg-slate-950/60 px-4 py-3 text-sm text-white placeholder:text-slate-600 focus:border-cyan-500 focus:outline-none" /><input type="url" name="activityLinkUrl" placeholder="https://contoh.com" aria-label="URL tautan" class="w-full rounded-xl border border-white/10 bg-slate-950/60 px-4 py-3 text-sm text-white placeholder:text-slate-600 focus:border-cyan-500 focus:outline-none" /><button type="button" onclick="removeActivityLink(this)" class="rounded-xl border border-white/10 px-4 py-3 text-xs font-bold text-slate-500 transition-colors hover:border-red-500/30 hover:text-red-400">Hapus</button></div></template>
+            <script dangerouslySetInnerHTML={{ __html: `
+              window.addActivityLink = () => {
+                const list = document.getElementById('activity-links-list');
+                const template = document.getElementById('activity-link-template');
+                if (!list || !template) return;
+                list.appendChild(template.content.cloneNode(true));
+                document.getElementById('activity-links-empty')?.classList.add('hidden');
+              };
+              window.removeActivityLink = (button) => {
+                button.closest('[data-activity-link-row]')?.remove();
+                const list = document.getElementById('activity-links-list');
+                if (!list?.querySelector('[data-activity-link-row]')) document.getElementById('activity-links-empty')?.classList.remove('hidden');
+              };
+            `}} />
+          </section>
           <div class="flex flex-col sm:flex-row gap-6 sm:items-center p-5 bg-slate-950/40 border border-white/5 rounded-2xl">
             <label class="flex items-center gap-3 text-sm font-bold text-slate-300"><input type="checkbox" name="featuredOnCv" checked={Boolean(activity?.featuredOnCv)} class="w-5 h-5 accent-cyan-600" /> Feature on CV / selected highlights</label>
             <select name="status" class="bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-sm text-slate-300"><option value="draft" selected={activity?.status !== 'published'}>Draft</option><option value="published" selected={activity?.status === 'published'}>Published</option></select>

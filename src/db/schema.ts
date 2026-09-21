@@ -88,6 +88,14 @@ export const activityMedia = sqliteTable('activity_media', {
   mediaType: text('media_type').default('image'),
 });
 
+export const activityLinks = sqliteTable('activity_links', {
+  id: integer('id').primaryKey({ autoIncrement: true }),
+  activityId: integer('activity_id').notNull().references(() => activities.id),
+  label: text('label').notNull(),
+  url: text('url').notNull(),
+  sortOrder: integer('sort_order').default(0),
+});
+
 export const contacts = sqliteTable('contacts', {
   id: integer('id').primaryKey({ autoIncrement: true }),
   name: text('name').notNull(),
