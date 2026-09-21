@@ -114,6 +114,8 @@ describe("Main Pages", () => {
     expect(html).toContain('data-share-link="whatsapp"');
     expect(html).toContain("navigator.share");
     expect(html).toContain("Salin tautan");
+    expect(html).toContain("grid-cols-2");
+    expect(html).toContain("col-span-2");
   });
 
   it("GET /timeline redirects to the Jejak module", async () => {
