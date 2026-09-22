@@ -109,6 +109,7 @@ export const participantWorks = sqliteTable('participant_works', {
   status: text('status').$type<'draft' | 'published'>().default('draft'),
   consent: integer('consent', { mode: 'boolean' }).default(false),
   sortOrder: integer('sort_order').default(0),
+  viewCount: integer('view_count').default(0),
   submittedAt: integer('submitted_at', { mode: 'timestamp' }).$defaultFn(() => new Date()),
   createdAt: integer('created_at', { mode: 'timestamp' }).$defaultFn(() => new Date()),
   updatedAt: integer('updated_at', { mode: 'timestamp' }).$defaultFn(() => new Date()),

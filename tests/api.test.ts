@@ -9,6 +9,7 @@ mock.module("../src/db/index", () => {
     orderBy: () => mockQuery,
     limit: () => mockQuery,
     values: () => mockQuery,
+    set: () => mockQuery,
     onConflictDoUpdate: () => Promise.resolve(),
     onConflictDoNothing: () => Promise.resolve(),
     then: (resolve: any) => resolve([{ 
@@ -18,6 +19,11 @@ mock.module("../src/db/index", () => {
       content: "Content", 
       status: "published",
       name: "Test User",
+      participantName: "Test Participant",
+      activityId: 1,
+      workUrl: "https://example.com/work",
+      consent: true,
+      viewCount: 2,
       createdAt: new Date(),
       techStack: "React, Node",
       sum: 100
@@ -28,6 +34,7 @@ mock.module("../src/db/index", () => {
     db: {
       select: () => mockQuery,
       insert: () => mockQuery,
+      update: () => mockQuery,
       delete: () => mockQuery,
     }
   };
@@ -142,7 +149,26 @@ describe("Main Pages", () => {
     const html = await res.text();
     expect(html).toContain('name="participantName"');
     expect(html).toContain('name="consent"');
+    expect(html).toContain('enctype="multipart/form-data"');
+    expect(html).toContain('name="previewImageFile"');
+    expect(html).toContain("Bukti karya");
     expect(html).not.toContain('name="assignment"');
+  });
+
+  it("GET /jejak/karya/:id/buka tracks and redirects to a published work", async () => {
+    const res = await app.request("/jejak/karya/1/buka");
+    expect(res.status).toBe(302);
+    expect(res.headers.get("Location")).toBe("https://example.com/work");
+  });
+
+  it("POST /jejak/:slug/kirim-karya requires a work URL or preview image", async () => {
+    const form = new FormData();
+    form.set("participantName", "Test Participant");
+    form.set("title", "Test Work");
+    form.set("consent", "on");
+    const res = await app.request("/jejak/test/kirim-karya", { method: "POST", body: form });
+    expect(res.status).toBe(302);
+    expect(res.headers.get("Location")).toContain("error=evidence");
   });
 
   it("GET /timeline redirects to the Jejak module", async () => {

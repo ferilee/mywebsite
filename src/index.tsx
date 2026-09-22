@@ -1,5 +1,6 @@
 /** @jsx jsx */
-import { jsx } from 'hono/jsx';
+/** @jsxFrag Fragment */
+import { Fragment, jsx } from 'hono/jsx';
 import { Hono } from 'hono';
 import { serveStatic } from 'hono/bun';
 import { logger } from 'hono/logger';
@@ -81,6 +82,7 @@ try {
     visitor_key TEXT NOT NULL,
     created_at INTEGER
   )`));
+  await ensureColumn('participant_works', 'view_count', 'integer DEFAULT 0');
 } catch (error) {
   console.error('Schema compatibility check failed:', error);
 }
@@ -585,7 +587,41 @@ app.get('/api/activities', async (c) => {
 
 function renderParticipantWorkCard(work: any, activity: any = null, reactionCount = 0) {
   const tags = String(work.tags || '').split(',').map(tag => tag.trim()).filter(Boolean);
-  return <article data-work-card class="group overflow-hidden rounded-3xl border border-white/10 bg-white/5 transition-all hover:-translate-y-1 hover:border-cyan-500/40"><div data-work-preview class="relative aspect-[16/10] overflow-hidden border-b border-white/10 bg-gradient-to-br from-cyan-950/60 to-slate-950">{work.previewImage ? <img src={work.previewImage} alt={work.title} loading="lazy" class="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105" onerror="this.classList.add('hidden'); this.nextElementSibling.classList.remove('hidden'); this.nextElementSibling.classList.add('flex')" /> : null}<div class={`${work.previewImage ? 'hidden ' : ''}absolute inset-0 items-center justify-center px-6 text-center ${work.previewImage ? '' : 'flex'}`}><span class="text-xs font-black uppercase tracking-[0.25em] text-cyan-400/70">Learning Artifact</span></div></div><div data-work-body class="p-5"><p class="text-[10px] font-black uppercase tracking-widest text-cyan-400">{work.participantName}</p><h3 class="mt-2 text-xl font-black leading-snug text-white">{work.title}</h3>{work.institution && <p class="mt-2 text-xs font-bold text-slate-500">{work.institution}</p>}{activity && <p class="mt-2 text-xs font-bold text-slate-500">{activity.title}</p>}{work.description && <p class="mt-4 line-clamp-3 text-sm leading-relaxed text-slate-400">{work.description}</p>}{tags.length > 0 && <div class="mt-4 flex flex-wrap gap-2">{tags.map(tag => <span class="rounded-full border border-white/10 bg-white/5 px-2.5 py-1 text-[10px] font-bold text-slate-400">{tag}</span>)}</div>}<div data-work-actions class="mt-5 flex flex-wrap items-center gap-3">{work.workUrl && <a href={work.workUrl} target="_blank" rel="noreferrer" class="rounded-xl bg-cyan-700 px-4 py-2.5 text-xs font-black uppercase tracking-widest text-white transition-colors hover:bg-cyan-800">Lihat karya ↗</a>}{activity && <a href={`/jejak/${activity.slug}#karya-peserta`} class="text-xs font-bold text-slate-500 transition-colors hover:text-white">{work.workUrl ? 'Workshop' : 'Lihat aktivitas'} ↗</a>}<button type="button" data-applause-button data-work-id={work.id} aria-label="Apresiasi karya" aria-pressed="false" onclick={`applaudWork(this, ${work.id})`} class="inline-flex items-center gap-1.5 rounded-xl border border-white/10 bg-white/5 px-3 py-2.5 text-xs font-black text-slate-400 transition-all hover:border-cyan-400/40 hover:text-cyan-300"><span aria-hidden="true">♥</span><span data-applause-count>{reactionCount}</span><span class="sr-only">apresiasi</span></button></div></div></article>;
+  const trackedWorkUrl = work.workUrl ? '/jejak/karya/' + work.id + '/buka' : null;
+  const viewCount = Number(work.viewCount || 0);
+
+  return (
+    <article data-work-card class="group overflow-hidden rounded-3xl border border-white/10 bg-white/5 transition-all hover:-translate-y-1 hover:border-cyan-500/40">
+      <div data-work-preview class="relative aspect-[16/10] overflow-hidden border-b border-white/10 bg-gradient-to-br from-cyan-950/60 to-slate-950">
+        {work.previewImage ? <img src={work.previewImage} alt={'Preview ' + work.title} loading="lazy" class="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105" onerror="this.classList.add('hidden'); this.nextElementSibling.classList.remove('hidden'); this.nextElementSibling.classList.add('flex')" /> : null}
+        <div class={(work.previewImage ? 'hidden' : 'flex') + ' absolute inset-0 items-center justify-center overflow-hidden px-6 text-center'} aria-hidden="true">
+          <div class="absolute -right-10 -top-12 h-40 w-40 rounded-full bg-cyan-400/15 blur-2xl"></div>
+          <div class="absolute -bottom-16 -left-8 h-36 w-36 rounded-full bg-blue-500/20 blur-2xl"></div>
+          <div class="relative">
+            <span class="block text-3xl font-black italic text-cyan-300/80">K</span>
+            <span class="mt-2 block text-[10px] font-black uppercase tracking-[0.25em] text-cyan-400/70">Ruang Karya</span>
+          </div>
+        </div>
+      </div>
+      <div data-work-body class="p-5">
+        <p class="text-[10px] font-black uppercase tracking-widest text-cyan-400">{work.participantName}</p>
+        <h3 class="mt-2 text-xl font-black leading-snug text-white">{work.title}</h3>
+        {work.institution && <p class="mt-2 text-xs font-bold text-slate-500">{work.institution}</p>}
+        {activity && <p class="mt-2 text-xs font-bold text-slate-500">{activity.title}</p>}
+        {work.description && <p class="mt-4 line-clamp-3 text-justify text-sm leading-relaxed text-slate-400">{work.description}</p>}
+        {tags.length > 0 && <div class="mt-4 flex flex-wrap gap-2">{tags.map(tag => <span class="rounded-full border border-white/10 bg-white/5 px-2.5 py-1 text-[10px] font-bold text-slate-400">{tag}</span>)}</div>}
+        <div data-work-meta class="mt-5 flex flex-wrap items-center gap-x-4 gap-y-2 text-xs font-bold text-slate-500">
+          <span class="inline-flex items-center gap-1.5" title="Jumlah apresiasi"><span class="text-cyan-300" aria-hidden="true">♥</span><span data-applause-count>{reactionCount}</span><span>apresiasi</span></span>
+          {trackedWorkUrl && <span class="inline-flex items-center gap-1.5" title="Jumlah pembukaan karya"><span aria-hidden="true">↗</span><span>{viewCount}</span><span>dibuka</span></span>}
+        </div>
+        <div data-work-actions class="mt-5 flex flex-wrap items-center gap-3">
+          {trackedWorkUrl ? <a href={trackedWorkUrl} target="_blank" rel="noreferrer" class="rounded-xl bg-cyan-700 px-4 py-2.5 text-xs font-black uppercase tracking-widest text-white transition-colors hover:bg-cyan-800">Lihat Karya ↗</a> : <span class="rounded-xl border border-white/10 px-4 py-2.5 text-xs font-bold text-slate-600">Belum ada tautan karya</span>}
+          {activity && <a href={'/jejak/' + activity.slug + '#karya-peserta'} class="text-xs font-bold text-slate-500 transition-colors hover:text-white">Lihat Aktivitas ↗</a>}
+          <button type="button" data-applause-button data-work-id={work.id} aria-label="Apresiasi karya" aria-pressed="false" onclick={'applaudWork(this, ' + work.id + ')'} class="inline-flex items-center gap-1.5 rounded-xl border border-white/10 bg-white/5 px-3 py-2.5 text-xs font-black text-slate-400 transition-all hover:border-cyan-400/40 hover:text-cyan-300"><span aria-hidden="true">♥</span><span data-applause-label>Apresiasi</span><span class="sr-only"> karya</span></button>
+        </div>
+      </div>
+    </article>
+  );
 }
 
 function renderParticipantWorkReactionScript() {
@@ -603,9 +639,12 @@ function renderParticipantWorkReactionScript() {
         button.classList.toggle('border-cyan-400/60', data.reacted);
         button.classList.toggle('bg-cyan-500/15', data.reacted);
         button.classList.toggle('text-cyan-300', data.reacted);
+        const label = button.querySelector('[data-applause-label]');
+        if (label) label.textContent = 'Sudah diapresiasi';
+        button.title = 'Anda sudah mengapresiasi karya ini';
         button.disabled = true;
       } catch (error) {
-        button.title = 'Coba lagi';
+        button.title = 'Apresiasi gagal. Coba lagi.';
       } finally {
         button.dataset.loading = 'false';
       }
@@ -659,6 +698,25 @@ app.post('/api/participant-works/:id/applause', async (c) => {
   return c.json({ applause: reactions.length, reacted: true });
 });
 
+app.get('/jejak/karya/:id/buka', async (c) => {
+  const workId = Number(c.req.param('id'));
+  if (!Number.isInteger(workId) || workId <= 0) return c.notFound();
+
+  const work = await db.select().from(participantWorkTable).where(and(
+    eq(participantWorkTable.id, workId),
+    eq(participantWorkTable.status, 'published'),
+    eq(participantWorkTable.consent, true),
+  )).limit(1);
+  const targetUrl = work[0]?.workUrl;
+  if (!targetUrl) return c.notFound();
+
+  await db.update(participantWorkTable)
+    .set({ viewCount: sql`COALESCE(${participantWorkTable.viewCount}, 0) + 1` })
+    .where(eq(participantWorkTable.id, workId));
+
+  return c.redirect(targetUrl, 302);
+});
+
 app.get('/jejak/karya', async (c) => {
   const user = c.var.user;
   const selectedCategory = c.req.query('category') || '';
@@ -683,7 +741,7 @@ app.get('/jejak/karya', async (c) => {
   return c.html(
     <Layout title="Karya Peserta | Jejak Ferilee" user={user} needsProfiling={c.var.needsProfiling} currentPath="/jejak">
       <div class="mx-auto max-w-7xl px-6 py-28 md:py-32">
-        <div class="mx-auto max-w-5xl"><a href="/jejak" class="text-xs font-black uppercase tracking-widest text-red-500 transition-colors hover:text-white">← Kembali ke Jejak</a><header class="mt-8 border-b border-white/10 pb-10"><p class="text-xs font-black uppercase tracking-[0.35em] text-cyan-400">Public Showcase</p><div class="mt-4 flex flex-col gap-6 md:flex-row md:items-end md:justify-between"><div><h1 class="text-5xl font-black italic tracking-tight md:text-7xl">KARYA <span class="text-cyan-400">PESERTA</span></h1><p class="mt-5 max-w-2xl text-lg leading-relaxed text-slate-400">Kumpulan karya belajar, eksplorasi, dan praktik peserta dalam berbagai workshop.</p></div><div class="flex shrink-0 rounded-xl border border-white/10 bg-white/5 p-1"><button type="button" data-showcase-view="cards" onclick="setShowcaseView('cards')" class="rounded-lg px-3 py-2 text-xs font-black text-slate-400 transition-colors hover:text-white" aria-pressed="true">▦ Kartu</button><button type="button" data-showcase-view="list" onclick="setShowcaseView('list')" class="rounded-lg px-3 py-2 text-xs font-black text-slate-400 transition-colors hover:text-white" aria-pressed="false">☷ List</button></div></div></header></div>
+        <div class="mx-auto max-w-5xl"><a href="/jejak" class="text-xs font-black uppercase tracking-widest text-red-500 transition-colors hover:text-white">← Kembali ke Jejak</a><header class="mt-8 border-b border-white/10 pb-10"><p class="text-xs font-black uppercase tracking-[0.35em] text-cyan-400">Ruang Karya Peserta</p><div class="mt-4 flex flex-col gap-6 md:flex-row md:items-end md:justify-between"><div><h1 class="text-5xl font-black italic tracking-tight md:text-7xl">KARYA <span class="text-cyan-400">PESERTA</span></h1><p class="mt-5 max-w-2xl text-lg leading-relaxed text-slate-400">Kumpulan karya belajar, eksplorasi, dan praktik peserta dalam berbagai workshop.</p></div><div class="flex shrink-0 rounded-xl border border-white/10 bg-white/5 p-1"><button type="button" data-showcase-view="cards" onclick="setShowcaseView('cards')" class="rounded-lg px-3 py-2 text-xs font-black text-slate-400 transition-colors hover:text-white" aria-pressed="true">▦ Kartu</button><button type="button" data-showcase-view="list" onclick="setShowcaseView('list')" class="rounded-lg px-3 py-2 text-xs font-black text-slate-400 transition-colors hover:text-white" aria-pressed="false">☷ Daftar</button></div></div></header></div>
         <form action="/jejak/karya" method="get" class="mx-auto mt-8 flex max-w-5xl flex-col gap-3 sm:flex-row"><select name="category" class="rounded-xl border border-white/10 bg-slate-950/70 px-4 py-3 text-sm text-slate-300"><option value="">Semua kategori</option>{categories.map(category => <option value={category} selected={category === selectedCategory}>{category}</option>)}</select><select name="sort" class="rounded-xl border border-white/10 bg-slate-950/70 px-4 py-3 text-sm text-slate-300"><option value="latest" selected={selectedSort === 'latest'}>Terbaru</option><option value="applause" selected={selectedSort === 'applause'}>Paling diapresiasi</option></select><button type="submit" class="rounded-xl bg-cyan-700 px-5 py-3 text-xs font-black uppercase tracking-widest text-white transition-colors hover:bg-cyan-800">Terapkan</button></form>
         {publicWorks.length > 0 ? <div id="participant-showcase-grid" data-showcase-grid class="mx-auto mt-8 grid max-w-5xl gap-5 md:grid-cols-2 lg:grid-cols-3">{publicWorks.map(item => renderParticipantWorkCard(item.work, item.activity, item.applause))}</div> : <div class="mx-auto mt-12 max-w-5xl rounded-3xl border border-dashed border-white/10 bg-white/5 p-16 text-center"><p class="text-sm font-bold text-slate-500">Belum ada karya peserta yang cocok dengan filter ini.</p><a href="/jejak" class="mt-6 inline-flex rounded-xl border border-white/10 px-5 py-3 text-xs font-black uppercase tracking-widest text-slate-400 transition-colors hover:text-white">Jelajahi Jejak</a></div>}
         <style>{`[data-showcase-grid].list-view{display:flex;flex-direction:column}[data-showcase-grid].list-view [data-work-card]{display:grid;grid-template-columns:180px minmax(0,1fr)}[data-showcase-grid].list-view [data-work-preview]{height:100%;min-height:180px;aspect-ratio:auto;border-bottom:0;border-right:1px solid rgba(255,255,255,.1)}[data-showcase-grid].list-view [data-work-body]{display:flex;flex-wrap:wrap;align-items:center;gap:.35rem 1rem}[data-showcase-grid].list-view [data-work-body]>p,[data-showcase-grid].list-view [data-work-body]>h3,[data-showcase-grid].list-view [data-work-body]>div:not([data-work-actions]){width:100%}[data-showcase-grid].list-view [data-work-actions]{margin-top:1rem;width:100%}@media(max-width:639px){[data-showcase-grid].list-view [data-work-card]{grid-template-columns:100px minmax(0,1fr)}[data-showcase-grid].list-view [data-work-preview]{min-height:150px}}`}</style>
@@ -732,7 +790,25 @@ app.post('/jejak/:slug/kirim-karya', async (c) => {
   const title = String(body.title || '').trim();
   const participantName = String(body.participantName || '').trim();
   const consent = body.consent === 'on' || body.consent === 'true';
-  if (!title || !participantName || !consent) return c.redirect(`${destination}?error=1`);
+  const workUrl = normalizeHttpUrl(String(body.workUrl || '').trim());
+  const previewImageUrl = normalizeHttpUrl(String(body.previewImage || '').trim());
+  const previewImageFile = body.previewImageFile;
+  const previewFile = previewImageFile instanceof File && previewImageFile.size > 0 ? previewImageFile : null;
+  const hasPreviewUpload = Boolean(previewFile);
+
+  if (!title || !participantName) return c.redirect(`${destination}?error=fields`);
+  if (!consent) return c.redirect(`${destination}?error=consent`);
+  if (!workUrl && !previewImageUrl && !hasPreviewUpload) return c.redirect(`${destination}?error=evidence`);
+
+  let previewImage = previewImageUrl;
+  if (previewFile) {
+    try {
+      previewImage = await uploadToS3(previewFile, 'participant-work-previews');
+    } catch (error) {
+      console.error('Participant preview upload failed:', error);
+      return c.redirect(`${destination}?error=upload`);
+    }
+  }
 
   await db.insert(participantWorkTable).values({
     activityId: activity.id,
@@ -740,8 +816,8 @@ app.post('/jejak/:slug/kirim-karya', async (c) => {
     participantName,
     institution: String(body.institution || '').trim() || null,
     description: String(body.description || '').trim() || null,
-    previewImage: normalizeHttpUrl(String(body.previewImage || '').trim()),
-    workUrl: normalizeHttpUrl(String(body.workUrl || '').trim()),
+    previewImage,
+    workUrl,
     tags: String(body.tags || '').trim() || null,
     status: 'draft',
     consent: true,
@@ -999,7 +1075,7 @@ app.get('/jejak/:slug', async (c) => {
 
         {(media.length > 0 || activity.galleryAlbumUrl) && <section class="mt-20"><div class="mb-8 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between"><h2 class="text-2xl md:text-3xl font-black italic">DOKUMENTASI <span class="text-red-700">KEGIATAN</span></h2>{activity.galleryAlbumUrl && <a href={activity.galleryAlbumUrl} target="_blank" rel="noreferrer" class="shrink-0 rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-xs font-black uppercase tracking-widest text-red-300 transition-all hover:bg-red-500/20">Lihat Album Lengkap ↗</a>}</div>{media.length > 0 && <div class="grid sm:grid-cols-2 md:grid-cols-3 gap-5">{media.map(item => <figure class="group"><div class="relative aspect-[4/3] overflow-hidden rounded-2xl border border-white/10 group-hover:border-red-500/40 transition-all"><img src={item.url} alt={item.caption || activity.title} class="h-full w-full object-cover transition-transform group-hover:scale-105" onerror="this.classList.add('hidden'); this.nextElementSibling.classList.remove('hidden'); this.nextElementSibling.classList.add('flex')" /><div class="absolute inset-0 hidden items-center justify-center bg-slate-950/80 px-4 text-center text-xs font-bold text-slate-500">Gambar tidak tersedia</div></div>{item.caption && <figcaption class="text-xs text-slate-500 mt-2">{item.caption}</figcaption>}</figure>)}</div>}</section>}
 
-        <section id="karya-peserta" class="mt-20 border-t border-white/10 pt-12"><div class="mb-8 flex flex-col gap-5 sm:flex-row sm:items-end sm:justify-between"><div><p class="text-xs font-black uppercase tracking-[0.3em] text-cyan-400">Public Showcase</p><h2 class="mt-2 text-2xl font-black italic md:text-3xl">KARYA <span class="text-cyan-400">PESERTA</span></h2><p class="mt-2 max-w-2xl text-sm leading-relaxed text-slate-500">Hasil eksplorasi dan praktik peserta dalam kegiatan ini.</p></div><a href={`/jejak/${activity.slug}/kirim-karya`} class="shrink-0 rounded-xl border border-cyan-500/30 bg-cyan-500/10 px-4 py-3 text-xs font-black uppercase tracking-widest text-cyan-300 transition-all hover:bg-cyan-500/20 hover:text-white">Kirim karya ↗</a></div>{publishedWorks.length > 0 ? <div class="grid gap-5 md:grid-cols-2">{publishedWorks.map(work => renderParticipantWorkCard(work, null, reactionCounts.get(work.id) || 0))}</div> : <div class="rounded-2xl border border-dashed border-white/10 bg-white/5 p-8 text-center"><p class="text-sm text-slate-500">Belum ada karya peserta yang dipublikasikan.</p><p class="mt-2 text-xs text-slate-600">Jika Anda mengikuti kegiatan ini, Anda dapat mengirimkan karya untuk ditinjau.</p></div>}</section>
+        <section id="karya-peserta" class="mt-20 border-t border-white/10 pt-12"><div class="mb-8 flex flex-col gap-5 sm:flex-row sm:items-end sm:justify-between"><div><p class="text-xs font-black uppercase tracking-[0.3em] text-cyan-400">Ruang Karya Peserta</p><h2 class="mt-2 text-2xl font-black italic md:text-3xl">KARYA <span class="text-cyan-400">PESERTA</span></h2><p class="mt-2 max-w-2xl text-sm leading-relaxed text-slate-500">Hasil eksplorasi dan praktik peserta dalam kegiatan ini.</p></div><a href={'/jejak/' + activity.slug + '/kirim-karya'} class="shrink-0 rounded-xl border border-cyan-500/30 bg-cyan-500/10 px-4 py-3 text-xs font-black uppercase tracking-widest text-cyan-300 transition-all hover:bg-cyan-500/20 hover:text-white">Kirim Karya ↗</a></div>{publishedWorks.length > 0 ? <div class="grid gap-5 md:grid-cols-2">{publishedWorks.map(work => renderParticipantWorkCard(work, null, reactionCounts.get(work.id) || 0))}</div> : <div class="rounded-2xl border border-dashed border-white/10 bg-white/5 p-8 text-center"><p class="text-sm text-slate-500">Belum ada karya peserta yang dipublikasikan.</p><p class="mt-2 text-xs text-slate-600">Jika Anda mengikuti kegiatan ini, Anda dapat mengirimkan karya untuk ditinjau.</p></div>}</section>
         {renderParticipantWorkReactionScript()}
       </article>
     </Layout>
@@ -2600,14 +2676,57 @@ app.get('/admin/projects/edit/:id', async (c) => {
 
 function renderParticipantSubmission(c: any, activity: any) {
   const submitted = c.req.query('submitted') === '1';
-  const hasError = c.req.query('error') === '1';
+  const errorType = c.req.query('error') || '';
+  const hasError = Boolean(errorType);
+  const errorMessage = errorType === 'evidence'
+    ? 'Tambahkan URL karya atau unggah gambar preview agar karya dapat ditinjau.'
+    : errorType === 'consent'
+      ? 'Centang persetujuan publikasi sebelum mengirim karya.'
+      : errorType === 'upload'
+        ? 'Gambar preview gagal diunggah. Periksa format dan ukuran file, lalu coba lagi.'
+        : 'Lengkapi nama peserta dan judul karya sebelum mengirim.';
   const fieldClass = 'w-full rounded-2xl border border-white/10 bg-slate-950/60 px-5 py-4 text-slate-200 placeholder:text-slate-600 focus:border-cyan-500 focus:outline-none';
 
   return c.html(
-    <Layout title={`Kirim Karya | ${activity.title}`} currentPath="/jejak">
+    <Layout title={'Kirim Karya | ' + activity.title} currentPath="/jejak">
       <div class="mx-auto max-w-3xl px-6 py-28 md:py-32">
-        <a href={`/jejak/${activity.slug}#karya-peserta`} class="text-xs font-black uppercase tracking-widest text-red-500 transition-colors hover:text-white">← Kembali ke aktivitas</a>
-        {submitted ? <div class="mt-10 rounded-3xl border border-cyan-500/20 bg-cyan-500/10 p-8 text-center md:p-12"><p class="text-xs font-black uppercase tracking-[0.3em] text-cyan-400">Submission received</p><h1 class="mt-4 text-4xl font-black italic">KARYA <span class="text-cyan-400">DITERIMA</span></h1><p class="mx-auto mt-5 max-w-xl leading-relaxed text-slate-400">Terima kasih. Karya Anda akan ditinjau terlebih dahulu sebelum ditampilkan pada ruang karya peserta.</p><a href={`/jejak/${activity.slug}#karya-peserta`} class="mt-8 inline-flex rounded-xl bg-cyan-700 px-5 py-3 text-xs font-black uppercase tracking-widest text-white transition-colors hover:bg-cyan-800">Kembali ke kegiatan</a></div> : <><header class="mt-8 border-b border-white/10 pb-8"><p class="text-xs font-black uppercase tracking-[0.3em] text-cyan-400">Participant Showcase</p><h1 class="mt-4 text-4xl font-black italic md:text-6xl">KIRIM <span class="text-cyan-400">KARYA</span></h1><p class="mt-5 leading-relaxed text-slate-400">Kirim karya yang Anda hasilkan dalam kegiatan <span class="font-bold text-slate-200">{activity.title}</span>. Pengiriman akan ditinjau sebelum dipublikasikan.</p></header>{hasError && <div class="mt-8 rounded-2xl border border-red-500/30 bg-red-500/10 px-5 py-4 text-sm font-bold text-red-300">Lengkapi judul, nama peserta, dan persetujuan publikasi sebelum mengirim.</div>}<form action={`/jejak/${activity.slug}/kirim-karya`} method="post" class="mt-8 space-y-6"><input type="text" name="website" tabindex="-1" autocomplete="off" class="hidden" aria-hidden="true" /><div class="grid gap-6 md:grid-cols-2"><input type="text" name="participantName" placeholder="Nama peserta" required class={fieldClass} /><input type="text" name="institution" placeholder="Institusi (opsional)" class={fieldClass} /></div><input type="text" name="title" placeholder="Judul karya" required class={fieldClass} /><textarea name="description" placeholder="Ceritakan singkat karya ini (opsional)" rows={5} class={`${fieldClass} min-h-[140px] leading-relaxed`}></textarea><div class="grid gap-6 md:grid-cols-2"><input type="url" name="workUrl" placeholder="URL karya (opsional)" class={fieldClass} /><input type="url" name="previewImage" placeholder="URL preview gambar (opsional)" class={fieldClass} /></div><input type="text" name="tags" placeholder="Tag, pisahkan dengan koma (contoh: AI, Matematika)" class={fieldClass} /><label class="flex items-start gap-3 rounded-2xl border border-white/10 bg-white/5 p-4 text-sm leading-relaxed text-slate-400"><input type="checkbox" name="consent" required class="mt-1 h-5 w-5 shrink-0 accent-cyan-600" /><span>Saya menyetujui karya, nama, dan institusi saya ditampilkan pada ruang karya peserta setelah ditinjau.</span></label><button type="submit" class="w-full rounded-2xl bg-cyan-700 px-6 py-4 text-sm font-black uppercase tracking-widest text-white transition-all hover:bg-cyan-800">Kirim karya untuk ditinjau</button></form></>}
+        <a href={'/jejak/' + activity.slug + '#karya-peserta'} class="text-xs font-black uppercase tracking-widest text-red-500 transition-colors hover:text-white">← Kembali ke Aktivitas</a>
+        {submitted ? (
+          <div class="mt-10 rounded-3xl border border-cyan-500/20 bg-cyan-500/10 p-8 text-center md:p-12" role="status">
+            <p class="text-xs font-black uppercase tracking-[0.3em] text-cyan-400">Pengiriman Diterima</p>
+            <h1 class="mt-4 text-4xl font-black italic">KARYA <span class="text-cyan-400">DITERIMA</span></h1>
+            <p class="mx-auto mt-5 max-w-xl leading-relaxed text-slate-400">Terima kasih. Karya Anda masuk ke antrean tinjauan dan akan ditampilkan setelah disetujui.</p>
+            <a href={'/jejak/' + activity.slug + '#karya-peserta'} class="mt-8 inline-flex rounded-xl bg-cyan-700 px-5 py-3 text-xs font-black uppercase tracking-widest text-white transition-colors hover:bg-cyan-800">Kembali ke Aktivitas</a>
+          </div>
+        ) : (
+          <>
+            <header class="mt-8 border-b border-white/10 pb-8">
+              <p class="text-xs font-black uppercase tracking-[0.3em] text-cyan-400">Ruang Karya Peserta</p>
+              <h1 class="mt-4 text-4xl font-black italic md:text-6xl">KIRIM <span class="text-cyan-400">KARYA</span></h1>
+              <p class="mt-5 leading-relaxed text-slate-400">Bagikan karya yang Anda hasilkan dalam kegiatan <span class="font-bold text-slate-200">{activity.title}</span>. Karya akan ditinjau sebelum ditampilkan secara publik.</p>
+            </header>
+            {hasError && <div role="alert" class="mt-8 rounded-2xl border border-red-500/30 bg-red-500/10 px-5 py-4 text-sm font-bold text-red-300">{errorMessage}</div>}
+            <form id="participant-submission-form" action={'/jejak/' + activity.slug + '/kirim-karya'} method="post" enctype="multipart/form-data" class="mt-8 space-y-6">
+              <input type="text" name="website" tabIndex={-1} autoComplete="off" class="hidden" aria-hidden="true" />
+              <div class="grid gap-6 md:grid-cols-2">
+                <div><label for="participant-name" class="mb-2 block text-xs font-black uppercase tracking-widest text-slate-500">Nama peserta <span class="text-red-400">*</span></label><input id="participant-name" type="text" name="participantName" placeholder="Nama lengkap" required class={fieldClass} /></div>
+                <div><label for="institution" class="mb-2 block text-xs font-black uppercase tracking-widest text-slate-500">Institusi <span class="font-normal normal-case tracking-normal text-slate-600">(opsional)</span></label><input id="institution" type="text" name="institution" placeholder="Nama sekolah atau lembaga" class={fieldClass} /></div>
+              </div>
+              <div><label for="work-title" class="mb-2 block text-xs font-black uppercase tracking-widest text-slate-500">Judul karya <span class="text-red-400">*</span></label><input id="work-title" type="text" name="title" placeholder="Contoh: Media Pembelajaran Interaktif" required class={fieldClass} /></div>
+              <div><label for="work-description" class="mb-2 block text-xs font-black uppercase tracking-widest text-slate-500">Deskripsi karya <span class="font-normal normal-case tracking-normal text-slate-600">(opsional)</span></label><textarea id="work-description" name="description" placeholder="Ceritakan singkat ide atau proses karya ini" rows={5} class={fieldClass + ' min-h-[140px] leading-relaxed'}></textarea></div>
+              <fieldset class="space-y-5 rounded-2xl border border-cyan-500/20 bg-cyan-500/5 p-5">
+                <legend class="px-2 text-xs font-black uppercase tracking-widest text-cyan-300">Bukti karya</legend>
+                <p class="text-sm leading-relaxed text-slate-400">Isi minimal salah satu: URL karya atau gambar preview.</p>
+                <div><label for="work-url" class="mb-2 block text-xs font-black uppercase tracking-widest text-slate-500">URL karya <span class="font-normal normal-case tracking-normal text-slate-600">(opsional jika ada preview)</span></label><input id="work-url" type="url" name="workUrl" placeholder="https://..." class={fieldClass} /></div>
+                <div><label for="preview-image-url" class="mb-2 block text-xs font-black uppercase tracking-widest text-slate-500">URL gambar preview <span class="font-normal normal-case tracking-normal text-slate-600">(opsional)</span></label><input id="preview-image-url" type="url" name="previewImage" placeholder="https://..." class={fieldClass} /></div>
+                <div><label for="preview-image-file" class="mb-2 block text-xs font-black uppercase tracking-widest text-slate-500">Unggah gambar preview <span class="font-normal normal-case tracking-normal text-slate-600">(opsional)</span></label><input id="preview-image-file" type="file" name="previewImageFile" accept="image/jpeg,image/png,image/webp" class="w-full rounded-2xl border border-white/10 bg-slate-950/60 px-5 py-4 text-sm text-slate-300 file:mr-4 file:rounded-lg file:border-0 file:bg-cyan-700 file:px-4 file:py-2 file:text-xs file:font-black file:text-white" /><p class="mt-2 text-xs leading-relaxed text-slate-500">JPG, PNG, atau WebP; maksimal 10 MB. Gambar otomatis dikonversi ke WebP.</p></div>
+              </fieldset>
+              <div><label for="work-tags" class="mb-2 block text-xs font-black uppercase tracking-widest text-slate-500">Kategori atau tag <span class="font-normal normal-case tracking-normal text-slate-600">(opsional)</span></label><input id="work-tags" type="text" name="tags" placeholder="Contoh: AI, Matematika, Canva" class={fieldClass} /></div>
+              <label class="flex items-start gap-3 rounded-2xl border border-white/10 bg-white/5 p-4 text-sm leading-relaxed text-slate-400"><input type="checkbox" name="consent" required class="mt-1 h-5 w-5 shrink-0 accent-cyan-600" /><span>Saya menyetujui karya, nama, dan institusi saya ditampilkan di Ruang Karya Peserta setelah ditinjau.</span></label>
+              <button id="participant-submit-button" type="submit" class="w-full rounded-2xl bg-cyan-700 px-6 py-4 text-sm font-black uppercase tracking-widest text-white transition-all hover:bg-cyan-800">Kirim Karya untuk Ditinjau</button>
+            </form>
+          </>
+        )}
       </div>
     </Layout>
   );
