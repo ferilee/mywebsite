@@ -119,9 +119,21 @@ describe("Main Pages", () => {
   });
 
   it("GET /jejak/karya renders the participant showcase", async () => {
-    const res = await app.request("/jejak/karya");
+    const res = await app.request("/jejak/karya?category=AI&sort=applause");
     expect(res.status).toBe(200);
-    expect(await res.text()).toContain("KARYA");
+    const html = await res.text();
+    expect(html).toContain("KARYA");
+    expect(html).toContain("data-showcase-view=\"list\"");
+    expect(html).toContain("Paling diapresiasi");
+    expect(html).toContain('name="category"');
+    expect(html).toContain('name="sort"');
+  });
+
+  it("POST /api/participant-works/:id/applause returns the applause count", async () => {
+    const res = await app.request("/api/participant-works/1/applause", { method: "POST" });
+    expect(res.status).toBe(200);
+    expect(await res.json()).toMatchObject({ applause: 1, reacted: true });
+    expect(res.headers.get("set-cookie")).toContain("work_reaction_key=");
   });
 
   it("GET /jejak/:slug/kirim-karya renders the simple submission form", async () => {

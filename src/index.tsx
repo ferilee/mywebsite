@@ -9,7 +9,7 @@ import { setCookie, getCookie } from 'hono/cookie';
 import { EventEmitter } from 'node:events';
 import { mkdir } from 'node:fs/promises';
 import { db } from './db';
-import { projects as projectTable, blogPosts, skills as skillTable, experience as expTable, settings as settingsTable, contacts as contactTable, comments as commentTable, reactions as reactionTable, subscriptions as subTable, pageViews as viewTable, milestones as milestonesTable, activities as activityTable, activityMedia as activityMediaTable, activityLinks as activityLinkTable, participantWorks as participantWorkTable, profiles as profileTable } from './db/schema';
+import { projects as projectTable, blogPosts, skills as skillTable, experience as expTable, settings as settingsTable, contacts as contactTable, comments as commentTable, reactions as reactionTable, subscriptions as subTable, pageViews as viewTable, milestones as milestonesTable, activities as activityTable, activityMedia as activityMediaTable, activityLinks as activityLinkTable, participantWorks as participantWorkTable, participantWorkReactions as participantWorkReactionTable, profiles as profileTable } from './db/schema';
 import { eq, desc, or, like, and, inArray, sql } from 'drizzle-orm';
 import { Layout } from './components/Layout';
 import { AdminLayout } from './components/AdminLayout';
@@ -73,6 +73,12 @@ try {
     submitted_at INTEGER,
     created_at INTEGER,
     updated_at INTEGER
+  )`));
+  await db.run(sql.raw(`CREATE TABLE IF NOT EXISTS participant_work_reactions (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    work_id INTEGER NOT NULL REFERENCES participant_works(id),
+    visitor_key TEXT NOT NULL,
+    created_at INTEGER
   )`));
 } catch (error) {
   console.error('Schema compatibility check failed:', error);
@@ -576,23 +582,131 @@ app.get('/api/activities', async (c) => {
   return c.json(await db.select().from(activityTable).where(and(...conditions)).orderBy(desc(activityTable.eventDate)));
 });
 
-function renderParticipantWorkCard(work: any, activity: any = null) {
+function renderParticipantWorkCard(work: any, activity: any = null, reactionCount = 0) {
   const tags = String(work.tags || '').split(',').map(tag => tag.trim()).filter(Boolean);
-  return <article class="group overflow-hidden rounded-3xl border border-white/10 bg-white/5 transition-all hover:-translate-y-1 hover:border-cyan-500/40"><div class="relative aspect-[16/10] overflow-hidden border-b border-white/10 bg-gradient-to-br from-cyan-950/60 to-slate-950">{work.previewImage ? <img src={work.previewImage} alt={work.title} loading="lazy" class="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105" onerror="this.classList.add('hidden'); this.nextElementSibling.classList.remove('hidden'); this.nextElementSibling.classList.add('flex')" /> : null}<div class={`${work.previewImage ? 'hidden ' : ''}absolute inset-0 items-center justify-center px-6 text-center ${work.previewImage ? '' : 'flex'}`}><span class="text-xs font-black uppercase tracking-[0.25em] text-cyan-400/70">Learning Artifact</span></div></div><div class="p-5"><p class="text-[10px] font-black uppercase tracking-widest text-cyan-400">{work.participantName}</p><h3 class="mt-2 text-xl font-black leading-snug text-white">{work.title}</h3>{work.institution && <p class="mt-2 text-xs font-bold text-slate-500">{work.institution}</p>}{work.description && <p class="mt-4 line-clamp-3 text-sm leading-relaxed text-slate-400">{work.description}</p>}{tags.length > 0 && <div class="mt-4 flex flex-wrap gap-2">{tags.map(tag => <span class="rounded-full border border-white/10 bg-white/5 px-2.5 py-1 text-[10px] font-bold text-slate-400">{tag}</span>)}</div>}<div class="mt-5 flex flex-wrap items-center gap-3">{work.workUrl && <a href={work.workUrl} target="_blank" rel="noreferrer" class="rounded-xl bg-cyan-700 px-4 py-2.5 text-xs font-black uppercase tracking-widest text-white transition-colors hover:bg-cyan-800">Lihat karya ↗</a>}{activity && <a href={`/jejak/${activity.slug}#karya-peserta`} class="text-xs font-bold text-slate-500 transition-colors hover:text-white">{work.workUrl ? 'Workshop' : 'Lihat aktivitas'} ↗</a>}</div></div></article>;
+  return <article data-work-card class="group overflow-hidden rounded-3xl border border-white/10 bg-white/5 transition-all hover:-translate-y-1 hover:border-cyan-500/40"><div data-work-preview class="relative aspect-[16/10] overflow-hidden border-b border-white/10 bg-gradient-to-br from-cyan-950/60 to-slate-950">{work.previewImage ? <img src={work.previewImage} alt={work.title} loading="lazy" class="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105" onerror="this.classList.add('hidden'); this.nextElementSibling.classList.remove('hidden'); this.nextElementSibling.classList.add('flex')" /> : null}<div class={`${work.previewImage ? 'hidden ' : ''}absolute inset-0 items-center justify-center px-6 text-center ${work.previewImage ? '' : 'flex'}`}><span class="text-xs font-black uppercase tracking-[0.25em] text-cyan-400/70">Learning Artifact</span></div></div><div data-work-body class="p-5"><p class="text-[10px] font-black uppercase tracking-widest text-cyan-400">{work.participantName}</p><h3 class="mt-2 text-xl font-black leading-snug text-white">{work.title}</h3>{work.institution && <p class="mt-2 text-xs font-bold text-slate-500">{work.institution}</p>}{activity && <p class="mt-2 text-xs font-bold text-slate-500">{activity.title}</p>}{work.description && <p class="mt-4 line-clamp-3 text-sm leading-relaxed text-slate-400">{work.description}</p>}{tags.length > 0 && <div class="mt-4 flex flex-wrap gap-2">{tags.map(tag => <span class="rounded-full border border-white/10 bg-white/5 px-2.5 py-1 text-[10px] font-bold text-slate-400">{tag}</span>)}</div>}<div data-work-actions class="mt-5 flex flex-wrap items-center gap-3">{work.workUrl && <a href={work.workUrl} target="_blank" rel="noreferrer" class="rounded-xl bg-cyan-700 px-4 py-2.5 text-xs font-black uppercase tracking-widest text-white transition-colors hover:bg-cyan-800">Lihat karya ↗</a>}{activity && <a href={`/jejak/${activity.slug}#karya-peserta`} class="text-xs font-bold text-slate-500 transition-colors hover:text-white">{work.workUrl ? 'Workshop' : 'Lihat aktivitas'} ↗</a>}<button type="button" data-applause-button data-work-id={work.id} aria-label="Apresiasi karya" aria-pressed="false" onclick={`applaudWork(this, ${work.id})`} class="inline-flex items-center gap-1.5 rounded-xl border border-white/10 bg-white/5 px-3 py-2.5 text-xs font-black text-slate-400 transition-all hover:border-cyan-400/40 hover:text-cyan-300"><span aria-hidden="true">♥</span><span data-applause-count>{reactionCount}</span><span class="sr-only">apresiasi</span></button></div></div></article>;
 }
+
+function renderParticipantWorkReactionScript() {
+  return <script dangerouslySetInnerHTML={{ __html: `
+    window.applaudWork = async (button, workId) => {
+      if (button.dataset.loading === 'true') return;
+      button.dataset.loading = 'true';
+      try {
+        const response = await fetch('/api/participant-works/' + workId + '/applause', { method: 'POST', headers: { Accept: 'application/json' } });
+        const data = await response.json();
+        if (!response.ok) throw new Error(data.error || 'Reaction failed');
+        const count = button.querySelector('[data-applause-count]');
+        if (count) count.textContent = String(data.applause);
+        button.setAttribute('aria-pressed', String(data.reacted));
+        button.classList.toggle('border-cyan-400/60', data.reacted);
+        button.classList.toggle('bg-cyan-500/15', data.reacted);
+        button.classList.toggle('text-cyan-300', data.reacted);
+        button.disabled = true;
+      } catch (error) {
+        button.title = 'Coba lagi';
+      } finally {
+        button.dataset.loading = 'false';
+      }
+    };
+  `}} />;
+}
+
+async function getParticipantWorkReactionCounts() {
+  const reactions = await db.select().from(participantWorkReactionTable);
+  const counts = new Map<number, number>();
+  for (const reaction of reactions) counts.set(reaction.workId, (counts.get(reaction.workId) || 0) + 1);
+  return counts;
+}
+
+app.post('/api/participant-works/:id/applause', async (c) => {
+  const workId = Number(c.req.param('id'));
+  if (!Number.isInteger(workId) || workId <= 0) return c.json({ error: 'Invalid work' }, 400);
+
+  const work = await db.select().from(participantWorkTable).where(and(
+    eq(participantWorkTable.id, workId),
+    eq(participantWorkTable.status, 'published'),
+    eq(participantWorkTable.consent, true),
+  )).limit(1);
+  if (!work[0]) return c.json({ error: 'Work not found' }, 404);
+
+  const user = c.var.user;
+  const existingCookie = getCookie(c, 'work_reaction_key');
+  const reactionVisitorKey = user?.email
+    ? `user:${user.email.toLowerCase()}`
+    : `visitor:${existingCookie || crypto.randomUUID()}`;
+
+  if (!user && !existingCookie) {
+    setCookie(c, 'work_reaction_key', reactionVisitorKey.slice('visitor:'.length), {
+      path: '/',
+      httpOnly: true,
+      sameSite: 'Lax',
+      secure: process.env.NODE_ENV === 'production',
+      maxAge: 60 * 60 * 24 * 365,
+    });
+  }
+
+  const existingReaction = await db.select().from(participantWorkReactionTable).where(and(
+    eq(participantWorkReactionTable.workId, workId),
+    eq(participantWorkReactionTable.visitorKey, reactionVisitorKey),
+  )).limit(1);
+  if (!existingReaction[0]) {
+    await db.insert(participantWorkReactionTable).values({ workId, visitorKey: reactionVisitorKey });
+  }
+
+  const reactions = await db.select().from(participantWorkReactionTable).where(eq(participantWorkReactionTable.workId, workId));
+  return c.json({ applause: reactions.length, reacted: true });
+});
 
 app.get('/jejak/karya', async (c) => {
   const user = c.var.user;
+  const selectedCategory = c.req.query('category') || '';
+  const selectedSort = c.req.query('sort') === 'applause' ? 'applause' : 'latest';
   const activities = await db.select({ id: activityTable.id, title: activityTable.title, slug: activityTable.slug }).from(activityTable).where(eq(activityTable.status, 'published'));
   const works = await db.select().from(participantWorkTable).where(and(eq(participantWorkTable.status, 'published'), eq(participantWorkTable.consent, true))).orderBy(desc(participantWorkTable.createdAt));
   const activitiesById = new Map(activities.map(activity => [activity.id, activity]));
-  const publicWorks = works.filter(work => work.title && work.participantName && activitiesById.has(work.activityId));
+  const reactionCounts = await getParticipantWorkReactionCounts();
+  const workItems = works.filter(work => work.title && work.participantName && activitiesById.has(work.activityId)).map(work => ({
+    work,
+    activity: activitiesById.get(work.activityId),
+    tags: String(work.tags || '').split(',').map(tag => tag.trim()).filter(Boolean),
+    applause: reactionCounts.get(work.id) || 0,
+  }));
+  const categories = [...new Set(workItems.flatMap(item => item.tags))].sort((a, b) => a.localeCompare(b));
+  const publicWorks = workItems
+    .filter(item => !selectedCategory || item.tags.some(tag => tag.toLowerCase() === selectedCategory.toLowerCase()))
+    .sort((a, b) => selectedSort === 'applause'
+      ? b.applause - a.applause || new Date(b.work.createdAt || 0).getTime() - new Date(a.work.createdAt || 0).getTime()
+      : new Date(b.work.createdAt || 0).getTime() - new Date(a.work.createdAt || 0).getTime());
 
   return c.html(
     <Layout title="Karya Peserta | Jejak Ferilee" user={user} needsProfiling={c.var.needsProfiling} currentPath="/jejak">
       <div class="mx-auto max-w-7xl px-6 py-28 md:py-32">
-        <div class="mx-auto max-w-5xl"><a href="/jejak" class="text-xs font-black uppercase tracking-widest text-red-500 transition-colors hover:text-white">← Kembali ke Jejak</a><header class="mt-8 border-b border-white/10 pb-10"><p class="text-xs font-black uppercase tracking-[0.35em] text-cyan-400">Public Showcase</p><h1 class="mt-4 text-5xl font-black italic tracking-tight md:text-7xl">KARYA <span class="text-cyan-400">PESERTA</span></h1><p class="mt-5 max-w-2xl text-lg leading-relaxed text-slate-400">Kumpulan karya belajar, eksplorasi, dan praktik peserta dalam berbagai workshop.</p></header></div>
-        {publicWorks.length > 0 ? <div class="mx-auto mt-12 grid max-w-5xl gap-5 md:grid-cols-2 lg:grid-cols-3">{publicWorks.map(work => renderParticipantWorkCard(work, activitiesById.get(work.activityId)))}</div> : <div class="mx-auto mt-12 max-w-5xl rounded-3xl border border-dashed border-white/10 bg-white/5 p-16 text-center"><p class="text-sm font-bold text-slate-500">Belum ada karya peserta yang dipublikasikan.</p><a href="/jejak" class="mt-6 inline-flex rounded-xl border border-white/10 px-5 py-3 text-xs font-black uppercase tracking-widest text-slate-400 transition-colors hover:text-white">Jelajahi Jejak</a></div>}
+        <div class="mx-auto max-w-5xl"><a href="/jejak" class="text-xs font-black uppercase tracking-widest text-red-500 transition-colors hover:text-white">← Kembali ke Jejak</a><header class="mt-8 border-b border-white/10 pb-10"><p class="text-xs font-black uppercase tracking-[0.35em] text-cyan-400">Public Showcase</p><div class="mt-4 flex flex-col gap-6 md:flex-row md:items-end md:justify-between"><div><h1 class="text-5xl font-black italic tracking-tight md:text-7xl">KARYA <span class="text-cyan-400">PESERTA</span></h1><p class="mt-5 max-w-2xl text-lg leading-relaxed text-slate-400">Kumpulan karya belajar, eksplorasi, dan praktik peserta dalam berbagai workshop.</p></div><div class="flex shrink-0 rounded-xl border border-white/10 bg-white/5 p-1"><button type="button" data-showcase-view="cards" onclick="setShowcaseView('cards')" class="rounded-lg px-3 py-2 text-xs font-black text-slate-400 transition-colors hover:text-white" aria-pressed="true">▦ Kartu</button><button type="button" data-showcase-view="list" onclick="setShowcaseView('list')" class="rounded-lg px-3 py-2 text-xs font-black text-slate-400 transition-colors hover:text-white" aria-pressed="false">☷ List</button></div></div></header></div>
+        <form action="/jejak/karya" method="get" class="mx-auto mt-8 flex max-w-5xl flex-col gap-3 sm:flex-row"><select name="category" class="rounded-xl border border-white/10 bg-slate-950/70 px-4 py-3 text-sm text-slate-300"><option value="">Semua kategori</option>{categories.map(category => <option value={category} selected={category === selectedCategory}>{category}</option>)}</select><select name="sort" class="rounded-xl border border-white/10 bg-slate-950/70 px-4 py-3 text-sm text-slate-300"><option value="latest" selected={selectedSort === 'latest'}>Terbaru</option><option value="applause" selected={selectedSort === 'applause'}>Paling diapresiasi</option></select><button type="submit" class="rounded-xl bg-cyan-700 px-5 py-3 text-xs font-black uppercase tracking-widest text-white transition-colors hover:bg-cyan-800">Terapkan</button></form>
+        {publicWorks.length > 0 ? <div id="participant-showcase-grid" data-showcase-grid class="mx-auto mt-8 grid max-w-5xl gap-5 md:grid-cols-2 lg:grid-cols-3">{publicWorks.map(item => renderParticipantWorkCard(item.work, item.activity, item.applause))}</div> : <div class="mx-auto mt-12 max-w-5xl rounded-3xl border border-dashed border-white/10 bg-white/5 p-16 text-center"><p class="text-sm font-bold text-slate-500">Belum ada karya peserta yang cocok dengan filter ini.</p><a href="/jejak" class="mt-6 inline-flex rounded-xl border border-white/10 px-5 py-3 text-xs font-black uppercase tracking-widest text-slate-400 transition-colors hover:text-white">Jelajahi Jejak</a></div>}
+        <style>{`[data-showcase-grid].list-view{display:flex;flex-direction:column}[data-showcase-grid].list-view [data-work-card]{display:grid;grid-template-columns:180px minmax(0,1fr)}[data-showcase-grid].list-view [data-work-preview]{height:100%;min-height:180px;aspect-ratio:auto;border-bottom:0;border-right:1px solid rgba(255,255,255,.1)}[data-showcase-grid].list-view [data-work-body]{display:flex;flex-wrap:wrap;align-items:center;gap:.35rem 1rem}[data-showcase-grid].list-view [data-work-body]>p,[data-showcase-grid].list-view [data-work-body]>h3,[data-showcase-grid].list-view [data-work-body]>div:not([data-work-actions]){width:100%}[data-showcase-grid].list-view [data-work-actions]{margin-top:1rem;width:100%}@media(max-width:639px){[data-showcase-grid].list-view [data-work-card]{grid-template-columns:100px minmax(0,1fr)}[data-showcase-grid].list-view [data-work-preview]{min-height:150px}}`}</style>
+        <script dangerouslySetInnerHTML={{ __html: `
+          (() => {
+            const grid = document.querySelector('[data-showcase-grid]');
+            const buttons = document.querySelectorAll('[data-showcase-view]');
+            const applyView = (view) => {
+              grid?.classList.toggle('list-view', view === 'list');
+              buttons.forEach(button => {
+                const active = button.dataset.showcaseView === view;
+                button.setAttribute('aria-pressed', String(active));
+                button.classList.toggle('bg-cyan-500/15', active);
+                button.classList.toggle('text-cyan-300', active);
+              });
+              try { localStorage.setItem('participant-showcase-view', view); } catch (error) {}
+            };
+            window.setShowcaseView = applyView;
+            let initialView = 'cards';
+            try { initialView = localStorage.getItem('participant-showcase-view') || 'cards'; } catch (error) {}
+            applyView(initialView === 'list' ? 'list' : 'cards');
+          })();
+        `}} />
+        {renderParticipantWorkReactionScript()}
       </div>
     </Layout>
   );
@@ -778,6 +892,7 @@ app.get('/jejak/:slug', async (c) => {
   const additionalLinks = activityLinks.filter(link => link.label && link.url);
   const participantWorks = await db.select().from(participantWorkTable).where(and(eq(participantWorkTable.activityId, activity.id), eq(participantWorkTable.status, 'published'), eq(participantWorkTable.consent, true))).orderBy(participantWorkTable.sortOrder);
   const publishedWorks = participantWorks.filter(work => work.title && work.participantName);
+  const reactionCounts = await getParticipantWorkReactionCounts();
   const descriptionHtml = activity.description ? await marked.parse(activity.description) : '';
 
   return c.html(
@@ -883,7 +998,8 @@ app.get('/jejak/:slug', async (c) => {
 
         {(media.length > 0 || activity.galleryAlbumUrl) && <section class="mt-20"><div class="mb-8 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between"><h2 class="text-2xl md:text-3xl font-black italic">DOKUMENTASI <span class="text-red-700">KEGIATAN</span></h2>{activity.galleryAlbumUrl && <a href={activity.galleryAlbumUrl} target="_blank" rel="noreferrer" class="shrink-0 rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-xs font-black uppercase tracking-widest text-red-300 transition-all hover:bg-red-500/20">Lihat Album Lengkap ↗</a>}</div>{media.length > 0 && <div class="grid sm:grid-cols-2 md:grid-cols-3 gap-5">{media.map(item => <figure class="group"><div class="relative aspect-[4/3] overflow-hidden rounded-2xl border border-white/10 group-hover:border-red-500/40 transition-all"><img src={item.url} alt={item.caption || activity.title} class="h-full w-full object-cover transition-transform group-hover:scale-105" onerror="this.classList.add('hidden'); this.nextElementSibling.classList.remove('hidden'); this.nextElementSibling.classList.add('flex')" /><div class="absolute inset-0 hidden items-center justify-center bg-slate-950/80 px-4 text-center text-xs font-bold text-slate-500">Gambar tidak tersedia</div></div>{item.caption && <figcaption class="text-xs text-slate-500 mt-2">{item.caption}</figcaption>}</figure>)}</div>}</section>}
 
-        <section id="karya-peserta" class="mt-20 border-t border-white/10 pt-12"><div class="mb-8 flex flex-col gap-5 sm:flex-row sm:items-end sm:justify-between"><div><p class="text-xs font-black uppercase tracking-[0.3em] text-cyan-400">Public Showcase</p><h2 class="mt-2 text-2xl font-black italic md:text-3xl">KARYA <span class="text-cyan-400">PESERTA</span></h2><p class="mt-2 max-w-2xl text-sm leading-relaxed text-slate-500">Hasil eksplorasi dan praktik peserta dalam kegiatan ini.</p></div><a href={`/jejak/${activity.slug}/kirim-karya`} class="shrink-0 rounded-xl border border-cyan-500/30 bg-cyan-500/10 px-4 py-3 text-xs font-black uppercase tracking-widest text-cyan-300 transition-all hover:bg-cyan-500/20 hover:text-white">Kirim karya ↗</a></div>{publishedWorks.length > 0 ? <div class="grid gap-5 md:grid-cols-2">{publishedWorks.map(work => renderParticipantWorkCard(work))}</div> : <div class="rounded-2xl border border-dashed border-white/10 bg-white/5 p-8 text-center"><p class="text-sm text-slate-500">Belum ada karya peserta yang dipublikasikan.</p><p class="mt-2 text-xs text-slate-600">Jika Anda mengikuti kegiatan ini, Anda dapat mengirimkan karya untuk ditinjau.</p></div>}</section>
+        <section id="karya-peserta" class="mt-20 border-t border-white/10 pt-12"><div class="mb-8 flex flex-col gap-5 sm:flex-row sm:items-end sm:justify-between"><div><p class="text-xs font-black uppercase tracking-[0.3em] text-cyan-400">Public Showcase</p><h2 class="mt-2 text-2xl font-black italic md:text-3xl">KARYA <span class="text-cyan-400">PESERTA</span></h2><p class="mt-2 max-w-2xl text-sm leading-relaxed text-slate-500">Hasil eksplorasi dan praktik peserta dalam kegiatan ini.</p></div><a href={`/jejak/${activity.slug}/kirim-karya`} class="shrink-0 rounded-xl border border-cyan-500/30 bg-cyan-500/10 px-4 py-3 text-xs font-black uppercase tracking-widest text-cyan-300 transition-all hover:bg-cyan-500/20 hover:text-white">Kirim karya ↗</a></div>{publishedWorks.length > 0 ? <div class="grid gap-5 md:grid-cols-2">{publishedWorks.map(work => renderParticipantWorkCard(work, null, reactionCounts.get(work.id) || 0))}</div> : <div class="rounded-2xl border border-dashed border-white/10 bg-white/5 p-8 text-center"><p class="text-sm text-slate-500">Belum ada karya peserta yang dipublikasikan.</p><p class="mt-2 text-xs text-slate-600">Jika Anda mengikuti kegiatan ini, Anda dapat mengirimkan karya untuk ditinjau.</p></div>}</section>
+        {renderParticipantWorkReactionScript()}
       </article>
     </Layout>
   );

@@ -114,6 +114,13 @@ export const participantWorks = sqliteTable('participant_works', {
   updatedAt: integer('updated_at', { mode: 'timestamp' }).$defaultFn(() => new Date()),
 });
 
+export const participantWorkReactions = sqliteTable('participant_work_reactions', {
+  id: integer('id').primaryKey({ autoIncrement: true }),
+  workId: integer('work_id').notNull().references(() => participantWorks.id),
+  visitorKey: text('visitor_key').notNull(),
+  createdAt: integer('created_at', { mode: 'timestamp' }).$defaultFn(() => new Date()),
+});
+
 export const contacts = sqliteTable('contacts', {
   id: integer('id').primaryKey({ autoIncrement: true }),
   name: text('name').notNull(),
