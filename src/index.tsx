@@ -1023,7 +1023,7 @@ app.get('/jejak/:slug', async (c) => {
                   window.location.reload();
                   return;
                 }
-                element.textContent = ' · ' + formatRemaining(remaining) + ' lagi';
+                element.textContent = formatRemaining(remaining) + ' lagi';
               });
             };
             updateCountdowns();
@@ -2610,11 +2610,11 @@ function formatJakartaDateTime(value: Date | number | string | null | undefined)
   return `${parts.year}-${parts.month}-${parts.day}T${parts.hour}:${parts.minute}`;
 }
 
-function formatJakartaSchedule(value: Date | number | string | null | undefined) {
+function formatJakartaBadge(value: Date | number | string | null | undefined) {
   if (!value) return '';
   const date = value instanceof Date ? value : new Date(value);
   if (Number.isNaN(date.getTime())) return '';
-  return `${new Intl.DateTimeFormat('id-ID', {
+  const parts = new Intl.DateTimeFormat('id-ID', {
     timeZone: 'Asia/Jakarta',
     day: '2-digit',
     month: 'short',
@@ -2622,7 +2622,11 @@ function formatJakartaSchedule(value: Date | number | string | null | undefined)
     hour: '2-digit',
     minute: '2-digit',
     hour12: false,
-  }).format(date).replace(/\./g, ':')} WIB`;
+  }).formatToParts(date).reduce<Record<string, string>>((result, part) => {
+    result[part.type] = part.value;
+    return result;
+  }, {});
+  return `${parts.day} ${parts.month} ${parts.year} · ${parts.hour}.${parts.minute} WIB`;
 }
 
 function normalizeLinkSchedule(fromValue: string, untilValue: string) {
@@ -2648,20 +2652,20 @@ function renderScheduledActivityLink(link: ScheduledActivityLink) {
   const until = link.availableUntil ? new Date(link.availableUntil).getTime() : null;
   const isBefore = from !== null && !Number.isNaN(from) && now < from;
   const isExpired = until !== null && !Number.isNaN(until) && now >= until;
-  const baseClass = 'flex w-full min-h-12 items-center justify-center rounded-xl border px-3 py-3 text-center text-sm font-bold leading-snug transition-all';
+  const baseClass = 'relative flex w-full min-h-[60px] items-center justify-center rounded-xl border px-4 pb-3 pt-6 text-center text-sm font-bold leading-snug transition-all';
   const activeClass = link.accent
     ? `${baseClass} border-cyan-500/30 bg-cyan-500/10 text-cyan-200 hover:bg-cyan-500/20 hover:text-white`
     : `${baseClass} border-white/10 bg-white/5 hover:border-red-500/40 hover:bg-white/10`;
   const disabledClass = `${baseClass} cursor-not-allowed border-white/10 bg-white/[0.03] text-slate-500`;
+  const badgeClass = 'pointer-events-none absolute right-3 top-2 max-w-[85%] truncate rounded-full border border-white/10 bg-slate-950/60 px-2 py-0.5 text-[9px] font-black tracking-wide text-slate-400';
 
   if (isBefore || isExpired) {
-    const scheduleText = isBefore ? `Buka ${formatJakartaSchedule(link.availableFrom)}` : 'Akses ditutup';
+    const scheduleText = isBefore ? `Buka ${formatJakartaBadge(link.availableFrom)}` : 'Ditutup';
     const countdown = isBefore && from !== null && from - now <= 24 * 60 * 60 * 1000;
-    const countdownText = countdown ? ` · ${formatCountdown(from - now)} lagi` : '';
-    return <div data-scheduled-link class="w-full min-w-0 space-y-1"><button type="button" disabled class={disabledClass}>{link.label} <svg aria-hidden="true" class="ml-1 inline-block h-3.5 w-3.5 shrink-0" viewBox="0 0 24 24" fill="currentColor"><rect x="5" y="10" width="14" height="10" rx="2"></rect><path d="M8 10V8a4 4 0 0 1 8 0v2h-2V8a2 2 0 0 0-4 0v2z"></path></svg></button><p class="min-h-4 px-1 text-center text-[10px] font-bold tracking-wide text-slate-500">{scheduleText}{countdown ? <span data-link-countdown data-start={from}>{countdownText}</span> : countdownText}</p></div>;
+    return <div data-scheduled-link class="w-full min-w-0"><button type="button" disabled class={disabledClass}><span>{link.label}</span><svg aria-hidden="true" class="ml-1 h-3.5 w-3.5 shrink-0" viewBox="0 0 24 24" fill="currentColor"><rect x="5" y="10" width="14" height="10" rx="2"></rect><path d="M8 10V8a4 4 0 0 1 8 0v2h-2V8a2 2 0 0 0-4 0v2z"></path></svg><span class={badgeClass}>{countdown ? <span data-link-countdown data-start={from}>{formatCountdown(from - now)} lagi</span> : scheduleText}</span></button></div>;
   }
 
-  return <div data-scheduled-link class="w-full min-w-0 space-y-1"><a href={link.url} target="_blank" rel="noreferrer" class={activeClass}>{link.label} ↗</a>{until !== null && <p class="min-h-4 px-1 text-center text-[10px] font-bold tracking-wide text-slate-500">Tersedia sampai {formatJakartaSchedule(link.availableUntil)}</p>}</div>;
+  return <div data-scheduled-link class="w-full min-w-0"><a href={link.url} target="_blank" rel="noreferrer" class={activeClass}>{link.label} ↗{until !== null && <span class={badgeClass}>Sampai {formatJakartaBadge(link.availableUntil)}</span>}</a></div>;
 }
 
 function formatCountdown(milliseconds: number) {
