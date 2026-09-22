@@ -118,6 +118,21 @@ describe("Main Pages", () => {
     expect(html).toContain("col-span-2");
   });
 
+  it("GET /jejak/karya renders the participant showcase", async () => {
+    const res = await app.request("/jejak/karya");
+    expect(res.status).toBe(200);
+    expect(await res.text()).toContain("KARYA");
+  });
+
+  it("GET /jejak/:slug/kirim-karya renders the simple submission form", async () => {
+    const res = await app.request("/jejak/test/kirim-karya");
+    expect(res.status).toBe(200);
+    const html = await res.text();
+    expect(html).toContain('name="participantName"');
+    expect(html).toContain('name="consent"');
+    expect(html).not.toContain('name="assignment"');
+  });
+
   it("GET /timeline redirects to the Jejak module", async () => {
     const res = await app.request("/timeline");
     expect(res.status).toBe(302);
@@ -198,6 +213,22 @@ describe("Admin Access Control", () => {
     expect(html).toContain('name="activityLinkLabel"');
     expect(html).toContain('name="activityLinkUrl"');
     expect(html).toContain("addActivityLink");
+  });
+
+  it("GET /admin/works/new exposes participant work moderation fields", async () => {
+    const session = encodeURIComponent(JSON.stringify({
+      email: "admin@example.com",
+      name: "Admin User",
+      role: "admin",
+    }));
+    const res = await app.request("/admin/works/new", {
+      headers: { Cookie: `user_session=${session}` },
+    });
+    expect(res.status).toBe(200);
+    const html = await res.text();
+    expect(html).toContain('name="participantName"');
+    expect(html).toContain('name="previewImageFile"');
+    expect(html).toContain("Pending review");
   });
 });
 

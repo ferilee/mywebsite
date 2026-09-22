@@ -96,6 +96,24 @@ export const activityLinks = sqliteTable('activity_links', {
   sortOrder: integer('sort_order').default(0),
 });
 
+export const participantWorks = sqliteTable('participant_works', {
+  id: integer('id').primaryKey({ autoIncrement: true }),
+  activityId: integer('activity_id').notNull().references(() => activities.id),
+  title: text('title').notNull(),
+  participantName: text('participant_name').notNull(),
+  institution: text('institution'),
+  description: text('description'),
+  previewImage: text('preview_image'),
+  workUrl: text('work_url'),
+  tags: text('tags'),
+  status: text('status').$type<'draft' | 'published'>().default('draft'),
+  consent: integer('consent', { mode: 'boolean' }).default(false),
+  sortOrder: integer('sort_order').default(0),
+  submittedAt: integer('submitted_at', { mode: 'timestamp' }).$defaultFn(() => new Date()),
+  createdAt: integer('created_at', { mode: 'timestamp' }).$defaultFn(() => new Date()),
+  updatedAt: integer('updated_at', { mode: 'timestamp' }).$defaultFn(() => new Date()),
+});
+
 export const contacts = sqliteTable('contacts', {
   id: integer('id').primaryKey({ autoIncrement: true }),
   name: text('name').notNull(),

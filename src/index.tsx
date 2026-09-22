@@ -9,7 +9,7 @@ import { setCookie, getCookie } from 'hono/cookie';
 import { EventEmitter } from 'node:events';
 import { mkdir } from 'node:fs/promises';
 import { db } from './db';
-import { projects as projectTable, blogPosts, skills as skillTable, experience as expTable, settings as settingsTable, contacts as contactTable, comments as commentTable, reactions as reactionTable, subscriptions as subTable, pageViews as viewTable, milestones as milestonesTable, activities as activityTable, activityMedia as activityMediaTable, activityLinks as activityLinkTable, profiles as profileTable } from './db/schema';
+import { projects as projectTable, blogPosts, skills as skillTable, experience as expTable, settings as settingsTable, contacts as contactTable, comments as commentTable, reactions as reactionTable, subscriptions as subTable, pageViews as viewTable, milestones as milestonesTable, activities as activityTable, activityMedia as activityMediaTable, activityLinks as activityLinkTable, participantWorks as participantWorkTable, profiles as profileTable } from './db/schema';
 import { eq, desc, or, like, and, inArray, sql } from 'drizzle-orm';
 import { Layout } from './components/Layout';
 import { AdminLayout } from './components/AdminLayout';
@@ -56,6 +56,23 @@ try {
     label TEXT NOT NULL,
     url TEXT NOT NULL,
     sort_order INTEGER DEFAULT 0
+  )`));
+  await db.run(sql.raw(`CREATE TABLE IF NOT EXISTS participant_works (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    activity_id INTEGER NOT NULL REFERENCES activities(id),
+    title TEXT NOT NULL,
+    participant_name TEXT NOT NULL,
+    institution TEXT,
+    description TEXT,
+    preview_image TEXT,
+    work_url TEXT,
+    tags TEXT,
+    status TEXT DEFAULT 'draft',
+    consent INTEGER DEFAULT 0,
+    sort_order INTEGER DEFAULT 0,
+    submitted_at INTEGER,
+    created_at INTEGER,
+    updated_at INTEGER
   )`));
 } catch (error) {
   console.error('Schema compatibility check failed:', error);
@@ -559,6 +576,67 @@ app.get('/api/activities', async (c) => {
   return c.json(await db.select().from(activityTable).where(and(...conditions)).orderBy(desc(activityTable.eventDate)));
 });
 
+function renderParticipantWorkCard(work: any, activity: any = null) {
+  const tags = String(work.tags || '').split(',').map(tag => tag.trim()).filter(Boolean);
+  return <article class="group overflow-hidden rounded-3xl border border-white/10 bg-white/5 transition-all hover:-translate-y-1 hover:border-cyan-500/40"><div class="relative aspect-[16/10] overflow-hidden border-b border-white/10 bg-gradient-to-br from-cyan-950/60 to-slate-950">{work.previewImage ? <img src={work.previewImage} alt={work.title} loading="lazy" class="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105" onerror="this.classList.add('hidden'); this.nextElementSibling.classList.remove('hidden'); this.nextElementSibling.classList.add('flex')" /> : null}<div class={`${work.previewImage ? 'hidden ' : ''}absolute inset-0 items-center justify-center px-6 text-center ${work.previewImage ? '' : 'flex'}`}><span class="text-xs font-black uppercase tracking-[0.25em] text-cyan-400/70">Learning Artifact</span></div></div><div class="p-5"><p class="text-[10px] font-black uppercase tracking-widest text-cyan-400">{work.participantName}</p><h3 class="mt-2 text-xl font-black leading-snug text-white">{work.title}</h3>{work.institution && <p class="mt-2 text-xs font-bold text-slate-500">{work.institution}</p>}{work.description && <p class="mt-4 line-clamp-3 text-sm leading-relaxed text-slate-400">{work.description}</p>}{tags.length > 0 && <div class="mt-4 flex flex-wrap gap-2">{tags.map(tag => <span class="rounded-full border border-white/10 bg-white/5 px-2.5 py-1 text-[10px] font-bold text-slate-400">{tag}</span>)}</div>}<div class="mt-5 flex flex-wrap items-center gap-3">{work.workUrl && <a href={work.workUrl} target="_blank" rel="noreferrer" class="rounded-xl bg-cyan-700 px-4 py-2.5 text-xs font-black uppercase tracking-widest text-white transition-colors hover:bg-cyan-800">Lihat karya ↗</a>}{activity && <a href={`/jejak/${activity.slug}#karya-peserta`} class="text-xs font-bold text-slate-500 transition-colors hover:text-white">{work.workUrl ? 'Workshop' : 'Lihat aktivitas'} ↗</a>}</div></div></article>;
+}
+
+app.get('/jejak/karya', async (c) => {
+  const user = c.var.user;
+  const activities = await db.select({ id: activityTable.id, title: activityTable.title, slug: activityTable.slug }).from(activityTable).where(eq(activityTable.status, 'published'));
+  const works = await db.select().from(participantWorkTable).where(and(eq(participantWorkTable.status, 'published'), eq(participantWorkTable.consent, true))).orderBy(desc(participantWorkTable.createdAt));
+  const activitiesById = new Map(activities.map(activity => [activity.id, activity]));
+  const publicWorks = works.filter(work => work.title && work.participantName && activitiesById.has(work.activityId));
+
+  return c.html(
+    <Layout title="Karya Peserta | Jejak Ferilee" user={user} needsProfiling={c.var.needsProfiling} currentPath="/jejak">
+      <div class="mx-auto max-w-7xl px-6 py-28 md:py-32">
+        <div class="mx-auto max-w-5xl"><a href="/jejak" class="text-xs font-black uppercase tracking-widest text-red-500 transition-colors hover:text-white">← Kembali ke Jejak</a><header class="mt-8 border-b border-white/10 pb-10"><p class="text-xs font-black uppercase tracking-[0.35em] text-cyan-400">Public Showcase</p><h1 class="mt-4 text-5xl font-black italic tracking-tight md:text-7xl">KARYA <span class="text-cyan-400">PESERTA</span></h1><p class="mt-5 max-w-2xl text-lg leading-relaxed text-slate-400">Kumpulan karya belajar, eksplorasi, dan praktik peserta dalam berbagai workshop.</p></header></div>
+        {publicWorks.length > 0 ? <div class="mx-auto mt-12 grid max-w-5xl gap-5 md:grid-cols-2 lg:grid-cols-3">{publicWorks.map(work => renderParticipantWorkCard(work, activitiesById.get(work.activityId)))}</div> : <div class="mx-auto mt-12 max-w-5xl rounded-3xl border border-dashed border-white/10 bg-white/5 p-16 text-center"><p class="text-sm font-bold text-slate-500">Belum ada karya peserta yang dipublikasikan.</p><a href="/jejak" class="mt-6 inline-flex rounded-xl border border-white/10 px-5 py-3 text-xs font-black uppercase tracking-widest text-slate-400 transition-colors hover:text-white">Jelajahi Jejak</a></div>}
+      </div>
+    </Layout>
+  );
+});
+
+app.get('/jejak/:slug/kirim-karya', async (c) => {
+  const results = await db.select().from(activityTable).where(and(eq(activityTable.slug, c.req.param('slug')), eq(activityTable.status, 'published'))).limit(1);
+  const activity = results[0];
+  if (!activity) return c.notFound();
+  return renderParticipantSubmission(c, activity);
+});
+
+app.post('/jejak/:slug/kirim-karya', async (c) => {
+  const results = await db.select().from(activityTable).where(and(eq(activityTable.slug, c.req.param('slug')), eq(activityTable.status, 'published'))).limit(1);
+  const activity = results[0];
+  if (!activity) return c.notFound();
+  const body = await c.req.parseBody();
+  const destination = `/jejak/${activity.slug}/kirim-karya`;
+
+  if (String(body.website || '').trim()) return c.redirect(`${destination}?submitted=1`);
+
+  const title = String(body.title || '').trim();
+  const participantName = String(body.participantName || '').trim();
+  const consent = body.consent === 'on' || body.consent === 'true';
+  if (!title || !participantName || !consent) return c.redirect(`${destination}?error=1`);
+
+  await db.insert(participantWorkTable).values({
+    activityId: activity.id,
+    title,
+    participantName,
+    institution: String(body.institution || '').trim() || null,
+    description: String(body.description || '').trim() || null,
+    previewImage: normalizeHttpUrl(String(body.previewImage || '').trim()),
+    workUrl: normalizeHttpUrl(String(body.workUrl || '').trim()),
+    tags: String(body.tags || '').trim() || null,
+    status: 'draft',
+    consent: true,
+    submittedAt: new Date(),
+    createdAt: new Date(),
+    updatedAt: new Date(),
+  });
+  return c.redirect(`${destination}?submitted=1`);
+});
+
 app.get('/jejak', async (c) => {
   const user = c.var.user;
   const selectedYear = c.req.query('year') || '';
@@ -588,6 +666,7 @@ app.get('/jejak', async (c) => {
           <h1 class="text-5xl md:text-7xl font-black tracking-tight italic">JEJAK <span class="text-red-700">FERI LEE</span></h1>
           <p class="text-slate-400 text-lg max-w-2xl mx-auto mt-6 leading-relaxed">Belajar • Berbagi • Berkolaborasi • Berdampak</p>
           <p class="text-slate-500 max-w-2xl mx-auto mt-3 leading-relaxed">Dokumentasi perjalanan berbagi, mendampingi, dan bertumbuh bersama pendidik Indonesia.</p>
+          <a href="/jejak/karya" class="mt-8 inline-flex rounded-xl border border-cyan-500/30 bg-cyan-500/10 px-5 py-3 text-xs font-black uppercase tracking-widest text-cyan-300 transition-all hover:bg-cyan-500/20 hover:text-white">Lihat Karya Peserta ↗</a>
         </header>
 
         <div class="grid grid-cols-2 md:grid-cols-4 gap-4 max-w-5xl mx-auto mb-20">
@@ -697,6 +776,8 @@ app.get('/jejak/:slug', async (c) => {
   const media = await db.select().from(activityMediaTable).where(eq(activityMediaTable.activityId, activity.id)).orderBy(activityMediaTable.sortOrder);
   const activityLinks = await db.select().from(activityLinkTable).where(eq(activityLinkTable.activityId, activity.id)).orderBy(activityLinkTable.sortOrder);
   const additionalLinks = activityLinks.filter(link => link.label && link.url);
+  const participantWorks = await db.select().from(participantWorkTable).where(and(eq(participantWorkTable.activityId, activity.id), eq(participantWorkTable.status, 'published'), eq(participantWorkTable.consent, true))).orderBy(participantWorkTable.sortOrder);
+  const publishedWorks = participantWorks.filter(work => work.title && work.participantName);
   const descriptionHtml = activity.description ? await marked.parse(activity.description) : '';
 
   return c.html(
@@ -801,6 +882,8 @@ app.get('/jejak/:slug', async (c) => {
         `}} />
 
         {(media.length > 0 || activity.galleryAlbumUrl) && <section class="mt-20"><div class="mb-8 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between"><h2 class="text-2xl md:text-3xl font-black italic">DOKUMENTASI <span class="text-red-700">KEGIATAN</span></h2>{activity.galleryAlbumUrl && <a href={activity.galleryAlbumUrl} target="_blank" rel="noreferrer" class="shrink-0 rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-xs font-black uppercase tracking-widest text-red-300 transition-all hover:bg-red-500/20">Lihat Album Lengkap ↗</a>}</div>{media.length > 0 && <div class="grid sm:grid-cols-2 md:grid-cols-3 gap-5">{media.map(item => <figure class="group"><div class="relative aspect-[4/3] overflow-hidden rounded-2xl border border-white/10 group-hover:border-red-500/40 transition-all"><img src={item.url} alt={item.caption || activity.title} class="h-full w-full object-cover transition-transform group-hover:scale-105" onerror="this.classList.add('hidden'); this.nextElementSibling.classList.remove('hidden'); this.nextElementSibling.classList.add('flex')" /><div class="absolute inset-0 hidden items-center justify-center bg-slate-950/80 px-4 text-center text-xs font-bold text-slate-500">Gambar tidak tersedia</div></div>{item.caption && <figcaption class="text-xs text-slate-500 mt-2">{item.caption}</figcaption>}</figure>)}</div>}</section>}
+
+        <section id="karya-peserta" class="mt-20 border-t border-white/10 pt-12"><div class="mb-8 flex flex-col gap-5 sm:flex-row sm:items-end sm:justify-between"><div><p class="text-xs font-black uppercase tracking-[0.3em] text-cyan-400">Public Showcase</p><h2 class="mt-2 text-2xl font-black italic md:text-3xl">KARYA <span class="text-cyan-400">PESERTA</span></h2><p class="mt-2 max-w-2xl text-sm leading-relaxed text-slate-500">Hasil eksplorasi dan praktik peserta dalam kegiatan ini.</p></div><a href={`/jejak/${activity.slug}/kirim-karya`} class="shrink-0 rounded-xl border border-cyan-500/30 bg-cyan-500/10 px-4 py-3 text-xs font-black uppercase tracking-widest text-cyan-300 transition-all hover:bg-cyan-500/20 hover:text-white">Kirim karya ↗</a></div>{publishedWorks.length > 0 ? <div class="grid gap-5 md:grid-cols-2">{publishedWorks.map(work => renderParticipantWorkCard(work))}</div> : <div class="rounded-2xl border border-dashed border-white/10 bg-white/5 p-8 text-center"><p class="text-sm text-slate-500">Belum ada karya peserta yang dipublikasikan.</p><p class="mt-2 text-xs text-slate-600">Jika Anda mengikuti kegiatan ini, Anda dapat mengirimkan karya untuk ditinjau.</p></div>}</section>
       </article>
     </Layout>
   );
@@ -1367,7 +1450,7 @@ app.get('/admin/activities', async (c) => {
       <div class="mx-auto max-w-7xl px-6 py-10 md:py-16">
         <header class="mb-10 flex flex-col gap-6 md:flex-row md:items-end md:justify-between"><div><a href="/admin" class="text-xs font-black uppercase tracking-widest text-cyan-400 hover:text-white">← Dashboard</a><h1 class="mt-5 text-4xl font-black italic tracking-tight md:text-5xl">JEJAK <span class="text-cyan-400">ACTIVITIES</span></h1><p class="mt-3 max-w-xl text-slate-500">Kelola dokumentasi kegiatan profesional, publikasi, galeri, dan highlight CV.</p></div><a href="/admin/activities/new" class="rounded-xl bg-cyan-700 px-5 py-3 text-center text-xs font-black uppercase tracking-widest text-white transition-all hover:bg-cyan-800">+ New Activity</a></header>
         <div class="mb-10 grid grid-cols-3 gap-3 md:gap-5"><div class="rounded-2xl border border-white/10 bg-white/5 p-4 md:p-6"><p class="text-2xl font-black">{activities.length}</p><p class="mt-2 text-[10px] font-black uppercase tracking-widest text-slate-500">Total</p></div><div class="rounded-2xl border border-white/10 bg-white/5 p-4 md:p-6"><p class="text-2xl font-black text-green-400">{publishedCount}</p><p class="mt-2 text-[10px] font-black uppercase tracking-widest text-slate-500">Published</p></div><div class="rounded-2xl border border-white/10 bg-white/5 p-4 md:p-6"><p class="text-2xl font-black text-cyan-400">{featuredCount}</p><p class="mt-2 text-[10px] font-black uppercase tracking-widest text-slate-500">CV Featured</p></div></div>
-        <section class="space-y-4">{activities.map(activity => <article class="flex flex-col gap-5 rounded-2xl border border-white/10 bg-white/5 p-5 transition-all hover:border-cyan-500/30 md:flex-row md:items-center md:justify-between md:p-6"><div class="min-w-0"><div class="flex flex-wrap items-center gap-2"><h2 class="font-black text-white">{activity.title}</h2><span class={`rounded-md px-2 py-1 text-[9px] font-black uppercase ${activity.status === 'published' ? 'bg-green-900/30 text-green-400' : 'bg-amber-900/30 text-amber-400'}`}>{activity.status}</span>{activity.featuredOnCv && <span class="rounded-md bg-cyan-900/30 px-2 py-1 text-[9px] font-black uppercase text-cyan-400">CV</span>}</div><p class="mt-2 text-[10px] font-bold uppercase tracking-widest text-slate-500">{activity.eventDate} • {activity.category} • {activity.role}</p><p class="mt-3 line-clamp-2 text-sm text-slate-400">{activity.summary}</p></div><div class="flex shrink-0 items-center gap-2"><a href={`/jejak/${activity.slug}`} target="_blank" rel="noreferrer" class="rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-sm font-bold text-slate-400 hover:text-white">View ↗</a><a href={`/admin/activities/edit/${activity.id}`} class="rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-sm font-bold text-slate-400 hover:text-white">Edit</a><form action={`/admin/activities/delete/${activity.id}`} method="post" onsubmit="return confirm('Delete this activity?')"><button type="submit" class="rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-sm font-bold text-slate-500 hover:border-red-500/30 hover:text-red-400">Delete</button></form></div></article>)}{activities.length === 0 && <div class="rounded-2xl border border-dashed border-white/10 p-16 text-center text-sm font-bold text-slate-500">Belum ada kegiatan. Buat kegiatan pertama dari tombol di atas.</div>}</section>
+        <section class="space-y-4">{activities.map(activity => <article class="flex flex-col gap-5 rounded-2xl border border-white/10 bg-white/5 p-5 transition-all hover:border-cyan-500/30 md:flex-row md:items-center md:justify-between md:p-6"><div class="min-w-0"><div class="flex flex-wrap items-center gap-2"><h2 class="font-black text-white">{activity.title}</h2><span class={`rounded-md px-2 py-1 text-[9px] font-black uppercase ${activity.status === 'published' ? 'bg-green-900/30 text-green-400' : 'bg-amber-900/30 text-amber-400'}`}>{activity.status}</span>{activity.featuredOnCv && <span class="rounded-md bg-cyan-900/30 px-2 py-1 text-[9px] font-black uppercase text-cyan-400">CV</span>}</div><p class="mt-2 text-[10px] font-bold uppercase tracking-widest text-slate-500">{activity.eventDate} • {activity.category} • {activity.role}</p><p class="mt-3 line-clamp-2 text-sm text-slate-400">{activity.summary}</p></div><div class="flex shrink-0 items-center gap-2"><a href={`/admin/works?activityId=${activity.id}`} class="rounded-lg border border-cyan-500/20 bg-cyan-500/5 px-3 py-2 text-sm font-bold text-cyan-300 hover:bg-cyan-500/10">Karya</a><a href={`/jejak/${activity.slug}`} target="_blank" rel="noreferrer" class="rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-sm font-bold text-slate-400 hover:text-white">View ↗</a><a href={`/admin/activities/edit/${activity.id}`} class="rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-sm font-bold text-slate-400 hover:text-white">Edit</a><form action={`/admin/activities/delete/${activity.id}`} method="post" onsubmit="return confirm('Delete this activity?')"><button type="submit" class="rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-sm font-bold text-slate-500 hover:border-red-500/30 hover:text-red-400">Delete</button></form></div></article>)}{activities.length === 0 && <div class="rounded-2xl border border-dashed border-white/10 p-16 text-center text-sm font-bold text-slate-500">Belum ada kegiatan. Buat kegiatan pertama dari tombol di atas.</div>}</section>
       </div>
     </AdminLayout>
   );
@@ -2141,6 +2224,90 @@ app.post('/admin/projects/delete/:id', async (c) => {
   return c.redirect('/admin');
 });
 
+// --- PARTICIPANT WORKS ADMIN ---
+app.get('/admin/works', async (c) => {
+  const user = c.var.user;
+  const selectedActivityId = Number(c.req.query('activityId')) || null;
+  const activities = await db.select().from(activityTable).orderBy(desc(activityTable.eventDate));
+  const works = await db.select().from(participantWorkTable).orderBy(desc(participantWorkTable.createdAt));
+  const activitiesById = new Map(activities.map(activity => [activity.id, activity]));
+  const filteredWorks = selectedActivityId ? works.filter(work => work.activityId === selectedActivityId) : works;
+  const unreadCount = (await db.select().from(contactTable)).filter(message => !message.isRead).length;
+
+  return c.html(
+    <AdminLayout title="Participant Works | Admin" notificationCount={unreadCount} user={user} currentPath="/admin/activities">
+      <div class="mx-auto max-w-7xl px-6 py-10 md:py-16">
+        <header class="mb-10 flex flex-col gap-6 md:flex-row md:items-end md:justify-between"><div><a href="/admin/activities" class="text-xs font-black uppercase tracking-widest text-cyan-400 hover:text-white">← Jejak Activities</a><h1 class="mt-5 text-4xl font-black italic tracking-tight md:text-5xl">KARYA <span class="text-cyan-400">PESERTA</span></h1><p class="mt-3 max-w-xl text-slate-500">Tinjau dan kelola karya peserta yang akan ditampilkan pada public showcase.</p></div><a href={`/admin/works/new${selectedActivityId ? `?activityId=${selectedActivityId}` : ''}`} class="rounded-xl bg-cyan-700 px-5 py-3 text-center text-xs font-black uppercase tracking-widest text-white transition-all hover:bg-cyan-800">+ New Work</a></header>
+        <div class="mb-8 flex flex-wrap gap-2"><a href="/admin/works" class={`rounded-xl px-4 py-2.5 text-xs font-black uppercase tracking-widest ${!selectedActivityId ? 'bg-cyan-500/15 text-cyan-300' : 'border border-white/10 text-slate-500 hover:text-white'}`}>Semua karya</a>{activities.map(activity => <a href={`/admin/works?activityId=${activity.id}`} class={`rounded-xl px-4 py-2.5 text-xs font-bold ${selectedActivityId === activity.id ? 'bg-cyan-500/15 text-cyan-300' : 'border border-white/10 text-slate-500 hover:text-white'}`}>{activity.title}</a>)}</div>
+        <section class="space-y-4">{filteredWorks.map(work => { const activity = activitiesById.get(work.activityId); return <article class="flex flex-col gap-5 rounded-2xl border border-white/10 bg-white/5 p-5 transition-all hover:border-cyan-500/30 md:flex-row md:items-center md:justify-between md:p-6"><div class="min-w-0"><div class="flex flex-wrap items-center gap-2"><h2 class="font-black text-white">{work.title}</h2><span class={`rounded-md px-2 py-1 text-[9px] font-black uppercase ${work.status === 'published' ? 'bg-green-900/30 text-green-400' : 'bg-amber-900/30 text-amber-400'}`}>{work.status || 'draft'}</span>{work.consent && <span class="rounded-md bg-cyan-900/30 px-2 py-1 text-[9px] font-black uppercase text-cyan-400">Consent</span>}</div><p class="mt-2 text-[10px] font-bold uppercase tracking-widest text-slate-500">{work.participantName}{work.institution ? ` • ${work.institution}` : ''}</p><p class="mt-2 text-xs font-bold text-cyan-400/80">{activity?.title || 'Activity unavailable'}</p>{work.description && <p class="mt-3 line-clamp-2 text-sm text-slate-400">{work.description}</p>}</div><div class="flex shrink-0 items-center gap-2"><a href={work.workUrl || (activity ? `/jejak/${activity.slug}#karya-peserta` : '#')} target="_blank" rel="noreferrer" class="rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-sm font-bold text-slate-400 hover:text-white">View ↗</a><a href={`/admin/works/edit/${work.id}`} class="rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-sm font-bold text-slate-400 hover:text-white">Edit</a><form action={`/admin/works/delete/${work.id}`} method="post" onsubmit="return confirm('Delete this participant work?')"><button type="submit" class="rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-sm font-bold text-slate-500 hover:border-red-500/30 hover:text-red-400">Delete</button></form></div></article>; })}{filteredWorks.length === 0 && <div class="rounded-2xl border border-dashed border-white/10 p-16 text-center text-sm font-bold text-slate-500">Belum ada karya peserta pada filter ini.</div>}</section>
+      </div>
+    </AdminLayout>
+  );
+});
+
+app.get('/admin/works/new', async (c) => {
+  const activities = await db.select().from(activityTable).orderBy(desc(activityTable.eventDate));
+  return renderParticipantWorkForm(c, null, activities, Number(c.req.query('activityId')) || null, c.var.user);
+});
+
+app.get('/admin/works/edit/:id', async (c) => {
+  const id = parseInt(c.req.param('id'));
+  const results = await db.select().from(participantWorkTable).where(eq(participantWorkTable.id, id)).limit(1);
+  if (!results[0]) return c.notFound();
+  const activities = await db.select().from(activityTable).orderBy(desc(activityTable.eventDate));
+  return renderParticipantWorkForm(c, results[0], activities, results[0].activityId, c.var.user);
+});
+
+app.post('/admin/works/save', async (c) => {
+  const body = await c.req.parseBody();
+  const id = body.id ? parseInt(String(body.id)) : null;
+  const activityId = Number(body.activityId);
+  const title = String(body.title || '').trim();
+  const participantName = String(body.participantName || '').trim();
+  const previewImageFile = body.previewImageFile;
+  let previewImage = normalizeHttpUrl(String(body.previewImage || '').trim());
+
+  if (!activityId || !title || !participantName) return c.text('Activity, title, and participant name are required.', 400);
+
+  try {
+    if (previewImageFile instanceof File && previewImageFile.size > 0) {
+      previewImage = await uploadToS3(previewImageFile, 'participant-work-previews');
+    }
+  } catch (error: any) {
+    return c.text(error.message || 'Failed to upload participant work preview', 500);
+  }
+
+  const consent = body.consent === 'on' || body.consent === 'true';
+  const data = {
+    activityId,
+    title,
+    participantName,
+    institution: String(body.institution || '').trim() || null,
+    description: String(body.description || '').trim() || null,
+    previewImage,
+    workUrl: normalizeHttpUrl(String(body.workUrl || '').trim()),
+    tags: String(body.tags || '').trim() || null,
+    status: body.status === 'published' && consent ? 'published' as const : 'draft' as const,
+    consent,
+    sortOrder: Number(body.sortOrder) || 0,
+    updatedAt: new Date(),
+  };
+
+  if (id) {
+    await db.update(participantWorkTable).set(data).where(eq(participantWorkTable.id, id));
+  } else {
+    await db.insert(participantWorkTable).values({ ...data, submittedAt: new Date(), createdAt: new Date() });
+  }
+  adminUpdates.emit('update');
+  return c.redirect('/admin/works');
+});
+
+app.post('/admin/works/delete/:id', async (c) => {
+  await db.delete(participantWorkTable).where(eq(participantWorkTable.id, parseInt(c.req.param('id'))));
+  adminUpdates.emit('update');
+  return c.redirect('/admin/works');
+});
+
 // --- ACTIVITIES ADMIN ---
 app.get('/admin/activities/new', (c) => renderActivityForm(c, null, [], [], c.var.user));
 app.get('/admin/activities/edit/:id', async (c) => {
@@ -2296,6 +2463,47 @@ app.get('/admin/projects/edit/:id', async (c) => {
   const results = await db.select().from(projectTable).where(eq(projectTable.id, id)).limit(1);
   return renderProjectForm(c, results[0], c.var.user);
 });
+
+function renderParticipantSubmission(c: any, activity: any) {
+  const submitted = c.req.query('submitted') === '1';
+  const hasError = c.req.query('error') === '1';
+  const fieldClass = 'w-full rounded-2xl border border-white/10 bg-slate-950/60 px-5 py-4 text-slate-200 placeholder:text-slate-600 focus:border-cyan-500 focus:outline-none';
+
+  return c.html(
+    <Layout title={`Kirim Karya | ${activity.title}`} currentPath="/jejak">
+      <div class="mx-auto max-w-3xl px-6 py-28 md:py-32">
+        <a href={`/jejak/${activity.slug}#karya-peserta`} class="text-xs font-black uppercase tracking-widest text-red-500 transition-colors hover:text-white">← Kembali ke aktivitas</a>
+        {submitted ? <div class="mt-10 rounded-3xl border border-cyan-500/20 bg-cyan-500/10 p-8 text-center md:p-12"><p class="text-xs font-black uppercase tracking-[0.3em] text-cyan-400">Submission received</p><h1 class="mt-4 text-4xl font-black italic">KARYA <span class="text-cyan-400">DITERIMA</span></h1><p class="mx-auto mt-5 max-w-xl leading-relaxed text-slate-400">Terima kasih. Karya Anda akan ditinjau terlebih dahulu sebelum ditampilkan pada ruang karya peserta.</p><a href={`/jejak/${activity.slug}#karya-peserta`} class="mt-8 inline-flex rounded-xl bg-cyan-700 px-5 py-3 text-xs font-black uppercase tracking-widest text-white transition-colors hover:bg-cyan-800">Kembali ke kegiatan</a></div> : <><header class="mt-8 border-b border-white/10 pb-8"><p class="text-xs font-black uppercase tracking-[0.3em] text-cyan-400">Participant Showcase</p><h1 class="mt-4 text-4xl font-black italic md:text-6xl">KIRIM <span class="text-cyan-400">KARYA</span></h1><p class="mt-5 leading-relaxed text-slate-400">Kirim karya yang Anda hasilkan dalam kegiatan <span class="font-bold text-slate-200">{activity.title}</span>. Pengiriman akan ditinjau sebelum dipublikasikan.</p></header>{hasError && <div class="mt-8 rounded-2xl border border-red-500/30 bg-red-500/10 px-5 py-4 text-sm font-bold text-red-300">Lengkapi judul, nama peserta, dan persetujuan publikasi sebelum mengirim.</div>}<form action={`/jejak/${activity.slug}/kirim-karya`} method="post" class="mt-8 space-y-6"><input type="text" name="website" tabindex="-1" autocomplete="off" class="hidden" aria-hidden="true" /><div class="grid gap-6 md:grid-cols-2"><input type="text" name="participantName" placeholder="Nama peserta" required class={fieldClass} /><input type="text" name="institution" placeholder="Institusi (opsional)" class={fieldClass} /></div><input type="text" name="title" placeholder="Judul karya" required class={fieldClass} /><textarea name="description" placeholder="Ceritakan singkat karya ini (opsional)" rows={5} class={`${fieldClass} min-h-[140px] leading-relaxed`}></textarea><div class="grid gap-6 md:grid-cols-2"><input type="url" name="workUrl" placeholder="URL karya (opsional)" class={fieldClass} /><input type="url" name="previewImage" placeholder="URL preview gambar (opsional)" class={fieldClass} /></div><input type="text" name="tags" placeholder="Tag, pisahkan dengan koma (contoh: AI, Matematika)" class={fieldClass} /><label class="flex items-start gap-3 rounded-2xl border border-white/10 bg-white/5 p-4 text-sm leading-relaxed text-slate-400"><input type="checkbox" name="consent" required class="mt-1 h-5 w-5 shrink-0 accent-cyan-600" /><span>Saya menyetujui karya, nama, dan institusi saya ditampilkan pada ruang karya peserta setelah ditinjau.</span></label><button type="submit" class="w-full rounded-2xl bg-cyan-700 px-6 py-4 text-sm font-black uppercase tracking-widest text-white transition-all hover:bg-cyan-800">Kirim karya untuk ditinjau</button></form></>}
+      </div>
+    </Layout>
+  );
+}
+
+function renderParticipantWorkForm(c: any, work: any = null, activities: any[] = [], selectedActivityId: number | null = null, user: any = null) {
+  const inputClass = "peer w-full rounded-2xl border border-white/10 bg-slate-950/50 px-5 pt-7 pb-3 text-lg text-white placeholder-transparent transition-all focus:border-cyan-500 focus:outline-none";
+  const labelClass = "absolute left-5 top-5 pointer-events-none text-xs font-bold uppercase tracking-widest text-slate-500 transition-all peer-placeholder-shown:top-5 peer-placeholder-shown:text-base peer-placeholder-shown:font-medium peer-focus:top-2 peer-focus:text-[10px] peer-focus:font-bold peer-focus:text-cyan-500 peer-[:not(:placeholder-shown)]:top-2 peer-[:not(:placeholder-shown)]:text-[10px] peer-[:not(:placeholder-shown)]:font-bold peer-[:not(:placeholder-shown)]:text-cyan-500";
+  const activityValue = work?.activityId || selectedActivityId || '';
+
+  return c.html(
+    <AdminLayout title={`${work ? 'Edit' : 'New'} Participant Work | Admin`} user={user} currentPath="/admin/activities" showNavigation={false}>
+      <div class="mx-auto max-w-4xl px-6 pt-10 pb-32">
+        <a href="/admin/works" class="text-xs font-black uppercase tracking-widest text-cyan-400 hover:text-white">← Participant Works</a>
+        <h1 class="mt-8 mb-12 text-4xl font-black italic tracking-tight">{work ? 'EDIT' : 'NEW'} <span class="text-cyan-400">PARTICIPANT WORK</span></h1>
+        <form action="/admin/works/save" method="post" enctype="multipart/form-data" class="space-y-8 rounded-[2.5rem] border border-white/10 bg-white/5 p-8 backdrop-blur-xl">
+          {work && <input type="hidden" name="id" value={work.id} />}
+          <div class="relative"><select name="activityId" required class={`${inputClass} appearance-none`}><option value="">Pilih aktivitas workshop</option>{activities.map(activity => <option value={activity.id} selected={String(activity.id) === String(activityValue)}>{activity.title}</option>)}</select><label class={labelClass}>Activity</label></div>
+          <div class="grid gap-6 md:grid-cols-2"><div class="relative"><input type="text" name="title" value={work?.title || ''} placeholder=" " required class={inputClass} /><label class={labelClass}>Work Title</label></div><div class="relative"><input type="text" name="participantName" value={work?.participantName || ''} placeholder=" " required class={inputClass} /><label class={labelClass}>Participant Name</label></div></div>
+          <div class="grid gap-6 md:grid-cols-2"><div class="relative"><input type="text" name="institution" value={work?.institution || ''} placeholder=" " class={inputClass} /><label class={labelClass}>Institution (optional)</label></div><div class="relative"><input type="text" name="tags" value={work?.tags || ''} placeholder=" " class={inputClass} /><label class={labelClass}>Tags (comma separated)</label></div></div>
+          <div class="relative"><textarea name="description" placeholder=" " class={`${inputClass} min-h-[150px] leading-relaxed`}>{work?.description || ''}</textarea><label class={labelClass}>Description</label></div>
+          <div class="grid gap-6 md:grid-cols-2"><div class="relative"><input type="url" name="workUrl" value={work?.workUrl || ''} placeholder=" " class={inputClass} /><label class={labelClass}>Work URL (optional)</label></div><div class="relative"><input type="number" name="sortOrder" value={work?.sortOrder || 0} placeholder=" " min="0" class={inputClass} /><label class={labelClass}>Display Order</label></div></div>
+          <div class="grid gap-6 md:grid-cols-2"><div class="relative"><input type="url" name="previewImage" value={work?.previewImage || ''} placeholder=" " class={inputClass} /><label class={labelClass}>Preview Image URL</label></div><div class="space-y-2"><label class="pl-1 text-[10px] font-black uppercase tracking-widest text-slate-500">Or Upload Preview to RustFS</label><input type="file" name="previewImageFile" accept="image/*" class="w-full rounded-2xl border border-white/10 bg-slate-950/50 px-5 py-4 text-sm text-slate-300 file:mr-4 file:rounded-lg file:border-0 file:bg-cyan-700 file:px-4 file:py-2 file:text-xs file:font-black file:text-white" /></div></div>
+          <div class="flex flex-col gap-5 rounded-2xl border border-white/5 bg-slate-950/40 p-5"><label class="flex items-center gap-3 text-sm font-bold text-slate-300"><input type="checkbox" name="consent" checked={Boolean(work?.consent)} class="h-5 w-5 accent-cyan-600" /> Peserta menyetujui karya ditampilkan secara publik</label><div class="flex flex-col gap-4 sm:flex-row sm:items-center"><select name="status" class="rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-slate-300"><option value="draft" selected={work?.status !== 'published'}>Draft / Pending review</option><option value="published" selected={work?.status === 'published'}>Published</option></select><p class="text-xs leading-relaxed text-slate-500">Karya hanya tampil publik jika status Published dan consent aktif.</p></div></div>
+          <div class="flex gap-4 pt-4"><button type="submit" class="rounded-xl bg-cyan-700 px-8 py-4 font-black uppercase tracking-widest text-white transition-all hover:bg-cyan-800">Save Work</button><a href="/admin/works" class="rounded-xl border border-white/10 px-8 py-4 font-black text-slate-400 transition-colors hover:text-white">Cancel</a></div>
+        </form>
+      </div>
+    </AdminLayout>
+  );
+}
 
 function renderActivityForm(c: any, activity: any = null, media: any[] = [], links: any[] = [], user: any = null) {
   const inputClass = "peer w-full bg-slate-950/50 border border-white/10 rounded-2xl px-5 pt-7 pb-3 focus:outline-none focus:border-cyan-500 transition-all text-white text-lg placeholder-transparent";
