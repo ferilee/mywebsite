@@ -252,6 +252,11 @@ describe("Admin Access Control", () => {
     expect(html).toContain("Google Photos Album URL");
     expect(html).toContain('name="activityLinkLabel"');
     expect(html).toContain('name="activityLinkUrl"');
+    expect(html).toContain('name="activityLinkAvailableFrom"');
+    expect(html).toContain('name="activityLinkAvailableUntil"');
+    expect(html).toContain('name="materialAvailableFrom"');
+    expect(html).toContain('name="publicationAvailableUntil"');
+    expect(html).toContain('Waktu mengikuti WIB (Asia/Jakarta)');
     expect(html).toContain("addActivityLink");
   });
 

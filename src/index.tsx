@@ -52,13 +52,23 @@ try {
   await ensureColumn('projects', 'github', 'text');
   await ensureColumn('blog_posts', 'cover_image', 'text');
   await ensureColumn('activities', 'gallery_album_url', 'text');
+  await ensureColumn('activities', 'material_available_from', 'integer');
+  await ensureColumn('activities', 'material_available_until', 'integer');
+  await ensureColumn('activities', 'certificate_available_from', 'integer');
+  await ensureColumn('activities', 'certificate_available_until', 'integer');
+  await ensureColumn('activities', 'publication_available_from', 'integer');
+  await ensureColumn('activities', 'publication_available_until', 'integer');
   await db.run(sql.raw(`CREATE TABLE IF NOT EXISTS activity_links (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     activity_id INTEGER NOT NULL REFERENCES activities(id),
     label TEXT NOT NULL,
     url TEXT NOT NULL,
+    available_from INTEGER,
+    available_until INTEGER,
     sort_order INTEGER DEFAULT 0
   )`));
+  await ensureColumn('activity_links', 'available_from', 'integer');
+  await ensureColumn('activity_links', 'available_until', 'integer');
   await db.run(sql.raw(`CREATE TABLE IF NOT EXISTS participant_works (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     activity_id INTEGER NOT NULL REFERENCES activities(id),
@@ -967,6 +977,12 @@ app.get('/jejak/:slug', async (c) => {
   const media = await db.select().from(activityMediaTable).where(eq(activityMediaTable.activityId, activity.id)).orderBy(activityMediaTable.sortOrder);
   const activityLinks = await db.select().from(activityLinkTable).where(eq(activityLinkTable.activityId, activity.id)).orderBy(activityLinkTable.sortOrder);
   const additionalLinks = activityLinks.filter(link => link.label && link.url);
+  const scheduledLinks: ScheduledActivityLink[] = [
+    activity.materialUrl ? { label: 'Lihat Materi', url: activity.materialUrl, availableFrom: activity.materialAvailableFrom, availableUntil: activity.materialAvailableUntil } : null,
+    activity.certificateUrl ? { label: 'Sertifikat', url: activity.certificateUrl, availableFrom: activity.certificateAvailableFrom, availableUntil: activity.certificateAvailableUntil } : null,
+    activity.publicationUrl ? { label: 'Publikasi', url: activity.publicationUrl, availableFrom: activity.publicationAvailableFrom, availableUntil: activity.publicationAvailableUntil } : null,
+    ...additionalLinks.map(link => ({ label: link.label, url: link.url, availableFrom: link.availableFrom, availableUntil: link.availableUntil, accent: true })),
+  ].filter(Boolean) as ScheduledActivityLink[];
   const participantWorks = await db.select().from(participantWorkTable).where(and(eq(participantWorkTable.activityId, activity.id), eq(participantWorkTable.status, 'published'), eq(participantWorkTable.consent, true))).orderBy(participantWorkTable.sortOrder);
   const publishedWorks = participantWorks.filter(work => work.title && work.participantName);
   const reactionCounts = await getParticipantWorkReactionCounts();
@@ -985,10 +1001,35 @@ app.get('/jejak/:slug', async (c) => {
           <div>
             <div class="prose prose-invert prose-red prose-p:text-justify max-w-none text-slate-300 leading-relaxed" dangerouslySetInnerHTML={{ __html: descriptionHtml }} />
           </div>
-          <aside><p class="mb-4 text-xs font-black uppercase tracking-widest text-slate-500">Links</p><div class="grid grid-cols-2 gap-3 lg:grid-cols-1">{activity.materialUrl && <a href={activity.materialUrl} target="_blank" rel="noreferrer" class="flex min-h-12 items-center justify-center rounded-xl border border-white/10 bg-white/5 px-3 py-3 text-center text-sm font-bold leading-snug transition-all hover:border-red-500/40 hover:bg-white/10">Lihat Materi ↗</a>}{activity.certificateUrl && <a href={activity.certificateUrl} target="_blank" rel="noreferrer" class="flex min-h-12 items-center justify-center rounded-xl border border-white/10 bg-white/5 px-3 py-3 text-center text-sm font-bold leading-snug transition-all hover:border-red-500/40 hover:bg-white/10">Sertifikat ↗</a>}{activity.publicationUrl && <a href={activity.publicationUrl} target="_blank" rel="noreferrer" class="flex min-h-12 items-center justify-center rounded-xl border border-white/10 bg-white/5 px-3 py-3 text-center text-sm font-bold leading-snug transition-all hover:border-red-500/40 hover:bg-white/10">Publikasi ↗</a>}{additionalLinks.map(link => <a href={link.url} target="_blank" rel="noreferrer" class="flex min-h-12 items-center justify-center rounded-xl border border-cyan-500/30 bg-cyan-500/10 px-3 py-3 text-center text-sm font-bold leading-snug text-cyan-200 transition-all hover:bg-cyan-500/20 hover:text-white">{link.label} ↗</a>)}<div class="relative col-span-2 lg:col-span-1" data-share-root><button type="button" data-share-button data-share-title={activity.title} onclick="shareActivity(this)" aria-expanded="false" aria-haspopup="menu" class="w-full min-h-12 rounded-xl bg-red-700 px-4 py-3 text-left text-sm font-bold transition-colors hover:bg-red-800">Bagikan kegiatan</button><div data-share-menu role="menu" class="hidden absolute right-0 top-full z-20 mt-2 w-full min-w-56 overflow-hidden rounded-2xl border border-white/10 bg-slate-950 p-2 shadow-2xl"><a data-share-link="whatsapp" role="menuitem" target="_blank" rel="noreferrer" class="block rounded-xl px-4 py-3 text-sm font-bold text-slate-300 transition-colors hover:bg-green-500/15 hover:text-green-300">WhatsApp</a><a data-share-link="telegram" role="menuitem" target="_blank" rel="noreferrer" class="block rounded-xl px-4 py-3 text-sm font-bold text-slate-300 transition-colors hover:bg-sky-500/15 hover:text-sky-300">Telegram</a><a data-share-link="facebook" role="menuitem" target="_blank" rel="noreferrer" class="block rounded-xl px-4 py-3 text-sm font-bold text-slate-300 transition-colors hover:bg-blue-500/15 hover:text-blue-300">Facebook</a><a data-share-link="x" role="menuitem" target="_blank" rel="noreferrer" class="block rounded-xl px-4 py-3 text-sm font-bold text-slate-300 transition-colors hover:bg-white/10 hover:text-white">X</a><a data-share-link="linkedin" role="menuitem" target="_blank" rel="noreferrer" class="block rounded-xl px-4 py-3 text-sm font-bold text-slate-300 transition-colors hover:bg-cyan-500/15 hover:text-cyan-300">LinkedIn</a><button type="button" role="menuitem" onclick="copyActivityLink(this)" class="block w-full rounded-xl px-4 py-3 text-left text-sm font-bold text-slate-400 transition-colors hover:bg-white/10 hover:text-white">Salin tautan</button></div></div></div></aside>
+          <aside><p class="mb-4 text-xs font-black uppercase tracking-widest text-slate-500">Links</p><div class="grid grid-cols-2 gap-3 lg:grid-cols-1">{scheduledLinks.map(link => renderScheduledActivityLink(link))}<div class="relative col-span-2 lg:col-span-1" data-share-root><button type="button" data-share-button data-share-title={activity.title} onclick="shareActivity(this)" aria-expanded="false" aria-haspopup="menu" class="w-full min-h-12 rounded-xl bg-red-700 px-4 py-3 text-left text-sm font-bold transition-colors hover:bg-red-800">Bagikan kegiatan</button><div data-share-menu role="menu" class="hidden absolute right-0 top-full z-20 mt-2 w-full min-w-56 overflow-hidden rounded-2xl border border-white/10 bg-slate-950 p-2 shadow-2xl"><a data-share-link="whatsapp" role="menuitem" target="_blank" rel="noreferrer" class="block rounded-xl px-4 py-3 text-sm font-bold text-slate-300 transition-colors hover:bg-green-500/15 hover:text-green-300">WhatsApp</a><a data-share-link="telegram" role="menuitem" target="_blank" rel="noreferrer" class="block rounded-xl px-4 py-3 text-sm font-bold text-slate-300 transition-colors hover:bg-sky-500/15 hover:text-sky-300">Telegram</a><a data-share-link="facebook" role="menuitem" target="_blank" rel="noreferrer" class="block rounded-xl px-4 py-3 text-sm font-bold text-slate-300 transition-colors hover:bg-blue-500/15 hover:text-blue-300">Facebook</a><a data-share-link="x" role="menuitem" target="_blank" rel="noreferrer" class="block rounded-xl px-4 py-3 text-sm font-bold text-slate-300 transition-colors hover:bg-white/10 hover:text-white">X</a><a data-share-link="linkedin" role="menuitem" target="_blank" rel="noreferrer" class="block rounded-xl px-4 py-3 text-sm font-bold text-slate-300 transition-colors hover:bg-cyan-500/15 hover:text-cyan-300">LinkedIn</a><button type="button" role="menuitem" onclick="copyActivityLink(this)" class="block w-full rounded-xl px-4 py-3 text-left text-sm font-bold text-slate-400 transition-colors hover:bg-white/10 hover:text-white">Salin tautan</button></div></div></div></aside>
         </div>
 
         <script dangerouslySetInnerHTML={{ __html: `
+          (() => {
+            const formatRemaining = (milliseconds) => {
+              const totalMinutes = Math.max(1, Math.ceil(milliseconds / 60000));
+              const days = Math.floor(totalMinutes / (60 * 24));
+              const hours = Math.floor((totalMinutes % (60 * 24)) / 60);
+              const minutes = totalMinutes % 60;
+              if (days > 0) return days + ' hari ' + hours + ' jam';
+              if (hours > 0) return hours + ' jam ' + minutes + ' menit';
+              return minutes + ' menit';
+            };
+            const updateCountdowns = () => {
+              document.querySelectorAll('[data-link-countdown]').forEach((element) => {
+                const start = Number(element.getAttribute('data-start'));
+                const remaining = start - Date.now();
+                if (!Number.isFinite(start) || remaining <= 0) {
+                  window.location.reload();
+                  return;
+                }
+                element.textContent = ' · ' + formatRemaining(remaining) + ' lagi';
+              });
+            };
+            updateCountdowns();
+            window.setInterval(updateCountdowns, 60000);
+          })();
+
           (() => {
             const root = document.querySelector('[data-share-root]');
             const menu = root?.querySelector('[data-share-menu]');
@@ -2541,6 +2582,98 @@ function normalizeHttpUrl(value: string) {
   }
 }
 
+function parseJakartaDateTime(value: string) {
+  const match = /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})$/.exec(value.trim());
+  if (!match) return null;
+  const [, year, month, day, hour, minute] = match;
+  const timestamp = Date.UTC(Number(year), Number(month) - 1, Number(day), Number(hour), Number(minute)) - (7 * 60 * 60 * 1000);
+  const date = new Date(timestamp);
+  return Number.isNaN(date.getTime()) ? null : date;
+}
+
+function formatJakartaDateTime(value: Date | number | string | null | undefined) {
+  if (!value) return '';
+  const date = value instanceof Date ? value : new Date(value);
+  if (Number.isNaN(date.getTime())) return '';
+  const parts = new Intl.DateTimeFormat('en-GB', {
+    timeZone: 'Asia/Jakarta',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false,
+  }).formatToParts(date).reduce<Record<string, string>>((result, part) => {
+    result[part.type] = part.value;
+    return result;
+  }, {});
+  return `${parts.year}-${parts.month}-${parts.day}T${parts.hour}:${parts.minute}`;
+}
+
+function formatJakartaSchedule(value: Date | number | string | null | undefined) {
+  if (!value) return '';
+  const date = value instanceof Date ? value : new Date(value);
+  if (Number.isNaN(date.getTime())) return '';
+  return `${new Intl.DateTimeFormat('id-ID', {
+    timeZone: 'Asia/Jakarta',
+    day: '2-digit',
+    month: 'short',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false,
+  }).format(date).replace(/\./g, ':')} WIB`;
+}
+
+function normalizeLinkSchedule(fromValue: string, untilValue: string) {
+  const availableFrom = parseJakartaDateTime(fromValue);
+  const availableUntil = parseJakartaDateTime(untilValue);
+  if (availableFrom && availableUntil && availableUntil.getTime() <= availableFrom.getTime()) {
+    return { availableFrom, availableUntil, error: 'Waktu selesai harus setelah waktu mulai.' };
+  }
+  return { availableFrom, availableUntil, error: null };
+}
+
+type ScheduledActivityLink = {
+  label: string;
+  url: string;
+  availableFrom?: Date | number | string | null;
+  availableUntil?: Date | number | string | null;
+  accent?: boolean;
+};
+
+function renderScheduledActivityLink(link: ScheduledActivityLink) {
+  const now = Date.now();
+  const from = link.availableFrom ? new Date(link.availableFrom).getTime() : null;
+  const until = link.availableUntil ? new Date(link.availableUntil).getTime() : null;
+  const isBefore = from !== null && !Number.isNaN(from) && now < from;
+  const isExpired = until !== null && !Number.isNaN(until) && now >= until;
+  const baseClass = 'flex min-h-12 items-center justify-center rounded-xl border px-3 py-3 text-center text-sm font-bold leading-snug transition-all';
+  const activeClass = link.accent
+    ? `${baseClass} border-cyan-500/30 bg-cyan-500/10 text-cyan-200 hover:bg-cyan-500/20 hover:text-white`
+    : `${baseClass} border-white/10 bg-white/5 hover:border-red-500/40 hover:bg-white/10`;
+  const disabledClass = `${baseClass} cursor-not-allowed border-white/10 bg-white/[0.03] text-slate-500`;
+
+  if (isBefore || isExpired) {
+    const scheduleText = isBefore ? `Tersedia ${formatJakartaSchedule(link.availableFrom)}` : 'Akses ditutup';
+    const countdown = isBefore && from !== null && from - now <= 24 * 60 * 60 * 1000;
+    const countdownText = countdown ? ` · ${formatCountdown(from - now)} lagi` : '';
+    return <div data-scheduled-link class="space-y-1"><button type="button" disabled class={disabledClass}>{link.label} <span aria-hidden="true">🔒</span></button><p class="px-1 text-center text-[10px] font-bold uppercase tracking-wider text-slate-500">{scheduleText}{countdown ? <span data-link-countdown data-start={from}>{countdownText}</span> : countdownText}</p></div>;
+  }
+
+  return <div data-scheduled-link class="space-y-1"><a href={link.url} target="_blank" rel="noreferrer" class={activeClass}>{link.label} ↗</a>{until !== null && <p class="px-1 text-center text-[10px] font-bold uppercase tracking-wider text-slate-500">Tersedia sampai {formatJakartaSchedule(link.availableUntil)}</p>}</div>;
+}
+
+function formatCountdown(milliseconds: number) {
+  const totalMinutes = Math.max(1, Math.ceil(milliseconds / 60000));
+  const days = Math.floor(totalMinutes / (60 * 24));
+  const hours = Math.floor((totalMinutes % (60 * 24)) / 60);
+  const minutes = totalMinutes % 60;
+  if (days > 0) return `${days} hari ${hours} jam`;
+  if (hours > 0) return `${hours} jam ${minutes} menit`;
+  return `${minutes} menit`;
+}
+
 app.post('/admin/activities/save', async (c) => {
   const body = await c.req.parseBody({ all: true });
   const id = body.id ? parseInt(body.id as string) : null;
@@ -2554,16 +2687,27 @@ app.post('/admin/activities/save', async (c) => {
   let uploadedGalleryUrls: string[] = [];
   const linkLabels = Array.isArray(body.activityLinkLabel) ? body.activityLinkLabel : body.activityLinkLabel ? [body.activityLinkLabel] : [];
   const linkUrls = Array.isArray(body.activityLinkUrl) ? body.activityLinkUrl : body.activityLinkUrl ? [body.activityLinkUrl] : [];
-  const additionalLinks: Array<{ label: string; url: string; sortOrder: number }> = [];
+  const linkAvailableFrom = Array.isArray(body.activityLinkAvailableFrom) ? body.activityLinkAvailableFrom : body.activityLinkAvailableFrom ? [body.activityLinkAvailableFrom] : [];
+  const linkAvailableUntil = Array.isArray(body.activityLinkAvailableUntil) ? body.activityLinkAvailableUntil : body.activityLinkAvailableUntil ? [body.activityLinkAvailableUntil] : [];
+  const additionalLinks: Array<{ label: string; url: string; availableFrom: Date | null; availableUntil: Date | null; sortOrder: number }> = [];
+  let scheduleError: string | null = null;
   linkLabels.forEach((rawLabel, index) => {
     const label = String(rawLabel || '').trim();
     const url = normalizeHttpUrl(String(linkUrls[index] || '').trim());
-    if (label && url) additionalLinks.push({ label, url, sortOrder: additionalLinks.length });
+    const schedule = normalizeLinkSchedule(String(linkAvailableFrom[index] || ''), String(linkAvailableUntil[index] || ''));
+    if (schedule.error) scheduleError = schedule.error;
+    if (label && url && !schedule.error) additionalLinks.push({ label, url, availableFrom: schedule.availableFrom, availableUntil: schedule.availableUntil, sortOrder: additionalLinks.length });
   });
+
+  const materialSchedule = normalizeLinkSchedule(String(body.materialAvailableFrom || ''), String(body.materialAvailableUntil || ''));
+  const certificateSchedule = normalizeLinkSchedule(String(body.certificateAvailableFrom || ''), String(body.certificateAvailableUntil || ''));
+  const publicationSchedule = normalizeLinkSchedule(String(body.publicationAvailableFrom || ''), String(body.publicationAvailableUntil || ''));
+  scheduleError = scheduleError || materialSchedule.error || certificateSchedule.error || publicationSchedule.error;
 
   if (!title || !slug || !eventDate || !body.role || !body.category || !body.summary) {
     return c.text('Title, date, role, category, and summary are required.', 400);
   }
+  if (scheduleError) return c.text(scheduleError, 400);
 
   try {
     if (coverImageFile instanceof File && coverImageFile.size > 0) {
@@ -2589,8 +2733,14 @@ app.post('/admin/activities/save', async (c) => {
     coverImage: coverImage || null,
     galleryAlbumUrl: String(body.galleryAlbumUrl || '').trim() || null,
     materialUrl: String(body.materialUrl || '').trim() || null,
+    materialAvailableFrom: materialSchedule.availableFrom,
+    materialAvailableUntil: materialSchedule.availableUntil,
     certificateUrl: String(body.certificateUrl || '').trim() || null,
+    certificateAvailableFrom: certificateSchedule.availableFrom,
+    certificateAvailableUntil: certificateSchedule.availableUntil,
     publicationUrl: String(body.publicationUrl || '').trim() || null,
+    publicationAvailableFrom: publicationSchedule.availableFrom,
+    publicationAvailableUntil: publicationSchedule.availableUntil,
     featuredOnCv: body.featuredOnCv === 'on' || body.featuredOnCv === 'true',
     status: (body.status === 'published' ? 'published' : 'draft') as 'draft' | 'published',
     updatedAt: new Date(),
@@ -2800,15 +2950,16 @@ function renderActivityForm(c: any, activity: any = null, media: any[] = [], lin
           </div>
           <div class="relative"><input type="url" name="galleryAlbumUrl" id="a-gallery-album" value={activity?.galleryAlbumUrl || ''} placeholder=" " class={inputClass} /><label for="a-gallery-album" class={labelClass}>Google Photos Album URL (optional)</label></div>
           <div class="grid md:grid-cols-3 gap-6">
-            <div class="relative"><input type="url" name="materialUrl" id="a-material" value={activity?.materialUrl || ''} placeholder=" " class={inputClass} /><label for="a-material" class={labelClass}>Material URL</label></div>
-            <div class="relative"><input type="url" name="certificateUrl" id="a-certificate" value={activity?.certificateUrl || ''} placeholder=" " class={inputClass} /><label for="a-certificate" class={labelClass}>Certificate URL</label></div>
-            <div class="relative"><input type="url" name="publicationUrl" id="a-publication" value={activity?.publicationUrl || ''} placeholder=" " class={inputClass} /><label for="a-publication" class={labelClass}>Publication URL</label></div>
+            <div class="space-y-3"><div class="relative"><input type="url" name="materialUrl" id="a-material" value={activity?.materialUrl || ''} placeholder=" " class={inputClass} /><label for="a-material" class={labelClass}>Material URL</label></div><div><label for="a-material-from" class="mb-1 block text-[10px] font-black uppercase tracking-widest text-slate-500">Tersedia mulai</label><input type="datetime-local" name="materialAvailableFrom" id="a-material-from" value={formatJakartaDateTime(activity?.materialAvailableFrom)} class="w-full rounded-xl border border-white/10 bg-slate-950/50 px-4 py-3 text-sm text-slate-300 focus:border-cyan-500 focus:outline-none" /></div><div><label for="a-material-until" class="mb-1 block text-[10px] font-black uppercase tracking-widest text-slate-500">Tersedia sampai</label><input type="datetime-local" name="materialAvailableUntil" id="a-material-until" value={formatJakartaDateTime(activity?.materialAvailableUntil)} class="w-full rounded-xl border border-white/10 bg-slate-950/50 px-4 py-3 text-sm text-slate-300 focus:border-cyan-500 focus:outline-none" /></div></div>
+            <div class="space-y-3"><div class="relative"><input type="url" name="certificateUrl" id="a-certificate" value={activity?.certificateUrl || ''} placeholder=" " class={inputClass} /><label for="a-certificate" class={labelClass}>Certificate URL</label></div><div><label for="a-certificate-from" class="mb-1 block text-[10px] font-black uppercase tracking-widest text-slate-500">Tersedia mulai</label><input type="datetime-local" name="certificateAvailableFrom" id="a-certificate-from" value={formatJakartaDateTime(activity?.certificateAvailableFrom)} class="w-full rounded-xl border border-white/10 bg-slate-950/50 px-4 py-3 text-sm text-slate-300 focus:border-cyan-500 focus:outline-none" /></div><div><label for="a-certificate-until" class="mb-1 block text-[10px] font-black uppercase tracking-widest text-slate-500">Tersedia sampai</label><input type="datetime-local" name="certificateAvailableUntil" id="a-certificate-until" value={formatJakartaDateTime(activity?.certificateAvailableUntil)} class="w-full rounded-xl border border-white/10 bg-slate-950/50 px-4 py-3 text-sm text-slate-300 focus:border-cyan-500 focus:outline-none" /></div></div>
+            <div class="space-y-3"><div class="relative"><input type="url" name="publicationUrl" id="a-publication" value={activity?.publicationUrl || ''} placeholder=" " class={inputClass} /><label for="a-publication" class={labelClass}>Publication URL</label></div><div><label for="a-publication-from" class="mb-1 block text-[10px] font-black uppercase tracking-widest text-slate-500">Tersedia mulai</label><input type="datetime-local" name="publicationAvailableFrom" id="a-publication-from" value={formatJakartaDateTime(activity?.publicationAvailableFrom)} class="w-full rounded-xl border border-white/10 bg-slate-950/50 px-4 py-3 text-sm text-slate-300 focus:border-cyan-500 focus:outline-none" /></div><div><label for="a-publication-until" class="mb-1 block text-[10px] font-black uppercase tracking-widest text-slate-500">Tersedia sampai</label><input type="datetime-local" name="publicationAvailableUntil" id="a-publication-until" value={formatJakartaDateTime(activity?.publicationAvailableUntil)} class="w-full rounded-xl border border-white/10 bg-slate-950/50 px-4 py-3 text-sm text-slate-300 focus:border-cyan-500 focus:outline-none" /></div></div>
           </div>
+          <p class="-mt-3 text-xs leading-relaxed text-slate-500">Jadwal bersifat opsional. Waktu mengikuti WIB (Asia/Jakarta); sebelum waktunya tombol akan terkunci dan URL tidak ditampilkan.</p>
           <section class="space-y-5 rounded-2xl border border-cyan-500/20 bg-cyan-500/5 p-5 md:p-6">
             <div class="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between"><div><h2 class="text-sm font-black uppercase tracking-widest text-cyan-300">Additional Links</h2><p class="mt-2 max-w-2xl text-xs leading-relaxed text-slate-500">Tambahkan tautan opsional lain. Setiap baris akan tampil sebagai satu tombol di bawah deskripsi aktivitas.</p></div><button type="button" onclick="addActivityLink()" class="shrink-0 rounded-xl bg-cyan-700 px-4 py-3 text-xs font-black uppercase tracking-widest text-white transition-all hover:bg-cyan-800">+ Tambah tautan</button></div>
-            <div id="activity-links-list" class="space-y-3">{additionalLinks.map(link => <div data-activity-link-row class="grid items-center gap-3 rounded-2xl border border-white/10 bg-slate-950/40 p-3 md:grid-cols-[1fr_1.5fr_auto]"><input type="text" name="activityLinkLabel" value={link.label} placeholder="Nama tombol, contoh: Berita Kegiatan" aria-label="Nama tombol" class="w-full rounded-xl border border-white/10 bg-slate-950/60 px-4 py-3 text-sm text-white placeholder:text-slate-600 focus:border-cyan-500 focus:outline-none" /><input type="url" name="activityLinkUrl" value={link.url} placeholder="https://contoh.com" aria-label="URL tautan" class="w-full rounded-xl border border-white/10 bg-slate-950/60 px-4 py-3 text-sm text-white placeholder:text-slate-600 focus:border-cyan-500 focus:outline-none" /><button type="button" onclick="removeActivityLink(this)" class="rounded-xl border border-white/10 px-4 py-3 text-xs font-bold text-slate-500 transition-colors hover:border-red-500/30 hover:text-red-400">Hapus</button></div>)}</div>
+            <div id="activity-links-list" class="space-y-3">{additionalLinks.map(link => <div data-activity-link-row class="grid items-center gap-3 rounded-2xl border border-white/10 bg-slate-950/40 p-3 md:grid-cols-[1fr_1.5fr_auto]"><input type="text" name="activityLinkLabel" value={link.label} placeholder="Nama tombol, contoh: Berita Kegiatan" aria-label="Nama tombol" class="w-full rounded-xl border border-white/10 bg-slate-950/60 px-4 py-3 text-sm text-white placeholder:text-slate-600 focus:border-cyan-500 focus:outline-none" /><input type="url" name="activityLinkUrl" value={link.url} placeholder="https://contoh.com" aria-label="URL tautan" class="w-full rounded-xl border border-white/10 bg-slate-950/60 px-4 py-3 text-sm text-white placeholder:text-slate-600 focus:border-cyan-500 focus:outline-none" /><div class="grid gap-2 sm:grid-cols-2 md:col-span-2"><div><label class="mb-1 block text-[10px] font-black uppercase tracking-widest text-slate-600">Mulai</label><input type="datetime-local" name="activityLinkAvailableFrom" value={formatJakartaDateTime(link.availableFrom)} aria-label="Waktu mulai tautan" class="w-full rounded-xl border border-white/10 bg-slate-950/60 px-3 py-2 text-xs text-slate-300 focus:border-cyan-500 focus:outline-none" /></div><div><label class="mb-1 block text-[10px] font-black uppercase tracking-widest text-slate-600">Sampai</label><input type="datetime-local" name="activityLinkAvailableUntil" value={formatJakartaDateTime(link.availableUntil)} aria-label="Waktu selesai tautan" class="w-full rounded-xl border border-white/10 bg-slate-950/60 px-3 py-2 text-xs text-slate-300 focus:border-cyan-500 focus:outline-none" /></div></div><button type="button" onclick="removeActivityLink(this)" class="rounded-xl border border-white/10 px-4 py-3 text-xs font-bold text-slate-500 transition-colors hover:border-red-500/30 hover:text-red-400 md:col-start-3 md:row-start-1">Hapus</button></div>)}</div>
             <p id="activity-links-empty" class={`${additionalLinks.length > 0 ? 'hidden ' : ''}text-xs italic text-slate-600`}>Belum ada tautan tambahan.</p>
-            <template id="activity-link-template"><div data-activity-link-row class="grid items-center gap-3 rounded-2xl border border-white/10 bg-slate-950/40 p-3 md:grid-cols-[1fr_1.5fr_auto]"><input type="text" name="activityLinkLabel" placeholder="Nama tombol, contoh: Berita Kegiatan" aria-label="Nama tombol" class="w-full rounded-xl border border-white/10 bg-slate-950/60 px-4 py-3 text-sm text-white placeholder:text-slate-600 focus:border-cyan-500 focus:outline-none" /><input type="url" name="activityLinkUrl" placeholder="https://contoh.com" aria-label="URL tautan" class="w-full rounded-xl border border-white/10 bg-slate-950/60 px-4 py-3 text-sm text-white placeholder:text-slate-600 focus:border-cyan-500 focus:outline-none" /><button type="button" onclick="removeActivityLink(this)" class="rounded-xl border border-white/10 px-4 py-3 text-xs font-bold text-slate-500 transition-colors hover:border-red-500/30 hover:text-red-400">Hapus</button></div></template>
+            <template id="activity-link-template"><div data-activity-link-row class="grid items-center gap-3 rounded-2xl border border-white/10 bg-slate-950/40 p-3 md:grid-cols-[1fr_1.5fr_auto]"><input type="text" name="activityLinkLabel" placeholder="Nama tombol, contoh: Berita Kegiatan" aria-label="Nama tombol" class="w-full rounded-xl border border-white/10 bg-slate-950/60 px-4 py-3 text-sm text-white placeholder:text-slate-600 focus:border-cyan-500 focus:outline-none" /><input type="url" name="activityLinkUrl" placeholder="https://contoh.com" aria-label="URL tautan" class="w-full rounded-xl border border-white/10 bg-slate-950/60 px-4 py-3 text-sm text-white placeholder:text-slate-600 focus:border-cyan-500 focus:outline-none" /><div class="grid gap-2 sm:grid-cols-2 md:col-span-2"><div><label class="mb-1 block text-[10px] font-black uppercase tracking-widest text-slate-600">Mulai</label><input type="datetime-local" name="activityLinkAvailableFrom" aria-label="Waktu mulai tautan" class="w-full rounded-xl border border-white/10 bg-slate-950/60 px-3 py-2 text-xs text-slate-300 focus:border-cyan-500 focus:outline-none" /></div><div><label class="mb-1 block text-[10px] font-black uppercase tracking-widest text-slate-600">Sampai</label><input type="datetime-local" name="activityLinkAvailableUntil" aria-label="Waktu selesai tautan" class="w-full rounded-xl border border-white/10 bg-slate-950/60 px-3 py-2 text-xs text-slate-300 focus:border-cyan-500 focus:outline-none" /></div></div><button type="button" onclick="removeActivityLink(this)" class="rounded-xl border border-white/10 px-4 py-3 text-xs font-bold text-slate-500 transition-colors hover:border-red-500/30 hover:text-red-400 md:col-start-3 md:row-start-1">Hapus</button></div></template>
             <script dangerouslySetInnerHTML={{ __html: `
               window.addActivityLink = () => {
                 const list = document.getElementById('activity-links-list');

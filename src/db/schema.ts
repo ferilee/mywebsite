@@ -71,8 +71,14 @@ export const activities = sqliteTable('activities', {
   coverImage: text('cover_image'),
   galleryAlbumUrl: text('gallery_album_url'),
   materialUrl: text('material_url'),
+  materialAvailableFrom: integer('material_available_from', { mode: 'timestamp' }),
+  materialAvailableUntil: integer('material_available_until', { mode: 'timestamp' }),
   certificateUrl: text('certificate_url'),
+  certificateAvailableFrom: integer('certificate_available_from', { mode: 'timestamp' }),
+  certificateAvailableUntil: integer('certificate_available_until', { mode: 'timestamp' }),
   publicationUrl: text('publication_url'),
+  publicationAvailableFrom: integer('publication_available_from', { mode: 'timestamp' }),
+  publicationAvailableUntil: integer('publication_available_until', { mode: 'timestamp' }),
   featuredOnCv: integer('featured_on_cv', { mode: 'boolean' }).default(false),
   status: text('status').$type<'draft' | 'published'>().default('draft'),
   createdAt: integer('created_at', { mode: 'timestamp' }).$defaultFn(() => new Date()),
@@ -93,6 +99,8 @@ export const activityLinks = sqliteTable('activity_links', {
   activityId: integer('activity_id').notNull().references(() => activities.id),
   label: text('label').notNull(),
   url: text('url').notNull(),
+  availableFrom: integer('available_from', { mode: 'timestamp' }),
+  availableUntil: integer('available_until', { mode: 'timestamp' }),
   sortOrder: integer('sort_order').default(0),
 });
 
