@@ -16,6 +16,7 @@ import { AdminLayout } from './components/AdminLayout';
 import { marked } from 'marked';
 import { z as zod } from 'zod';
 import { S3Client, PutObjectCommand } from '@aws-sdk/client-s3';
+import sharp from 'sharp';
 
 type SessionUser = {
   email: string;
@@ -2102,8 +2103,8 @@ function renderBlogForm(c: any, post: any = null, user: any = null) {
             </div>
           </div>
           <div class="relative space-y-2 mt-4">
-            <label class="text-[10px] font-black text-slate-500 uppercase tracking-widest pl-1">Atau Upload Cover Image Baru</label>
-            <input type="file" name="coverImageFile" accept="image/*" class="w-full bg-slate-950/50 border border-white/10 rounded-2xl px-5 py-4 text-sm text-slate-300 file:mr-4 file:rounded-lg file:border-0 file:bg-red-700 file:px-4 file:py-2 file:text-xs file:font-black file:text-white hover:file:bg-red-800 cursor-pointer transition-all" />
+            <label class="text-[10px] font-black text-slate-500 uppercase tracking-widest pl-1">Atau Upload Cover Image Baru <span class="text-cyan-400">(otomatis WebP)</span></label>
+            <input type="file" name="coverImageFile" accept="image/jpeg,image/png,image/webp" class="w-full bg-slate-950/50 border border-white/10 rounded-2xl px-5 py-4 text-sm text-slate-300 file:mr-4 file:rounded-lg file:border-0 file:bg-red-700 file:px-4 file:py-2 file:text-xs file:font-black file:text-white hover:file:bg-red-800 cursor-pointer transition-all" />
           </div>
 
           <div class="relative">
@@ -2188,15 +2189,32 @@ const s3Client = new S3Client({
 });
 
 async function uploadToS3(file: File, folder: string): Promise<string> {
-  const safeName = `${Date.now()}-${file.name.replace(/\s+/g, '-').replace(/[^a-zA-Z0-9._-]/g, '')}`;
-  const key = `${folder}/${safeName}`;
-  const buffer = await file.arrayBuffer();
+  const maxSize = 10 * 1024 * 1024;
+  const supportedTypes = new Set(['image/jpeg', 'image/png', 'image/webp']);
+  if (!supportedTypes.has(file.type)) {
+    throw new Error('Format gambar harus JPG, PNG, atau WebP.');
+  }
+  if (file.size > maxSize) {
+    throw new Error('Ukuran gambar maksimal 10 MB.');
+  }
+
+  const optimizedImage = await sharp(Buffer.from(await file.arrayBuffer()), {
+    failOn: 'error',
+    limitInputPixels: 40_000_000,
+  })
+    .rotate()
+    .resize({ width: 2000, height: 2000, fit: 'inside', withoutEnlargement: true })
+    .webp({ quality: 82, effort: 4 })
+    .toBuffer();
+
+  const key = `${folder}/${Date.now()}-${crypto.randomUUID()}.webp`;
   
   await s3Client.send(new PutObjectCommand({
     Bucket: process.env.S3_BUCKET,
     Key: key,
-    Body: Buffer.from(buffer),
-    ContentType: file.type,
+    Body: optimizedImage,
+    ContentType: 'image/webp',
+    CacheControl: 'public, max-age=31536000, immutable',
   }));
 
   const baseUrl = process.env.S3_PUBLIC_BASE_URL?.replace(/\/$/, '');
@@ -2612,7 +2630,7 @@ function renderParticipantWorkForm(c: any, work: any = null, activities: any[] =
           <div class="grid gap-6 md:grid-cols-2"><div class="relative"><input type="text" name="institution" value={work?.institution || ''} placeholder=" " class={inputClass} /><label class={labelClass}>Institution (optional)</label></div><div class="relative"><input type="text" name="tags" value={work?.tags || ''} placeholder=" " class={inputClass} /><label class={labelClass}>Tags (comma separated)</label></div></div>
           <div class="relative"><textarea name="description" placeholder=" " class={`${inputClass} min-h-[150px] leading-relaxed`}>{work?.description || ''}</textarea><label class={labelClass}>Description</label></div>
           <div class="grid gap-6 md:grid-cols-2"><div class="relative"><input type="url" name="workUrl" value={work?.workUrl || ''} placeholder=" " class={inputClass} /><label class={labelClass}>Work URL (optional)</label></div><div class="relative"><input type="number" name="sortOrder" value={work?.sortOrder || 0} placeholder=" " min="0" class={inputClass} /><label class={labelClass}>Display Order</label></div></div>
-          <div class="grid gap-6 md:grid-cols-2"><div class="relative"><input type="url" name="previewImage" value={work?.previewImage || ''} placeholder=" " class={inputClass} /><label class={labelClass}>Preview Image URL</label></div><div class="space-y-2"><label class="pl-1 text-[10px] font-black uppercase tracking-widest text-slate-500">Or Upload Preview to RustFS</label><input type="file" name="previewImageFile" accept="image/*" class="w-full rounded-2xl border border-white/10 bg-slate-950/50 px-5 py-4 text-sm text-slate-300 file:mr-4 file:rounded-lg file:border-0 file:bg-cyan-700 file:px-4 file:py-2 file:text-xs file:font-black file:text-white" /></div></div>
+          <div class="grid gap-6 md:grid-cols-2"><div class="relative"><input type="url" name="previewImage" value={work?.previewImage || ''} placeholder=" " class={inputClass} /><label class={labelClass}>Preview Image URL</label></div><div class="space-y-2"><label class="pl-1 text-[10px] font-black uppercase tracking-widest text-slate-500">Or Upload Preview to RustFS <span class="text-cyan-400">(otomatis WebP)</span></label><input type="file" name="previewImageFile" accept="image/jpeg,image/png,image/webp" class="w-full rounded-2xl border border-white/10 bg-slate-950/50 px-5 py-4 text-sm text-slate-300 file:mr-4 file:rounded-lg file:border-0 file:bg-cyan-700 file:px-4 file:py-2 file:text-xs file:font-black file:text-white" /><p class="text-xs leading-relaxed text-slate-500">JPG, PNG, atau WebP; maksimal 10 MB.</p></div></div>
           <div class="flex flex-col gap-5 rounded-2xl border border-white/5 bg-slate-950/40 p-5"><label class="flex items-center gap-3 text-sm font-bold text-slate-300"><input type="checkbox" name="consent" checked={Boolean(work?.consent)} class="h-5 w-5 accent-cyan-600" /> Peserta menyetujui karya ditampilkan secara publik</label><div class="flex flex-col gap-4 sm:flex-row sm:items-center"><select name="status" class="rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-slate-300"><option value="draft" selected={work?.status !== 'published'}>Draft / Pending review</option><option value="published" selected={work?.status === 'published'}>Published</option></select><p class="text-xs leading-relaxed text-slate-500">Karya hanya tampil publik jika status Published dan consent aktif.</p></div></div>
           <div class="flex gap-4 pt-4"><button type="submit" class="rounded-xl bg-cyan-700 px-8 py-4 font-black uppercase tracking-widest text-white transition-all hover:bg-cyan-800">Save Work</button><a href="/admin/works" class="rounded-xl border border-white/10 px-8 py-4 font-black text-slate-400 transition-colors hover:text-white">Cancel</a></div>
         </form>
@@ -2655,10 +2673,10 @@ function renderActivityForm(c: any, activity: any = null, media: any[] = [], lin
           <div class="relative"><textarea name="description" id="a-description" placeholder=" " class={inputClass + ' min-h-[280px] font-mono text-sm leading-relaxed'}>{activity?.description || ''}</textarea><label for="a-description" class={labelClass}>Description (Markdown)</label></div>
           <div class="grid md:grid-cols-2 gap-6">
             <div class="relative"><input type="text" name="coverImage" id="a-cover" value={activity?.coverImage || ''} placeholder=" " class={inputClass} /><label for="a-cover" class={labelClass}>Cover Image URL</label></div>
-            <div class="space-y-2"><label class="text-[10px] font-black text-slate-500 uppercase tracking-widest pl-1">Or Upload Cover to RustFS</label><input type="file" name="coverImageFile" accept="image/*" class="w-full bg-slate-950/50 border border-white/10 rounded-2xl px-5 py-4 text-sm text-slate-300 file:mr-4 file:rounded-lg file:border-0 file:bg-cyan-700 file:px-4 file:py-2 file:text-xs file:font-black file:text-white" /></div>
+            <div class="space-y-2"><label class="text-[10px] font-black text-slate-500 uppercase tracking-widest pl-1">Or Upload Cover to RustFS <span class="text-cyan-400">(otomatis WebP)</span></label><input type="file" name="coverImageFile" accept="image/jpeg,image/png,image/webp" class="w-full bg-slate-950/50 border border-white/10 rounded-2xl px-5 py-4 text-sm text-slate-300 file:mr-4 file:rounded-lg file:border-0 file:bg-cyan-700 file:px-4 file:py-2 file:text-xs file:font-black file:text-white" /><p class="text-xs leading-relaxed text-slate-500">JPG, PNG, atau WebP; maksimal 10 MB.</p></div>
           </div>
           <div class="grid gap-6 md:grid-cols-2">
-            <div class="space-y-2"><label class="text-[10px] font-black text-slate-500 uppercase tracking-widest pl-1">Upload Gallery Photos to RustFS</label><input type="file" name="galleryFiles" accept="image/*" multiple class="w-full bg-slate-950/50 border border-white/10 rounded-2xl px-5 py-4 text-sm text-slate-300 file:mr-4 file:rounded-lg file:border-0 file:bg-cyan-700 file:px-4 file:py-2 file:text-xs file:font-black file:text-white" /><p class="text-xs leading-relaxed text-slate-500">Pilih beberapa foto sekaligus agar tampil stabil di galeri.</p></div>
+            <div class="space-y-2"><label class="text-[10px] font-black text-slate-500 uppercase tracking-widest pl-1">Upload Gallery Photos to RustFS <span class="text-cyan-400">(otomatis WebP)</span></label><input type="file" name="galleryFiles" accept="image/jpeg,image/png,image/webp" multiple class="w-full bg-slate-950/50 border border-white/10 rounded-2xl px-5 py-4 text-sm text-slate-300 file:mr-4 file:rounded-lg file:border-0 file:bg-cyan-700 file:px-4 file:py-2 file:text-xs file:font-black file:text-white" /><p class="text-xs leading-relaxed text-slate-500">Pilih beberapa foto sekaligus. JPG, PNG, atau WebP; maksimal 10 MB per file.</p></div>
             <div class="relative"><textarea name="galleryUrls" id="a-gallery" placeholder=" " class={inputClass + ' min-h-[140px] font-mono text-sm leading-relaxed'}>{galleryUrls}</textarea><label for="a-gallery" class={labelClass}>Direct Image URLs (optional)</label><p class="mt-2 text-xs leading-relaxed text-amber-400/80">Gunakan URL file gambar langsung, bukan link album Google Photos.</p></div>
           </div>
           <div class="relative"><input type="url" name="galleryAlbumUrl" id="a-gallery-album" value={activity?.galleryAlbumUrl || ''} placeholder=" " class={inputClass} /><label for="a-gallery-album" class={labelClass}>Google Photos Album URL (optional)</label></div>
@@ -2741,8 +2759,8 @@ function renderProjectForm(c: any, project: any = null, user: any = null) {
               <label for="p-image" class={labelClass}>Thumbnail Image URL</label>
             </div>
             <div class="relative space-y-2 mt-4 md:mt-0">
-              <label class="text-[10px] font-black text-slate-500 uppercase tracking-widest pl-1">Atau Upload Thumbnail Baru</label>
-              <input type="file" name="projectImageFile" accept="image/*" class="w-full bg-slate-950/50 border border-white/10 rounded-2xl px-5 py-4 text-sm text-slate-300 file:mr-4 file:rounded-lg file:border-0 file:bg-red-700 file:px-4 file:py-2 file:text-xs file:font-black file:text-white hover:file:bg-red-800 cursor-pointer transition-all" />
+              <label class="text-[10px] font-black text-slate-500 uppercase tracking-widest pl-1">Atau Upload Thumbnail Baru <span class="text-cyan-400">(otomatis WebP)</span></label>
+              <input type="file" name="projectImageFile" accept="image/jpeg,image/png,image/webp" class="w-full bg-slate-950/50 border border-white/10 rounded-2xl px-5 py-4 text-sm text-slate-300 file:mr-4 file:rounded-lg file:border-0 file:bg-red-700 file:px-4 file:py-2 file:text-xs file:font-black file:text-white hover:file:bg-red-800 cursor-pointer transition-all" />
             </div>
           </div>
 

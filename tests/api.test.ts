@@ -220,6 +220,8 @@ describe("Admin Access Control", () => {
     expect(res.status).toBe(200);
     const html = await res.text();
     expect(html).toContain('name="galleryFiles"');
+    expect(html).toContain('accept="image/jpeg,image/png,image/webp"');
+    expect(html).toContain("otomatis WebP");
     expect(html).toContain('name="galleryAlbumUrl"');
     expect(html).toContain("Google Photos Album URL");
     expect(html).toContain('name="activityLinkLabel"');
@@ -240,6 +242,8 @@ describe("Admin Access Control", () => {
     const html = await res.text();
     expect(html).toContain('name="participantName"');
     expect(html).toContain('name="previewImageFile"');
+    expect(html).toContain('accept="image/jpeg,image/png,image/webp"');
+    expect(html).toContain("otomatis WebP");
     expect(html).toContain("Pending review");
   });
 });
