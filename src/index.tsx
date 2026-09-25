@@ -10,7 +10,7 @@ import { setCookie, getCookie } from 'hono/cookie';
 import { EventEmitter } from 'node:events';
 import { mkdir } from 'node:fs/promises';
 import { db } from './db';
-import { projects as projectTable, blogPosts, skills as skillTable, experience as expTable, settings as settingsTable, contacts as contactTable, comments as commentTable, reactions as reactionTable, subscriptions as subTable, pageViews as viewTable, milestones as milestonesTable, activities as activityTable, activityMedia as activityMediaTable, activityLinks as activityLinkTable, participantWorks as participantWorkTable, participantWorkReactions as participantWorkReactionTable, profiles as profileTable } from './db/schema';
+import { projects as projectTable, blogPosts, skills as skillTable, experience as expTable, settings as settingsTable, contacts as contactTable, comments as commentTable, reactions as reactionTable, subscriptions as subTable, pageViews as viewTable, milestones as milestonesTable, activities as activityTable, activityMedia as activityMediaTable, activityLinks as activityLinkTable, participantWorks as participantWorkTable, participantWorkReactions as participantWorkReactionTable, testimonials as testimonialTable, profiles as profileTable } from './db/schema';
 import { eq, desc, or, like, and, inArray, sql } from 'drizzle-orm';
 import { Layout } from './components/Layout';
 import { AdminLayout } from './components/AdminLayout';
@@ -93,6 +93,17 @@ try {
     created_at INTEGER
   )`));
   await ensureColumn('participant_works', 'view_count', 'integer DEFAULT 0');
+  await db.run(sql.raw(`CREATE TABLE IF NOT EXISTS testimonials (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    activity_id INTEGER NOT NULL REFERENCES activities(id),
+    participant_name TEXT NOT NULL,
+    institution TEXT,
+    content TEXT NOT NULL,
+    status TEXT DEFAULT 'draft',
+    consent INTEGER DEFAULT 0,
+    created_at INTEGER,
+    updated_at INTEGER
+  )`));
 } catch (error) {
   console.error('Schema compatibility check failed:', error);
 }
@@ -662,6 +673,20 @@ function renderParticipantWorkReactionScript() {
   `}} />;
 }
 
+function renderTestimonialCard(testimonial: any) {
+  return <article class="rounded-2xl border border-white/10 bg-white/5 p-5"><div class="flex items-start gap-3"><div class="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-red-500/10 text-sm font-black text-red-300">{String(testimonial.participantName || '?').charAt(0).toUpperCase()}</div><div class="min-w-0"><p class="font-black text-white">{testimonial.participantName}</p>{testimonial.institution && <p class="mt-1 truncate text-xs font-bold text-slate-500">{testimonial.institution}</p>}</div></div><p class="mt-4 text-sm leading-relaxed text-slate-300">“{testimonial.content}”</p></article>;
+}
+
+function renderTestimonialSubmission(c: any, activity: any) {
+  const query = c.req.query();
+  const destination = `/jejak/${activity.slug}/testimoni`;
+  return c.html(
+    <Layout title={`Bagikan Pengalaman | ${activity.title}`} user={c.var.user} needsProfiling={c.var.needsProfiling} currentPath="/jejak">
+      <div class="mx-auto max-w-3xl px-6 py-28 md:py-32"><a href={`/jejak/${activity.slug}#testimoni`} class="text-xs font-black uppercase tracking-widest text-red-500 transition-colors hover:text-white">← Kembali ke aktivitas</a><header class="mt-8 border-b border-white/10 pb-8"><p class="text-xs font-black uppercase tracking-[0.3em] text-cyan-400">Pengalaman Peserta</p><h1 class="mt-4 text-4xl font-black italic tracking-tight md:text-6xl">BAGIKAN <span class="text-cyan-400">PENGALAMAN</span></h1><p class="mt-5 leading-relaxed text-slate-400">Ceritakan pengalaman Anda mengikuti <strong class="text-slate-200">{activity.title}</strong>. Testimoni akan ditinjau sebelum ditampilkan secara publik.</p></header>{query.submitted && <div class="mt-8 rounded-2xl border border-green-500/20 bg-green-500/10 p-5 text-sm leading-relaxed text-green-200">Terima kasih. Testimoni Anda sudah diterima dan menunggu moderasi.</div>}{query.error && <div class="mt-8 rounded-2xl border border-red-500/20 bg-red-500/10 p-5 text-sm leading-relaxed text-red-200">Mohon lengkapi nama, testimoni, dan persetujuan publikasi.</div>}<form action={destination} method="post" class="mt-8 space-y-5 rounded-3xl border border-white/10 bg-white/5 p-6 backdrop-blur-xl sm:p-8"><input type="text" name="website" tabIndex={-1} autoComplete="off" class="hidden" aria-hidden="true" /><div class="grid gap-5 sm:grid-cols-2"><input type="text" name="participantName" placeholder="Nama Anda" required maxLength={100} class="w-full rounded-xl border border-white/10 bg-slate-950/60 px-4 py-4 text-sm text-white placeholder:text-slate-500 focus:border-cyan-500 focus:outline-none" /><input type="text" name="institution" placeholder="Institusi (opsional)" maxLength={150} class="w-full rounded-xl border border-white/10 bg-slate-950/60 px-4 py-4 text-sm text-white placeholder:text-slate-500 focus:border-cyan-500 focus:outline-none" /></div><textarea name="content" placeholder="Ceritakan pengalaman Anda..." required minLength={20} maxLength={1000} class="min-h-40 w-full rounded-xl border border-white/10 bg-slate-950/60 px-4 py-4 text-sm leading-relaxed text-white placeholder:text-slate-500 focus:border-cyan-500 focus:outline-none"></textarea><label class="flex items-start gap-3 rounded-xl border border-white/10 bg-slate-950/40 p-4 text-xs leading-relaxed text-slate-400"><input type="checkbox" name="consent" required class="mt-0.5 h-4 w-4 shrink-0 accent-cyan-500" /> Saya menyetujui nama, institusi, dan testimoni ini ditampilkan pada website.</label><button type="submit" class="w-full rounded-xl bg-cyan-700 px-5 py-4 text-xs font-black uppercase tracking-widest text-white transition-colors hover:bg-cyan-800">Kirim Testimoni untuk Ditinjau</button></form></div>
+    </Layout>
+  );
+}
+
 async function getParticipantWorkReactionCounts() {
   const reactions = await db.select().from(participantWorkReactionTable);
   const counts = new Map<number, number>();
@@ -838,6 +863,42 @@ app.post('/jejak/:slug/kirim-karya', async (c) => {
   return c.redirect(`${destination}?submitted=1`);
 });
 
+app.get('/jejak/:slug/testimoni', async (c) => {
+  const results = await db.select().from(activityTable).where(and(eq(activityTable.slug, c.req.param('slug')), eq(activityTable.status, 'published'))).limit(1);
+  const activity = results[0];
+  if (!activity) return c.notFound();
+  return renderTestimonialSubmission(c, activity);
+});
+
+app.post('/jejak/:slug/testimoni', async (c) => {
+  const results = await db.select().from(activityTable).where(and(eq(activityTable.slug, c.req.param('slug')), eq(activityTable.status, 'published'))).limit(1);
+  const activity = results[0];
+  if (!activity) return c.notFound();
+  const body = await c.req.parseBody();
+  const destination = `/jejak/${activity.slug}/testimoni`;
+  if (String(body.website || '').trim()) return c.redirect(`${destination}?submitted=1`);
+
+  const participantName = String(body.participantName || '').trim();
+  const institution = String(body.institution || '').trim();
+  const content = String(body.content || '').trim();
+  const consent = body.consent === 'on' || body.consent === 'true';
+  if (participantName.length < 2 || participantName.length > 100 || institution.length > 150 || content.length < 20 || content.length > 1000 || !consent) {
+    return c.redirect(`${destination}?error=fields`);
+  }
+
+  await db.insert(testimonialTable).values({
+    activityId: activity.id,
+    participantName,
+    institution: institution || null,
+    content,
+    status: 'draft',
+    consent: true,
+    createdAt: new Date(),
+    updatedAt: new Date(),
+  });
+  return c.redirect(`${destination}?submitted=1`);
+});
+
 app.get('/jejak', async (c) => {
   const user = c.var.user;
   const selectedYear = c.req.query('year') || '';
@@ -845,6 +906,7 @@ app.get('/jejak', async (c) => {
   const publishedCondition = eq(activityTable.status, 'published');
   const allActivities = await db.select().from(activityTable).where(publishedCondition).orderBy(desc(activityTable.eventDate));
   const milestones = await db.select().from(milestonesTable).orderBy(desc(milestonesTable.year));
+  const testimonials = await db.select().from(testimonialTable).where(and(eq(testimonialTable.status, 'published'), eq(testimonialTable.consent, true))).orderBy(desc(testimonialTable.createdAt)).limit(3);
   const years = [...new Set(allActivities.map(activity => activity.year))].sort((a, b) => b - a);
   const categories = [...new Set(allActivities.map(activity => activity.category))].sort();
   const filteredActivities = allActivities.filter(activity =>
@@ -902,6 +964,10 @@ app.get('/jejak', async (c) => {
               ))}
             </div>
           </section>
+        )}
+
+        {testimonials.length > 0 && (
+          <section class="mx-auto mb-20 max-w-5xl"><div class="mb-6 flex items-end justify-between gap-4"><div><p class="text-xs font-black uppercase tracking-[0.3em] text-cyan-400">Apa Kata Peserta</p><h2 class="mt-2 text-2xl font-black italic md:text-3xl">SUARA <span class="text-cyan-400">PESERTA</span></h2></div><span class="text-[10px] font-black uppercase tracking-widest text-slate-500">Pengalaman nyata</span></div><div class="grid gap-5 md:grid-cols-3">{testimonials.map(testimonial => renderTestimonialCard(testimonial))}</div></section>
         )}
 
         <section class="max-w-5xl mx-auto">
@@ -985,6 +1051,7 @@ app.get('/jejak/:slug', async (c) => {
   ].filter(Boolean) as ScheduledActivityLink[];
   const participantWorks = await db.select().from(participantWorkTable).where(and(eq(participantWorkTable.activityId, activity.id), eq(participantWorkTable.status, 'published'), eq(participantWorkTable.consent, true))).orderBy(participantWorkTable.sortOrder);
   const publishedWorks = participantWorks.filter(work => work.title && work.participantName);
+  const testimonials = await db.select().from(testimonialTable).where(and(eq(testimonialTable.activityId, activity.id), eq(testimonialTable.status, 'published'), eq(testimonialTable.consent, true))).orderBy(desc(testimonialTable.createdAt)).limit(6);
   const reactionCounts = await getParticipantWorkReactionCounts();
   const descriptionHtml = activity.description ? await marked.parse(activity.description) : '';
 
@@ -1117,6 +1184,7 @@ app.get('/jejak/:slug', async (c) => {
         {(media.length > 0 || activity.galleryAlbumUrl) && <section class="mt-20"><div class="mb-8 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between"><h2 class="text-2xl md:text-3xl font-black italic">DOKUMENTASI <span class="text-red-700">KEGIATAN</span></h2>{activity.galleryAlbumUrl && <a href={activity.galleryAlbumUrl} target="_blank" rel="noreferrer" class="shrink-0 rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-xs font-black uppercase tracking-widest text-red-300 transition-all hover:bg-red-500/20">Lihat Album Lengkap ↗</a>}</div>{media.length > 0 && <div class="grid sm:grid-cols-2 md:grid-cols-3 gap-5">{media.map(item => <figure class="group"><div class="relative aspect-[4/3] overflow-hidden rounded-2xl border border-white/10 group-hover:border-red-500/40 transition-all"><img src={item.url} alt={item.caption || activity.title} class="h-full w-full object-cover transition-transform group-hover:scale-105" onerror="this.classList.add('hidden'); this.nextElementSibling.classList.remove('hidden'); this.nextElementSibling.classList.add('flex')" /><div class="absolute inset-0 hidden items-center justify-center bg-slate-950/80 px-4 text-center text-xs font-bold text-slate-500">Gambar tidak tersedia</div></div>{item.caption && <figcaption class="text-xs text-slate-500 mt-2">{item.caption}</figcaption>}</figure>)}</div>}</section>}
 
         <section id="karya-peserta" class="mt-20 border-t border-white/10 pt-12"><div class="mb-8 flex flex-col gap-5 sm:flex-row sm:items-end sm:justify-between"><div><p class="text-xs font-black uppercase tracking-[0.3em] text-cyan-400">Ruang Karya Peserta</p><h2 class="mt-2 text-2xl font-black italic md:text-3xl">KARYA <span class="text-cyan-400">PESERTA</span></h2><p class="mt-2 max-w-2xl text-sm leading-relaxed text-slate-500">Hasil eksplorasi dan praktik peserta dalam kegiatan ini.</p></div><a href={'/jejak/' + activity.slug + '/kirim-karya'} class="shrink-0 rounded-xl border border-cyan-500/30 bg-cyan-500/10 px-4 py-3 text-xs font-black uppercase tracking-widest text-cyan-300 transition-all hover:bg-cyan-500/20 hover:text-white">Kirim Karya ↗</a></div>{publishedWorks.length > 0 ? <div class="grid gap-5 md:grid-cols-2">{publishedWorks.map(work => renderParticipantWorkCard(work, null, reactionCounts.get(work.id) || 0))}</div> : <div class="rounded-2xl border border-dashed border-white/10 bg-white/5 p-8 text-center"><p class="text-sm text-slate-500">Belum ada karya peserta yang dipublikasikan.</p><p class="mt-2 text-xs text-slate-600">Jika Anda mengikuti kegiatan ini, Anda dapat mengirimkan karya untuk ditinjau.</p></div>}</section>
+        <section id="testimoni" class="mt-20 border-t border-white/10 pt-12"><div class="mb-8 flex flex-col gap-5 sm:flex-row sm:items-end sm:justify-between"><div><p class="text-xs font-black uppercase tracking-[0.3em] text-cyan-400">Pengalaman Peserta</p><h2 class="mt-2 text-2xl font-black italic md:text-3xl">TESTIMONI <span class="text-cyan-400">PESERTA</span></h2><p class="mt-2 max-w-2xl text-sm leading-relaxed text-slate-500">Cerita singkat dari peserta yang mengikuti kegiatan ini.</p></div><a href={`/jejak/${activity.slug}/testimoni`} class="shrink-0 rounded-xl border border-cyan-500/30 bg-cyan-500/10 px-4 py-3 text-xs font-black uppercase tracking-widest text-cyan-300 transition-all hover:bg-cyan-500/20 hover:text-white">Bagikan Pengalaman ↗</a></div>{testimonials.length > 0 ? <div class="grid gap-5 md:grid-cols-2 lg:grid-cols-3">{testimonials.map(testimonial => renderTestimonialCard(testimonial))}</div> : <div class="rounded-2xl border border-dashed border-white/10 bg-white/5 p-8 text-center"><p class="text-sm text-slate-500">Belum ada testimoni yang dipublikasikan.</p><p class="mt-2 text-xs text-slate-600">Anda dapat menjadi peserta pertama yang membagikan pengalaman.</p></div>}</section>
         {renderParticipantWorkReactionScript()}
       </article>
     </Layout>
@@ -1678,16 +1746,49 @@ app.get('/admin/activities', async (c) => {
   const unreadCount = (await db.select().from(contactTable)).filter(message => !message.isRead).length;
   const publishedCount = activities.filter(activity => activity.status === 'published').length;
   const featuredCount = activities.filter(activity => activity.featuredOnCv).length;
+  const pendingTestimonials = (await db.select().from(testimonialTable)).filter(testimonial => testimonial.status !== 'published').length;
 
   return c.html(
     <AdminLayout title="Jejak Activities | Admin" notificationCount={unreadCount} user={user} currentPath="/admin/activities">
       <div class="mx-auto max-w-7xl px-6 py-10 md:py-16">
-        <header class="mb-10 flex flex-col gap-6 md:flex-row md:items-end md:justify-between"><div><a href="/admin" class="text-xs font-black uppercase tracking-widest text-cyan-400 hover:text-white">← Dashboard</a><h1 class="mt-5 text-4xl font-black italic tracking-tight md:text-5xl">JEJAK <span class="text-cyan-400">ACTIVITIES</span></h1><p class="mt-3 max-w-xl text-slate-500">Kelola dokumentasi kegiatan profesional, publikasi, galeri, dan highlight CV.</p></div><a href="/admin/activities/new" class="rounded-xl bg-cyan-700 px-5 py-3 text-center text-xs font-black uppercase tracking-widest text-white transition-all hover:bg-cyan-800">+ New Activity</a></header>
+        <header class="mb-10 flex flex-col gap-6 md:flex-row md:items-end md:justify-between"><div><a href="/admin" class="text-xs font-black uppercase tracking-widest text-cyan-400 hover:text-white">← Dashboard</a><h1 class="mt-5 text-4xl font-black italic tracking-tight md:text-5xl">JEJAK <span class="text-cyan-400">ACTIVITIES</span></h1><p class="mt-3 max-w-xl text-slate-500">Kelola dokumentasi kegiatan profesional, publikasi, galeri, dan highlight CV.</p></div><div class="flex flex-wrap gap-3"><a href="/admin/testimonials" class="rounded-xl border border-cyan-500/30 bg-cyan-500/10 px-5 py-3 text-center text-xs font-black uppercase tracking-widest text-cyan-300 transition-all hover:bg-cyan-500/20 hover:text-white">Testimoni{pendingTestimonials > 0 ? ` (${pendingTestimonials})` : ''}</a><a href="/admin/activities/new" class="rounded-xl bg-cyan-700 px-5 py-3 text-center text-xs font-black uppercase tracking-widest text-white transition-all hover:bg-cyan-800">+ New Activity</a></div></header>
         <div class="mb-10 grid grid-cols-3 gap-3 md:gap-5"><div class="rounded-2xl border border-white/10 bg-white/5 p-4 md:p-6"><p class="text-2xl font-black">{activities.length}</p><p class="mt-2 text-[10px] font-black uppercase tracking-widest text-slate-500">Total</p></div><div class="rounded-2xl border border-white/10 bg-white/5 p-4 md:p-6"><p class="text-2xl font-black text-green-400">{publishedCount}</p><p class="mt-2 text-[10px] font-black uppercase tracking-widest text-slate-500">Published</p></div><div class="rounded-2xl border border-white/10 bg-white/5 p-4 md:p-6"><p class="text-2xl font-black text-cyan-400">{featuredCount}</p><p class="mt-2 text-[10px] font-black uppercase tracking-widest text-slate-500">CV Featured</p></div></div>
         <section class="space-y-4">{activities.map(activity => <article class="flex flex-col gap-5 rounded-2xl border border-white/10 bg-white/5 p-5 transition-all hover:border-cyan-500/30 md:flex-row md:items-center md:justify-between md:p-6"><div class="min-w-0"><div class="flex flex-wrap items-center gap-2"><h2 class="font-black text-white">{activity.title}</h2><span class={`rounded-md px-2 py-1 text-[9px] font-black uppercase ${activity.status === 'published' ? 'bg-green-900/30 text-green-400' : 'bg-amber-900/30 text-amber-400'}`}>{activity.status}</span>{activity.featuredOnCv && <span class="rounded-md bg-cyan-900/30 px-2 py-1 text-[9px] font-black uppercase text-cyan-400">CV</span>}</div><p class="mt-2 text-[10px] font-bold uppercase tracking-widest text-slate-500">{activity.eventDate} • {activity.category} • {activity.role}</p><p class="mt-3 line-clamp-2 text-sm text-slate-400">{activity.summary}</p></div><div class="flex shrink-0 items-center gap-2"><a href={`/admin/works?activityId=${activity.id}`} class="rounded-lg border border-cyan-500/20 bg-cyan-500/5 px-3 py-2 text-sm font-bold text-cyan-300 hover:bg-cyan-500/10">Karya</a><a href={`/jejak/${activity.slug}`} target="_blank" rel="noreferrer" class="rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-sm font-bold text-slate-400 hover:text-white">View ↗</a><a href={`/admin/activities/edit/${activity.id}`} class="rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-sm font-bold text-slate-400 hover:text-white">Edit</a><form action={`/admin/activities/delete/${activity.id}`} method="post" onsubmit="return confirm('Delete this activity?')"><button type="submit" class="rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-sm font-bold text-slate-500 hover:border-red-500/30 hover:text-red-400">Delete</button></form></div></article>)}{activities.length === 0 && <div class="rounded-2xl border border-dashed border-white/10 p-16 text-center text-sm font-bold text-slate-500">Belum ada kegiatan. Buat kegiatan pertama dari tombol di atas.</div>}</section>
       </div>
     </AdminLayout>
   );
+});
+
+app.get('/admin/testimonials', async (c) => {
+  const user = c.var.user;
+  const testimonials = await db.select().from(testimonialTable).orderBy(desc(testimonialTable.createdAt));
+  const activities = await db.select({ id: activityTable.id, title: activityTable.title }).from(activityTable);
+  const activitiesById = new Map(activities.map(activity => [activity.id, activity.title]));
+  const unreadCount = (await db.select().from(contactTable)).filter(message => !message.isRead).length;
+
+  return c.html(
+    <AdminLayout title="Testimonials | Admin" notificationCount={unreadCount} user={user} currentPath="/admin/activities">
+      <div class="mx-auto max-w-5xl px-6 py-10 md:py-16"><header class="mb-10"><a href="/admin/activities" class="text-xs font-black uppercase tracking-widest text-cyan-400 hover:text-white">← Jejak Activities</a><h1 class="mt-5 text-4xl font-black italic tracking-tight md:text-5xl">TESTIMONI <span class="text-cyan-400">PESERTA</span></h1><p class="mt-3 max-w-xl text-slate-500">Tinjau pengalaman peserta sebelum ditampilkan di website publik.</p></header><section class="space-y-4">{testimonials.map(testimonial => <article class="rounded-2xl border border-white/10 bg-white/5 p-5 md:p-6"><div class="flex flex-col gap-5 md:flex-row md:items-start md:justify-between"><div class="min-w-0"><div class="flex flex-wrap items-center gap-2"><h2 class="font-black text-white">{testimonial.participantName}</h2><span class={`rounded-md px-2 py-1 text-[9px] font-black uppercase ${testimonial.status === 'published' ? 'bg-green-900/30 text-green-400' : 'bg-amber-900/30 text-amber-400'}`}>{testimonial.status === 'published' ? 'Published' : 'Pending'}</span></div><p class="mt-2 text-[10px] font-bold uppercase tracking-widest text-cyan-400">{activitiesById.get(testimonial.activityId) || 'Aktivitas tidak ditemukan'}</p>{testimonial.institution && <p class="mt-1 text-xs text-slate-500">{testimonial.institution}</p>}<p class="mt-4 text-sm leading-relaxed text-slate-300">“{testimonial.content}”</p></div><div class="flex shrink-0 gap-2"><form action={`/admin/testimonials/status/${testimonial.id}`} method="post"><input type="hidden" name="status" value={testimonial.status === 'published' ? 'draft' : 'published'} /><button type="submit" class={`rounded-lg border px-3 py-2 text-xs font-bold ${testimonial.status === 'published' ? 'border-amber-500/30 text-amber-300 hover:bg-amber-500/10' : 'border-green-500/30 text-green-300 hover:bg-green-500/10'}`}>{testimonial.status === 'published' ? 'Sembunyikan' : 'Publikasikan'}</button></form><form action={`/admin/testimonials/delete/${testimonial.id}`} method="post" onsubmit="return confirm('Hapus testimoni ini?')"><button type="submit" class="rounded-lg border border-white/10 px-3 py-2 text-xs font-bold text-slate-500 hover:border-red-500/30 hover:text-red-400">Hapus</button></form></div></div></article>)}{testimonials.length === 0 && <div class="rounded-2xl border border-dashed border-white/10 p-16 text-center text-sm font-bold text-slate-500">Belum ada testimoni masuk.</div>}</section></div>
+    </AdminLayout>
+  );
+});
+
+app.post('/admin/testimonials/status/:id', async (c) => {
+  const id = Number(c.req.param('id'));
+  if (!Number.isInteger(id) || id <= 0) return c.notFound();
+  const body = await c.req.parseBody();
+  const status = body.status === 'published' ? 'published' : 'draft';
+  await db.update(testimonialTable).set({ status, updatedAt: new Date() }).where(eq(testimonialTable.id, id));
+  adminUpdates.emit('update');
+  return c.redirect('/admin/testimonials');
+});
+
+app.post('/admin/testimonials/delete/:id', async (c) => {
+  const id = Number(c.req.param('id'));
+  if (!Number.isInteger(id) || id <= 0) return c.notFound();
+  await db.delete(testimonialTable).where(eq(testimonialTable.id, id));
+  adminUpdates.emit('update');
+  return c.redirect('/admin/testimonials');
 });
 
 app.get('/admin/inbox', async (c) => {

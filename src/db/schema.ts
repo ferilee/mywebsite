@@ -130,6 +130,18 @@ export const participantWorkReactions = sqliteTable('participant_work_reactions'
   createdAt: integer('created_at', { mode: 'timestamp' }).$defaultFn(() => new Date()),
 });
 
+export const testimonials = sqliteTable('testimonials', {
+  id: integer('id').primaryKey({ autoIncrement: true }),
+  activityId: integer('activity_id').notNull().references(() => activities.id),
+  participantName: text('participant_name').notNull(),
+  institution: text('institution'),
+  content: text('content').notNull(),
+  status: text('status').$type<'draft' | 'published'>().default('draft'),
+  consent: integer('consent', { mode: 'boolean' }).default(false),
+  createdAt: integer('created_at', { mode: 'timestamp' }).$defaultFn(() => new Date()),
+  updatedAt: integer('updated_at', { mode: 'timestamp' }).$defaultFn(() => new Date()),
+});
+
 export const contacts = sqliteTable('contacts', {
   id: integer('id').primaryKey({ autoIncrement: true }),
   name: text('name').notNull(),

@@ -118,6 +118,8 @@ describe("Main Pages", () => {
     expect(res.status).toBe(200);
     const html = await res.text();
     expect(html).toContain("prose-p:text-justify");
+    expect(html).toContain('id="testimoni"');
+    expect(html).toContain('Bagikan Pengalaman');
     expect(html).toContain('data-share-link="whatsapp"');
     expect(html).toContain("navigator.share");
     expect(html).toContain("Salin tautan");
@@ -153,6 +155,15 @@ describe("Main Pages", () => {
     expect(html).toContain('name="previewImageFile"');
     expect(html).toContain("Bukti karya");
     expect(html).not.toContain('name="assignment"');
+  });
+
+  it("GET /jejak/:slug/testimoni renders the testimonial submission form", async () => {
+    const res = await app.request("/jejak/test/testimoni");
+    expect(res.status).toBe(200);
+    const html = await res.text();
+    expect(html).toContain("Bagikan Pengalaman");
+    expect(html).toContain('name="participantName"');
+    expect(html).toContain('name="consent"');
   });
 
   it("GET /jejak/karya/:id/buka tracks and redirects to a published work", async () => {
@@ -236,6 +247,10 @@ describe("Admin Access Control", () => {
     expect(inboxHtml).toContain("Inbox | Admin");
     expect(inboxHtml).toContain('aria-label="Inbox sections"');
     expect(inboxHtml).toContain('id="inbox-comments"');
+
+    const testimonialsRes = await app.request("/admin/testimonials", { headers });
+    expect(testimonialsRes.status).toBe(200);
+    expect(await testimonialsRes.text()).toContain("TESTIMONI");
   });
 
   it("GET /admin/activities/new exposes RustFS gallery upload and album link fields", async () => {
