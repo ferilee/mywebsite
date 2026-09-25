@@ -208,6 +208,10 @@ describe("Admin Access Control", () => {
     expect(html).toContain("Admin workspace");
     expect(html).toContain('href="/admin/activities"');
     expect(html).toContain('href="/admin/inbox"');
+    expect(html).toContain('BLOG <span class="text-red-500">POSTS</span>');
+    expect(html).toContain('href="/admin/blog/edit/1"');
+    expect(html).toContain('PORTFOLIO <span class="text-red-500">PROJECTS</span>');
+    expect(html).toContain('href="/admin/projects/edit/1"');
     expect(html).not.toContain('href="/projects"');
     expect(html).not.toContain('href="/jejak"');
     expect(html).not.toContain("INBOX MESSAGES");
