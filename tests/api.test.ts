@@ -164,6 +164,9 @@ describe("Main Pages", () => {
     expect(html).toContain("Bagikan Pengalaman");
     expect(html).toContain('name="participantName"');
     expect(html).toContain('name="consent"');
+    expect(html).toContain('name="photoFile"');
+    expect(html).toContain('otomatis dikonversi ke WebP');
+    expect(html).toContain('enctype="multipart/form-data"');
   });
 
   it("GET /jejak/karya/:id/buka tracks and redirects to a published work", async () => {

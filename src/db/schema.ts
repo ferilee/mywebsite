@@ -135,6 +135,7 @@ export const testimonials = sqliteTable('testimonials', {
   activityId: integer('activity_id').notNull().references(() => activities.id),
   participantName: text('participant_name').notNull(),
   institution: text('institution'),
+  photoUrl: text('photo_url'),
   content: text('content').notNull(),
   status: text('status').$type<'draft' | 'published'>().default('draft'),
   consent: integer('consent', { mode: 'boolean' }).default(false),
