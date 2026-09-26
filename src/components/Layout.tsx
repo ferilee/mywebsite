@@ -161,7 +161,7 @@ export const Layout = (props: { title: string; children: any; notificationCount?
               </div>
             ) : (
               <a href="/admin/login" class="px-6 py-2.5 bg-white/5 border border-white/10 rounded-xl text-xs font-black uppercase tracking-widest hover:bg-white/10 transition-all">
-                Login
+                Masuk
               </a>
             )}
           </div>
@@ -204,15 +204,15 @@ export const Layout = (props: { title: string; children: any; notificationCount?
         <div class="max-w-2xl w-full">
           <div class="relative group mb-8">
             <div class="absolute -inset-1 bg-gradient-to-r from-red-600 to-red-900 rounded-2xl blur opacity-25 group-focus-within:opacity-100 transition duration-500"></div>
-            <input id="search-input" type="text" placeholder="Search projects, blogs, or tech..." class="relative w-full bg-slate-950 border border-white/10 rounded-2xl px-8 py-6 text-2xl font-bold focus:outline-none focus:border-red-500 transition-all placeholder:text-slate-600" />
+            <input id="search-input" type="text" placeholder="Cari proyek, blog, atau teknologi..." class="relative w-full bg-slate-950 border border-white/10 rounded-2xl px-8 py-6 text-2xl font-bold focus:outline-none focus:border-red-500 transition-all placeholder:text-slate-600" />
             <button id="close-search" class="absolute right-6 top-1/2 -translate-y-1/2 text-slate-500 hover:text-white text-xs font-bold tracking-widest">
-              ESC TO CLOSE
+              TEKAN ESC UNTUK MENUTUP
             </button>
           </div>
           
           <div id="search-results" class="space-y-8 max-h-[60vh] overflow-y-auto pr-4 custom-scrollbar">
             <div class="text-center text-slate-500 text-sm font-bold tracking-widest uppercase">
-              Start typing to see results
+              Ketik untuk melihat hasil
             </div>
           </div>
         </div>
@@ -229,42 +229,42 @@ export const Layout = (props: { title: string; children: any; notificationCount?
             <div class="absolute -top-24 -right-24 w-64 h-64 bg-red-900/20 rounded-full blur-[100px]"></div>
             
             <header class="mb-10 relative">
-              <h2 class="text-4xl font-black italic mb-2">COMPLETE <span class="text-red-700">PROFILE</span></h2>
-              <p class="text-slate-400 text-sm">Welcome to Ferilee's Research. Please tell us a bit about yourself to continue.</p>
+              <h2 class="text-4xl font-black italic mb-2">LENGKAPI <span class="text-red-700">PROFIL</span></h2>
+              <p class="text-slate-400 text-sm">Selamat datang di Research Ferilee. Ceritakan sedikit tentang diri Anda untuk melanjutkan.</p>
             </header>
 
             <form action="/api/profile/save" method="post" class="space-y-6 relative">
               <div class="space-y-4">
-                <input type="text" name="fullName" placeholder="Full Name" required class="w-full bg-white/5 border border-white/10 rounded-2xl px-6 py-4 text-white focus:border-red-500 transition-all outline-none" />
-                <input type="text" name="occupation" placeholder="Occupation" required class="w-full bg-white/5 border border-white/10 rounded-2xl px-6 py-4 text-white focus:border-red-500 transition-all outline-none" />
+                <input type="text" name="fullName" placeholder="Nama Lengkap" required class="w-full bg-white/5 border border-white/10 rounded-2xl px-6 py-4 text-white focus:border-red-500 transition-all outline-none" />
+                <input type="text" name="occupation" placeholder="Pekerjaan" required class="w-full bg-white/5 border border-white/10 rounded-2xl px-6 py-4 text-white focus:border-red-500 transition-all outline-none" />
                 
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div class="space-y-1">
-                    <label class="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-2">Province</label>
+                    <label class="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-2">Provinsi</label>
                     <select id="p-prov" name="province" required class="w-full bg-white/5 border border-white/10 rounded-2xl px-6 py-4 text-white focus:border-red-500 transition-all outline-none appearance-none">
-                      <option value="">Select Province</option>
+                      <option value="">Pilih Provinsi</option>
                     </select>
                     <input type="hidden" name="provinceName" id="p-prov-name" />
                   </div>
                   <div class="space-y-1">
-                    <label class="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-2">Regency (Kota/Kab)</label>
+                    <label class="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-2">Kabupaten/Kota</label>
                     <select id="p-reg" name="regency" required class="w-full bg-white/5 border border-white/10 rounded-2xl px-6 py-4 text-white focus:border-red-500 transition-all outline-none appearance-none">
-                      <option value="">Select Regency</option>
+                      <option value="">Pilih Kabupaten/Kota</option>
                     </select>
                     <input type="hidden" name="regencyName" id="p-reg-name" />
                   </div>
                 </div>
 
                 <div class="space-y-1">
-                  <label class="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-2">District (Kecamatan)</label>
+                  <label class="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-2">Kecamatan</label>
                   <select id="p-dist" name="district" required class="w-full bg-white/5 border border-white/10 rounded-2xl px-6 py-4 text-white focus:border-red-500 transition-all outline-none appearance-none">
-                    <option value="">Select District</option>
+                    <option value="">Pilih Kecamatan</option>
                   </select>
                   <input type="hidden" name="districtName" id="p-dist-name" />
                 </div>
               </div>
 
-              <button type="submit" class="w-full py-5 bg-red-700 hover:bg-red-800 text-white font-black rounded-2xl transition-all shadow-xl hover:scale-[1.02] active:scale-[0.98] tracking-widest uppercase mt-4">Save & Continue</button>
+              <button type="submit" class="w-full py-5 bg-red-700 hover:bg-red-800 text-white font-black rounded-2xl transition-all shadow-xl hover:scale-[1.02] active:scale-[0.98] tracking-widest uppercase mt-4">Simpan & Lanjutkan</button>
             </form>
 
             <script dangerouslySetInnerHTML={{ __html: `
@@ -282,8 +282,8 @@ export const Layout = (props: { title: string; children: any; notificationCount?
 
                 provSel.onchange = async () => {
                   provName.value = provSel.options[provSel.selectedIndex].text;
-                  regSel.innerHTML = '<option value="">Select Regency</option>';
-                  distSel.innerHTML = '<option value="">Select District</option>';
+                  regSel.innerHTML = '<option value="">Pilih Kabupaten/Kota</option>';
+                  distSel.innerHTML = '<option value="">Pilih Kecamatan</option>';
                   if (!provSel.value) return;
                   const resReg = await fetch(\`https://www.emsifa.com/api-wilayah-indonesia/api/regencies/\${provSel.value}.json\`);
                   const regencies = await resReg.json();
@@ -292,7 +292,7 @@ export const Layout = (props: { title: string; children: any; notificationCount?
 
                 regSel.onchange = async () => {
                   regName.value = regSel.options[regSel.selectedIndex].text;
-                  distSel.innerHTML = '<option value="">Select District</option>';
+                  distSel.innerHTML = '<option value="">Pilih Kecamatan</option>';
                   if (!regSel.value) return;
                   const resDist = await fetch(\`https://www.emsifa.com/api-wilayah-indonesia/api/districts/\${regSel.value}.json\`);
                   const districts = await resDist.json();
@@ -307,7 +307,7 @@ export const Layout = (props: { title: string; children: any; notificationCount?
       )}
 
       <footer class="w-full px-6 md:px-12 py-10 pb-32 md:pb-10 flex flex-col md:flex-row justify-between items-center gap-8 border-t border-white/5 mt-20">
-        <div class="text-slate-500 text-sm font-medium">© {new Date().getFullYear()} All Right For ferilee.gurumuda.eu.org</div>
+        <div class="text-slate-500 text-sm font-medium">© {new Date().getFullYear()} Ferilee. Seluruh hak dilindungi.</div>
         
         <div class="flex gap-6 text-slate-400">
           <a href="https://instagram.com/therealferilee" target="_blank" class="hover:text-red-500 transition-all flex items-center gap-2" title="Instagram">
@@ -374,7 +374,7 @@ export const Layout = (props: { title: string; children: any; notificationCount?
               data.blog.forEach(b => {
                 html += \`<a href="/blog/\${b.slug}" class="block p-4 bg-white/5 rounded-xl mb-2">\${b.title}</a>\`;
               });
-              searchResults.innerHTML = html || '<p class="text-center text-slate-500">No results</p>';
+              searchResults.innerHTML = html || '<p class="text-center text-slate-500">Tidak ada hasil</p>';
             }, 300);
           });
           document.addEventListener('keydown', (e) => e.key === 'Escape' && toggleOverlay(searchOverlay, false));

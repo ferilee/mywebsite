@@ -98,16 +98,27 @@ describe("Main Pages", () => {
   it("GET /projects returns 200 OK", async () => {
     const res = await app.request("/projects");
     expect(res.status).toBe(200);
+    const html = await res.text();
+    expect(html).toContain("Karya");
+    expect(html).toContain("Semua");
   });
 
   it("GET /blog returns 200 OK", async () => {
     const res = await app.request("/blog");
     expect(res.status).toBe(200);
+    const html = await res.text();
+    expect(html).toContain("Tetap");
+    expect(html).toContain("Berlangganan");
+    expect(html).toContain("Alamat email Anda");
   });
 
   it("GET /contact returns 200 OK", async () => {
     const res = await app.request("/contact");
     expect(res.status).toBe(200);
+    const html = await res.text();
+    expect(html).toContain("Mari");
+    expect(html).toContain("Kirim Pesan");
+    expect(html).toContain("Alamat Email");
   });
 
   it("GET /jejak returns 200 OK", async () => {

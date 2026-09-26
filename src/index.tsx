@@ -340,17 +340,17 @@ app.get('/projects', async (c) => {
   const allTech = [...new Set(projects.flatMap(p => p.techStack?.split(',').map(t => t.trim()) || []))].filter(Boolean);
 
   return c.html(
-    <Layout title="Ferilee | Projects" user={user} needsProfiling={c.var.needsProfiling} currentPath="/projects">
+    <Layout title="Ferilee | Portofolio" user={user} needsProfiling={c.var.needsProfiling} currentPath="/projects">
       <div class="max-w-6xl mx-auto px-6 py-20">
 
         <header class="mb-12 text-center">
-          <h1 class="text-6xl font-black mb-6 tracking-tight">Crafted <span class="text-red-700">Solutions</span></h1>
-          <p class="text-slate-400 max-w-xl mx-auto">Explore my technical journey through these selected works, from full-stack applications to architectural deep-dives.</p>
+          <h1 class="text-6xl font-black mb-6 tracking-tight">Karya <span class="text-red-700">Terpilih</span></h1>
+          <p class="text-slate-400 max-w-xl mx-auto">Jelajahi perjalanan teknis saya melalui berbagai karya pilihan, mulai dari aplikasi fullstack hingga eksplorasi arsitektur.</p>
         </header>
 
         {/* Tech Filter */}
         <div class="flex flex-wrap justify-center gap-3 mb-16">
-          <button onclick="filterProjects('all')" class="tech-filter-btn active px-6 py-2 rounded-full border border-white/10 text-xs font-bold uppercase tracking-widest bg-white/5 hover:bg-white/10 transition-all">All</button>
+          <button onclick="filterProjects('all')" class="tech-filter-btn active px-6 py-2 rounded-full border border-white/10 text-xs font-bold uppercase tracking-widest bg-white/5 hover:bg-white/10 transition-all">Semua</button>
           {allTech.map(tech => (
             <button 
               onclick={`filterProjects(${JSON.stringify(tech)})`}
@@ -383,7 +383,7 @@ app.get('/projects', async (c) => {
                   ))}
                 </div>
                 <div class="flex items-center justify-between mt-auto pt-6 border-t border-white/5">
-                  <a href={`/projects/${project.slug || project.id}`} class="inline-flex items-center gap-2 text-sm font-bold text-red-500 hover:text-red-400 transition-colors uppercase tracking-widest">Case Study
+                  <a href={`/projects/${project.slug || project.id}`} class="inline-flex items-center gap-2 text-sm font-bold text-red-500 hover:text-red-400 transition-colors uppercase tracking-widest">Studi Kasus
                     <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>
                   </a>
                   {project.github && (
@@ -408,7 +408,7 @@ app.get('/projects', async (c) => {
             const buttons = document.querySelectorAll('.tech-filter-btn');
             
             buttons.forEach(btn => {
-              if (btn.innerText.toLowerCase() === tech.toLowerCase() || (tech === 'all' && btn.innerText.toLowerCase() === 'all')) {
+              if (btn.innerText.toLowerCase() === tech.toLowerCase() || (tech === 'all' && btn.innerText.toLowerCase() === 'semua')) {
                 btn.classList.add('bg-red-500/20', 'border-red-500/50', 'text-red-500');
               } else {
                 btn.classList.remove('bg-red-500/20', 'border-red-500/50', 'text-red-500');
@@ -450,14 +450,14 @@ app.get('/projects/:slug', async (c) => {
   const project = results[0];
   if (!project) return c.notFound();
 
-  const contentHtml = await marked.parse(project.content || 'Case study content coming soon...');
-  const ogImage = project.image || `/api/og?title=${encodeURIComponent(project.title)}&category=Case Study`;
+  const contentHtml = await marked.parse(project.content || 'Konten studi kasus akan segera hadir...');
+  const ogImage = project.image || `/api/og?title=${encodeURIComponent(project.title)}&category=Studi%20Kasus`;
 
   return c.html(
-    <Layout title={`${project.title} | Case Study`} user={user} ogImage={ogImage} needsProfiling={c.var.needsProfiling} currentPath="/projects">
+    <Layout title={`${project.title} | Studi Kasus`} user={user} ogImage={ogImage} needsProfiling={c.var.needsProfiling} currentPath="/projects">
       <div class="max-w-4xl mx-auto px-6 py-20">
         <header class="mb-16">
-          <a href="/projects" class="text-xs font-bold text-slate-500 uppercase tracking-widest hover:text-white transition-all mb-8 block">← Back to Projects</a>
+          <a href="/projects" class="text-xs font-bold text-slate-500 uppercase tracking-widest hover:text-white transition-all mb-8 block">← Kembali ke Portofolio</a>
           <h1 class="text-6xl font-black mb-6 tracking-tight leading-tight">{project.title}</h1>
           <div class="flex flex-wrap gap-3">
             {project.techStack?.split(',').map(tech => (
@@ -475,17 +475,17 @@ app.get('/projects/:slug', async (c) => {
           <div class="lg:col-span-2 prose prose-invert prose-red prose-p:text-justify max-w-none text-slate-300 leading-relaxed text-lg" dangerouslySetInnerHTML={{ __html: contentHtml }} />
           <div class="space-y-8">
             <div class="bg-white/5 border border-white/10 rounded-3xl p-8 sticky top-24">
-              <h3 class="text-sm font-black text-slate-500 uppercase tracking-widest mb-6">Quick Links</h3>
+              <h3 class="text-sm font-black text-slate-500 uppercase tracking-widest mb-6">Tautan Cepat</h3>
               <div class="space-y-4">
                 {project.link && (
                   <a href={project.link} target="_blank" class="flex items-center justify-between w-full px-6 py-4 bg-red-700 hover:bg-red-800 text-white font-bold rounded-xl transition-all">
-                    <span>Live Preview</span>
+                    <span>Pratinjau Langsung</span>
                     <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
                   </a>
                 )}
                 {project.github && (
                   <a href={project.github} target="_blank" class="flex items-center justify-between w-full px-6 py-4 bg-white/5 border border-white/10 hover:bg-white/10 text-white font-bold rounded-xl transition-all">
-                    <span>Repository</span>
+                    <span>Repositori</span>
                     <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 19c-5 1.5-5-2.5-7-3m14 6v-3.87a3.37 3.37 0 0 0-.94-2.61c3.14-.35 6.44-1.54 6.44-7A5.44 5.44 0 0 0 20 4.77 5.07 5.07 0 0 0 19.91 1S18.73.65 16 2.48a13.38 13.38 0 0 0-7 0C6.27.65 5.09 1 5.09 1A5.07 5.07 0 0 0 5 4.77a5.44 5.44 0 0 0-1.5 3.78c0 5.42 3.3 6.61 6.44 7A3.37 3.37 0 0 0 9 18.13V22"/></svg>
                   </a>
                 )}
@@ -498,14 +498,14 @@ app.get('/projects/:slug', async (c) => {
         {project.link && (
           <div class="mt-20">
             <div class="flex items-center justify-between mb-8">
-              <h2 class="text-3xl font-black tracking-tight">Interactive <span class="text-red-700">Preview</span></h2>
+              <h2 class="text-3xl font-black tracking-tight">Pratinjau <span class="text-red-700">Interaktif</span></h2>
               <span class="text-[10px] font-black text-slate-500 uppercase tracking-widest italic flex items-center gap-2">
-                <div class="w-1.5 h-1.5 bg-green-500 rounded-full animate-pulse"></div> Live Environment
+                <div class="w-1.5 h-1.5 bg-green-500 rounded-full animate-pulse"></div> Lingkungan Aktif
               </span>
             </div>
             <div class="bg-white/5 border border-white/10 rounded-[2.5rem] overflow-hidden aspect-video relative group">
               <div class="absolute inset-0 bg-slate-900 flex items-center justify-center z-0">
-                <div class="text-slate-700 font-bold italic">Loading Preview...</div>
+                <div class="text-slate-700 font-bold italic">Memuat pratinjau...</div>
               </div>
               <iframe 
                 src={project.link} 
@@ -529,7 +529,7 @@ app.get('/blog', async (c) => {
       <div class="max-w-6xl mx-auto px-6 py-20">
 
         <header class="mb-16 text-center">
-          <h1 class="text-5xl font-black mb-4">Insights & Thoughts</h1>
+          <h1 class="text-5xl font-black mb-4">Wawasan & Gagasan</h1>
         </header>
         <div class="grid grid-cols-1 md:grid-cols-2 gap-10">
           {posts.map(post => (
@@ -553,7 +553,7 @@ app.get('/blog', async (c) => {
                   </span>
                   <div class="w-1 h-1 bg-slate-700 rounded-full"></div>
                   <span class="text-[10px] text-slate-500 font-bold uppercase tracking-widest">
-                    {Math.ceil((post.content?.split(/\s+/).length || 0) / 200)} min read
+                    {Math.ceil((post.content?.split(/\s+/).length || 0) / 200)} menit baca
                   </span>
                   <div class="w-1 h-1 bg-slate-700 rounded-full"></div>
                   <span class="text-[10px] text-slate-500 font-bold uppercase tracking-widest flex items-center gap-1">
@@ -585,17 +585,17 @@ app.get('/blog', async (c) => {
             <div class="w-20 h-20 bg-green-500/20 rounded-full flex items-center justify-center mx-auto mb-6 border border-green-500/30">
               <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" class="text-green-500"><polyline points="20 6 9 17 4 12"/></svg>
             </div>
-            <h2 class="text-3xl font-black mb-2 tracking-tight">YOU'RE <span class="text-green-500">IN!</span></h2>
-            <p class="text-slate-400 font-bold uppercase tracking-widest text-xs">Successfully subscribed! Thank you.</p>
+            <h2 class="text-3xl font-black mb-2 tracking-tight">ANDA <span class="text-green-500">TERDAFTAR!</span></h2>
+            <p class="text-slate-400 font-bold uppercase tracking-widest text-xs">Berhasil berlangganan. Terima kasih!</p>
           </div>
         ) : (
           <div class="mt-32 p-6 md:p-12 bg-white/5 border border-white/10 rounded-[3rem] backdrop-blur-xl relative overflow-hidden text-center">
             <div class="absolute -top-24 -left-24 w-64 h-64 bg-cyan-900/10 rounded-full blur-[100px]"></div>
-            <h2 class="text-2xl md:text-3xl font-black mb-4 tracking-tight">Stay <span class="text-cyan-400">Updated</span></h2>
-            <p class="text-slate-400 mb-8 max-w-md mx-auto">Get notified when I publish new articles about tech, development, and my journey.</p>
+            <h2 class="text-2xl md:text-3xl font-black mb-4 tracking-tight">Tetap <span class="text-cyan-400">Terhubung</span></h2>
+            <p class="text-slate-400 mb-8 max-w-md mx-auto">Dapatkan kabar saat saya menerbitkan tulisan baru tentang teknologi, pengembangan, dan perjalanan saya.</p>
             <form action="/subscribe" method="post" class="max-w-md mx-auto flex flex-col sm:flex-row gap-4">
-              <input type="email" name="email" placeholder="Your email address" required class="flex-grow bg-slate-950/50 border border-white/10 rounded-xl px-6 py-4 text-slate-300 focus:outline-none focus:border-cyan-500 transition-all" />
-              <button type="submit" class="px-8 py-4 bg-cyan-600 hover:bg-cyan-700 text-white font-black rounded-xl transition-all hover:scale-105 active:scale-95 whitespace-nowrap">Subscribe</button>
+              <input type="email" name="email" placeholder="Alamat email Anda" required class="flex-grow bg-slate-950/50 border border-white/10 rounded-xl px-6 py-4 text-slate-300 focus:outline-none focus:border-cyan-500 transition-all" />
+              <button type="submit" class="px-8 py-4 bg-cyan-600 hover:bg-cyan-700 text-white font-black rounded-xl transition-all hover:scale-105 active:scale-95 whitespace-nowrap">Berlangganan</button>
             </form>
           </div>
         )}
@@ -624,7 +624,7 @@ function renderParticipantWorkCard(work: any, activity: any = null, reactionCoun
   return (
     <article data-work-card class="group overflow-hidden rounded-3xl border border-white/10 bg-white/5 transition-all hover:-translate-y-1 hover:border-cyan-500/40">
       <div data-work-preview class="relative aspect-[16/10] overflow-hidden border-b border-white/10 bg-gradient-to-br from-cyan-950/60 to-slate-950">
-        {work.previewImage ? <img src={work.previewImage} alt={'Preview ' + work.title} loading="lazy" class="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105" onerror="this.classList.add('hidden'); this.nextElementSibling.classList.remove('hidden'); this.nextElementSibling.classList.add('flex')" /> : null}
+        {work.previewImage ? <img src={work.previewImage} alt={'Pratinjau ' + work.title} loading="lazy" class="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105" onerror="this.classList.add('hidden'); this.nextElementSibling.classList.remove('hidden'); this.nextElementSibling.classList.add('flex')" /> : null}
         <div class={(work.previewImage ? 'hidden' : 'flex') + ' absolute inset-0 items-center justify-center overflow-hidden px-6 text-center'} aria-hidden="true">
           <div class="absolute -right-10 -top-12 h-40 w-40 rounded-full bg-cyan-400/15 blur-2xl"></div>
           <div class="absolute -bottom-16 -left-8 h-36 w-36 rounded-full bg-blue-500/20 blur-2xl"></div>
@@ -950,7 +950,7 @@ app.get('/jejak', async (c) => {
     <Layout title="Ferilee | Jejak" user={user} needsProfiling={c.var.needsProfiling} currentPath="/jejak">
       <div class="max-w-7xl mx-auto px-6 py-28 md:py-32">
         <header class="max-w-4xl mx-auto text-center mb-16">
-          <p class="text-xs font-black text-red-500 uppercase tracking-[0.35em] mb-5">Professional Activity Journal</p>
+          <p class="text-xs font-black text-red-500 uppercase tracking-[0.35em] mb-5">Jurnal Kegiatan Profesional</p>
           <h1 class="text-5xl md:text-7xl font-black tracking-tight italic">JEJAK <span class="text-red-700">FERI LEE</span></h1>
           <p class="text-slate-400 text-lg max-w-2xl mx-auto mt-6 leading-relaxed">Belajar • Berbagi • Berkolaborasi • Berdampak</p>
           <p class="text-slate-500 max-w-2xl mx-auto mt-3 leading-relaxed">Dokumentasi perjalanan berbagi, mendampingi, dan bertumbuh bersama pendidik Indonesia.</p>
@@ -962,7 +962,7 @@ app.get('/jejak', async (c) => {
             { label: 'Kegiatan', value: allActivities.length },
             { label: 'Tahun aktif', value: years.length },
             { label: 'Kategori', value: categories.length },
-            { label: 'Featured', value: featuredActivities.length },
+            { label: 'Pilihan', value: featuredActivities.length },
           ].map(stat => (
             <div class="bg-white/5 border border-white/10 rounded-2xl p-5 text-center backdrop-blur-xl">
               <p class="text-2xl md:text-3xl font-black text-white">{stat.value}+</p>
@@ -974,8 +974,8 @@ app.get('/jejak', async (c) => {
         {featuredActivities.length > 0 && (
           <section class="max-w-5xl mx-auto mb-20">
             <div class="flex items-center justify-between mb-6">
-              <h2 class="text-2xl md:text-3xl font-black italic">FEATURED <span class="text-red-700">JEJAK</span></h2>
-              <span class="text-[10px] text-slate-500 uppercase tracking-widest font-black">Selected for CV</span>
+              <h2 class="text-2xl md:text-3xl font-black italic">JEJAK <span class="text-red-700">PILIHAN</span></h2>
+              <span class="text-[10px] text-slate-500 uppercase tracking-widest font-black">Pilihan untuk CV</span>
             </div>
             <div class="grid md:grid-cols-3 gap-5">
               {featuredActivities.map(activity => (
@@ -998,7 +998,7 @@ app.get('/jejak', async (c) => {
         <section class="max-w-5xl mx-auto">
           <div class="flex flex-col lg:flex-row lg:items-end justify-between gap-6 mb-10">
             <div>
-              <h2 class="text-3xl md:text-4xl font-black italic">ACTIVITY <span class="text-red-700">TIMELINE</span></h2>
+              <h2 class="text-3xl md:text-4xl font-black italic">LINIMASA <span class="text-red-700">KEGIATAN</span></h2>
               <p class="text-slate-500 mt-2">Pilih tahun atau kategori untuk menelusuri perjalanan.</p>
             </div>
             <form action="/jejak" method="get" class="flex flex-col sm:flex-row gap-3">
@@ -1093,7 +1093,7 @@ app.get('/jejak/:slug', async (c) => {
           <div>
             <div class="prose prose-invert prose-red prose-p:text-justify max-w-none text-slate-300 leading-relaxed" dangerouslySetInnerHTML={{ __html: descriptionHtml }} />
           </div>
-          <aside><p class="mb-4 text-xs font-black uppercase tracking-widest text-slate-500">Links</p><div class="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-1">{scheduledLinks.map(link => renderScheduledActivityLink(link))}<div class="relative sm:col-span-2 lg:col-span-1" data-share-root><button type="button" data-share-button data-share-title={activity.title} onclick="shareActivity(this)" aria-expanded="false" aria-haspopup="menu" class="w-full min-h-12 rounded-xl bg-red-700 px-4 py-3 text-left text-sm font-bold transition-colors hover:bg-red-800">Bagikan kegiatan</button><div data-share-menu role="menu" class="hidden absolute right-0 top-full z-20 mt-2 w-full min-w-56 overflow-hidden rounded-2xl border border-white/10 bg-slate-950 p-2 shadow-2xl"><a data-share-link="whatsapp" role="menuitem" target="_blank" rel="noreferrer" class="block rounded-xl px-4 py-3 text-sm font-bold text-slate-300 transition-colors hover:bg-green-500/15 hover:text-green-300">WhatsApp</a><a data-share-link="telegram" role="menuitem" target="_blank" rel="noreferrer" class="block rounded-xl px-4 py-3 text-sm font-bold text-slate-300 transition-colors hover:bg-sky-500/15 hover:text-sky-300">Telegram</a><a data-share-link="facebook" role="menuitem" target="_blank" rel="noreferrer" class="block rounded-xl px-4 py-3 text-sm font-bold text-slate-300 transition-colors hover:bg-blue-500/15 hover:text-blue-300">Facebook</a><a data-share-link="x" role="menuitem" target="_blank" rel="noreferrer" class="block rounded-xl px-4 py-3 text-sm font-bold text-slate-300 transition-colors hover:bg-white/10 hover:text-white">X</a><a data-share-link="linkedin" role="menuitem" target="_blank" rel="noreferrer" class="block rounded-xl px-4 py-3 text-sm font-bold text-slate-300 transition-colors hover:bg-cyan-500/15 hover:text-cyan-300">LinkedIn</a><button type="button" role="menuitem" onclick="copyActivityLink(this)" class="block w-full rounded-xl px-4 py-3 text-left text-sm font-bold text-slate-400 transition-colors hover:bg-white/10 hover:text-white">Salin tautan</button></div></div></div></aside>
+          <aside><p class="mb-4 text-xs font-black uppercase tracking-widest text-slate-500">Tautan</p><div class="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-1">{scheduledLinks.map(link => renderScheduledActivityLink(link))}<div class="relative sm:col-span-2 lg:col-span-1" data-share-root><button type="button" data-share-button data-share-title={activity.title} onclick="shareActivity(this)" aria-expanded="false" aria-haspopup="menu" class="w-full min-h-12 rounded-xl bg-red-700 px-4 py-3 text-left text-sm font-bold transition-colors hover:bg-red-800">Bagikan kegiatan</button><div data-share-menu role="menu" class="hidden absolute right-0 top-full z-20 mt-2 w-full min-w-56 overflow-hidden rounded-2xl border border-white/10 bg-slate-950 p-2 shadow-2xl"><a data-share-link="whatsapp" role="menuitem" target="_blank" rel="noreferrer" class="block rounded-xl px-4 py-3 text-sm font-bold text-slate-300 transition-colors hover:bg-green-500/15 hover:text-green-300">WhatsApp</a><a data-share-link="telegram" role="menuitem" target="_blank" rel="noreferrer" class="block rounded-xl px-4 py-3 text-sm font-bold text-slate-300 transition-colors hover:bg-sky-500/15 hover:text-sky-300">Telegram</a><a data-share-link="facebook" role="menuitem" target="_blank" rel="noreferrer" class="block rounded-xl px-4 py-3 text-sm font-bold text-slate-300 transition-colors hover:bg-blue-500/15 hover:text-blue-300">Facebook</a><a data-share-link="x" role="menuitem" target="_blank" rel="noreferrer" class="block rounded-xl px-4 py-3 text-sm font-bold text-slate-300 transition-colors hover:bg-white/10 hover:text-white">X</a><a data-share-link="linkedin" role="menuitem" target="_blank" rel="noreferrer" class="block rounded-xl px-4 py-3 text-sm font-bold text-slate-300 transition-colors hover:bg-cyan-500/15 hover:text-cyan-300">LinkedIn</a><button type="button" role="menuitem" onclick="copyActivityLink(this)" class="block w-full rounded-xl px-4 py-3 text-left text-sm font-bold text-slate-400 transition-colors hover:bg-white/10 hover:text-white">Salin tautan</button></div></div></div></aside>
         </div>
 
         <script dangerouslySetInnerHTML={{ __html: `
@@ -1269,7 +1269,7 @@ app.get('/blog/:slug', async (c) => {
               <span class="text-xs text-slate-500">{new Date(post.createdAt!).toLocaleDateString()}</span>
               <span class="text-xs text-slate-500 flex items-center gap-1">
                 <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
-                {readingTime} min read
+                {readingTime} menit baca
               </span>
               <span class="text-xs text-slate-500 flex items-center gap-1">
                 <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 1 1-7.6-10.6 8.38 8.38 0 0 1 3.8.9L21 4.5l-1.5 6.5z"/></svg>
@@ -1290,7 +1290,7 @@ app.get('/blog/:slug', async (c) => {
           <div class="mt-16 pt-8 space-y-8">
             {/* Reactions Section */}
             <div class="flex flex-wrap items-center gap-4">
-              <span class="text-xs font-black text-slate-500 uppercase tracking-widest mr-2">Reactions</span>
+              <span class="text-xs font-black text-slate-500 uppercase tracking-widest mr-2">Reaksi</span>
               <div class="flex items-center gap-2">
                 {[
                   { type: 'like', emoji: '👍' },
@@ -1304,7 +1304,7 @@ app.get('/blog/:slug', async (c) => {
                       type="submit" 
                       class={`flex items-center gap-2 px-4 py-2 rounded-full border transition-all ${userReaction === item.type ? 'bg-red-500/20 border-red-500/50 text-red-500' : 'bg-white/5 border-white/10 text-slate-400 hover:bg-white/10'} ${!user ? 'opacity-50 cursor-not-allowed' : 'hover:scale-110 active:scale-95'}`}
                       disabled={!user}
-                      title={!user ? "Login to react" : ""}
+                      title={!user ? "Masuk untuk memberi reaksi" : ""}
                     >
                       <span>{item.emoji}</span>
                       <span class="text-xs font-bold">{reactionCounts[item.type as keyof typeof reactionCounts] || 0}</span>
@@ -1312,12 +1312,12 @@ app.get('/blog/:slug', async (c) => {
                   </form>
                 ))}
               </div>
-              {!user && <p class="text-[10px] font-bold text-slate-600 uppercase tracking-widest italic ml-auto">Log in to react</p>}
+              {!user && <p class="text-[10px] font-bold text-slate-600 uppercase tracking-widest italic ml-auto">Masuk untuk memberi reaksi</p>}
             </div>
 
             {/* Social Share Section */}
             <div class="flex items-center gap-4 pt-4">
-              <span class="text-xs font-black text-slate-500 uppercase tracking-widest mr-2">Share this post</span>
+              <span class="text-xs font-black text-slate-500 uppercase tracking-widest mr-2">Bagikan tulisan</span>
               <div class="flex gap-2">
                 {/* X (Twitter) */}
                 <a href={`https://twitter.com/intent/tweet?text=${encodeURIComponent(post.title)}&url=${encodeURIComponent(postUrl)}`} target="_blank" class="w-10 h-10 rounded-full bg-white/5 border border-white/10 flex items-center justify-center hover:bg-white/10 hover:border-white/30 transition-all text-slate-400 hover:text-white" title="Share on X">
@@ -1328,7 +1328,7 @@ app.get('/blog/:slug', async (c) => {
                   <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 2h-3a5 5 0 0 0-5 5v3H7v4h3v8h4v-8h3l1-4h-4V7a1 1 0 0 1 1-1h3z"/></svg>
                 </a>
                 {/* Instagram (Copy Link fallback) */}
-                <button onclick={`navigator.clipboard.writeText(${JSON.stringify(postUrl)}); alert('Link copied for Instagram!')`} class="w-10 h-10 rounded-full bg-white/5 border border-white/10 flex items-center justify-center hover:bg-pink-600/20 hover:border-pink-600/50 transition-all text-slate-400 hover:text-pink-500" title="Copy Link for Instagram">
+                <button onclick={`navigator.clipboard.writeText(${JSON.stringify(postUrl)}); alert('Tautan disalin untuk Instagram!')`} class="w-10 h-10 rounded-full bg-white/5 border border-white/10 flex items-center justify-center hover:bg-pink-600/20 hover:border-pink-600/50 transition-all text-slate-400 hover:text-pink-500" title="Salin tautan untuk Instagram">
                   <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="20" height="20" x="2" y="2" rx="5" ry="5"/><path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z"/><line x1="17.5" y1="6.5" x2="17.51" y2="6.5"/></svg>
                 </button>
                 {/* WhatsApp */}
@@ -1344,7 +1344,7 @@ app.get('/blog/:slug', async (c) => {
           </div>
 
           <div class="mt-16 md:mt-32 border-t border-white/10 pt-10 md:pt-16">
-            <h3 class="text-2xl font-black italic mb-8 tracking-tight">COMMENTS <span class="text-red-500">SECTION</span> ({allComments.length})</h3>
+            <h3 class="text-2xl font-black italic mb-8 tracking-tight">BAGIAN <span class="text-red-500">KOMENTAR</span> ({allComments.length})</h3>
             
             {/* Comment Form */}
             {user ? (
@@ -1360,20 +1360,20 @@ app.get('/blog/:slug', async (c) => {
                     </div>
                   </div>
                   <div id="replying-to" class="hidden text-xs font-bold text-cyan-400 flex items-center gap-2">
-                    <span>Replying to <span id="reply-name"></span></span>
-                    <button onclick="cancelReply()" class="text-slate-500 hover:text-white underline">Cancel</button>
+                    <span>Membalas <span id="reply-name"></span></span>
+                    <button onclick="cancelReply()" class="text-slate-500 hover:text-white underline">Batal</button>
                   </div>
                 </div>
                 <form action={`/blog/${post.id}/comment`} method="post" class="space-y-6">
                   <input type="hidden" name="parentId" id="parent-id-input" value="" />
-                  <textarea name="content" id="comment-textarea" required class="w-full bg-slate-950/50 border border-white/10 rounded-2xl p-6 text-slate-300 focus:outline-none focus:border-red-500 transition-all mb-4 min-h-[120px]" placeholder="Write your thoughts..."></textarea>
-                  <button type="submit" class="px-8 py-3 bg-red-700 hover:bg-red-800 text-white font-bold rounded-xl transition-all hover:scale-105 active:scale-95">Post Comment</button>
+                  <textarea name="content" id="comment-textarea" required class="w-full bg-slate-950/50 border border-white/10 rounded-2xl p-6 text-slate-300 focus:outline-none focus:border-red-500 transition-all mb-4 min-h-[120px]" placeholder="Tulis pendapat Anda..."></textarea>
+                  <button type="submit" class="px-8 py-3 bg-red-700 hover:bg-red-800 text-white font-bold rounded-xl transition-all hover:scale-105 active:scale-95">Kirim Komentar</button>
                 </form>
               </div>
             ) : (
               <div class="text-center py-12 bg-white/5 border border-dashed border-white/10 rounded-[2rem] mb-16">
-                <p class="text-slate-400 mb-6">Want to join the discussion?</p>
-                <a href="/admin/login" class="px-10 py-4 bg-white text-black font-black rounded-xl hover:bg-slate-200 transition-all tracking-widest uppercase text-sm">Login to Comment</a>
+                <p class="text-slate-400 mb-6">Ingin ikut berdiskusi?</p>
+                <a href="/admin/login" class="px-10 py-4 bg-white text-black font-black rounded-xl hover:bg-slate-200 transition-all tracking-widest uppercase text-sm">Masuk untuk Berkomentar</a>
               </div>
             )}
 
@@ -1407,7 +1407,7 @@ app.get('/blog/:slug', async (c) => {
                         </div>
                       </div>
                       {user && (
-                        <button onclick={`setReply(${comment.id}, ${JSON.stringify(comment.name)})`} class="text-[10px] font-black text-cyan-400 uppercase tracking-widest hover:text-white transition-all">Reply</button>
+                        <button onclick={`setReply(${comment.id}, ${JSON.stringify(comment.name)})`} class="text-[10px] font-black text-cyan-400 uppercase tracking-widest hover:text-white transition-all">Balas</button>
                       )}
                     </div>
                     <p class="text-slate-400 text-sm leading-relaxed">{comment.content}</p>
@@ -1434,7 +1434,7 @@ app.get('/blog/:slug', async (c) => {
                   </div>
                 </div>
               ))}
-              {allComments.length === 0 && <p class="text-center text-slate-600 font-bold italic py-8">Be the first to comment!</p>}
+              {allComments.length === 0 && <p class="text-center text-slate-600 font-bold italic py-8">Jadilah yang pertama berkomentar!</p>}
             </div>
           </div>
         </article>
@@ -1525,12 +1525,12 @@ app.get('/contact', (c) => {
   const success = c.req.query('success');
 
   return c.html(
-    <Layout title="Contact | Ferilee" user={user}>
+    <Layout title="Kontak | Ferilee" user={user}>
       <div class="max-w-4xl mx-auto px-6 py-20">
 
         <div class="text-center mb-16">
-          <h1 class="text-5xl font-black mb-4 tracking-tight">Let's <span class="text-red-700">Connect</span></h1>
-          <p class="text-slate-400 text-lg">Have a project in mind or just want to say hi?</p>
+          <h1 class="text-5xl font-black mb-4 tracking-tight">Mari <span class="text-red-700">Terhubung</span></h1>
+          <p class="text-slate-400 text-lg">Punya proyek dalam pikiran atau sekadar ingin menyapa?</p>
         </div>
 
         <div class="bg-white/5 border border-white/10 p-8 md:p-12 rounded-[3rem] backdrop-blur-xl relative overflow-hidden">
@@ -1547,35 +1547,35 @@ app.get('/contact', (c) => {
                   autoplay
                 ></dotlottie-player>
               </div>
-              <h2 class="text-3xl font-black mb-4 tracking-tight">MESSAGE SENT!</h2>
-              <p class="text-slate-400 mb-10">Thank you for reaching out. I'll get back to you as soon as possible.</p>
-              <a href="/" class="px-10 py-4 border border-white/10 rounded-xl font-bold hover:bg-white/5 transition-all">Go Home</a>
+              <h2 class="text-3xl font-black mb-4 tracking-tight">PESAN TERKIRIM!</h2>
+              <p class="text-slate-400 mb-10">Terima kasih sudah menghubungi saya. Saya akan membalas sesegera mungkin.</p>
+              <a href="/" class="px-10 py-4 border border-white/10 rounded-xl font-bold hover:bg-white/5 transition-all">Kembali ke Beranda</a>
             </div>
           ) : (
             <form action="/contact/send" method="post" class="space-y-8 relative z-10">
               <div class="grid md:grid-cols-2 gap-6">
                 <div class="relative">
                   <input type="text" name="name" id="name" placeholder=" " required class={inputClass} value={user?.name || ''} />
-                  <label for="name" class={labelClass}>Your Name</label>
+                  <label for="name" class={labelClass}>Nama Anda</label>
                 </div>
                 <div class="relative">
                   <input type="email" name="email" id="email" placeholder=" " required class={inputClass} value={user?.email || ''} />
-                  <label for="email" class={labelClass}>Email Address</label>
+                  <label for="email" class={labelClass}>Alamat Email</label>
                 </div>
               </div>
 
               
               <div class="relative">
                 <input type="text" name="subject" id="subject" placeholder=" " required class={inputClass} />
-                <label for="subject" class={labelClass}>Subject</label>
+                <label for="subject" class={labelClass}>Subjek</label>
               </div>
 
               <div class="relative">
                 <textarea name="message" id="message" rows={5} placeholder=" " required class={`${inputClass} leading-relaxed min-h-[150px]`}></textarea>
-                <label for="message" class={labelClass}>Your Message</label>
+                <label for="message" class={labelClass}>Pesan Anda</label>
               </div>
 
-              <button type="submit" class="w-full py-5 bg-red-700 hover:bg-red-800 text-white font-black rounded-2xl transition-all hover:scale-[1.02] active:scale-[0.98] btn-shadow tracking-widest uppercase">Send Message</button>
+              <button type="submit" class="w-full py-5 bg-red-700 hover:bg-red-800 text-white font-black rounded-2xl transition-all hover:scale-[1.02] active:scale-[0.98] btn-shadow tracking-widest uppercase">Kirim Pesan</button>
             </form>
           )}
         </div>
@@ -1599,11 +1599,11 @@ app.post('/contact/send', async (c) => {
   } catch (err: any) {
     console.error('Contact submission error:', err);
     return c.html(
-      <Layout title="Error | Ferilee">
+      <Layout title="Kesalahan | Ferilee">
         <div class="max-w-4xl mx-auto px-6 py-20 text-center">
-          <h1 class="text-3xl font-black mb-4">Oops! Something went wrong.</h1>
-          <p class="text-slate-400 mb-8">We couldn't send your message. Please try again later.</p>
-          <a href="/contact" class="px-10 py-4 bg-red-700 text-white font-bold rounded-xl">Back to Contact</a>
+          <h1 class="text-3xl font-black mb-4">Ups! Terjadi kesalahan.</h1>
+          <p class="text-slate-400 mb-8">Pesan belum dapat dikirim. Silakan coba lagi nanti.</p>
+          <a href="/contact" class="px-10 py-4 bg-red-700 text-white font-bold rounded-xl">Kembali ke Kontak</a>
         </div>
       </Layout>,
       500
