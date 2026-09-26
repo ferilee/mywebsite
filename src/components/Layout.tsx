@@ -5,25 +5,25 @@ export const Layout = (props: { title: string; children: any; notificationCount?
   const { user, currentPath } = props;
 
   return (
-    <html lang="en">
+    <html lang="id">
     <head>
       <meta charset="UTF-8" />
       <meta name="viewport" content="width=device-width, initial-scale=1.0" />
       <title>{props.title}</title>
-      <meta name="description" content="Ferilee | Extraordinary Digital Showcase - High-performance portfolio and blog built with Bun, Hono, and Drizzle ORM." />
+      <meta name="description" content="Ferilee | Portofolio digital dan catatan perjalanan membangun pengalaman digital, teknologi pendidikan, dan karya berbasis kode." />
       
       {/* Open Graph / Facebook */}
       <meta property="og:type" content="website" />
       <meta property="og:url" content="https://ferilee.dev/" />
       <meta property="og:title" content={props.title} />
-      <meta property="og:description" content="Explore my portfolio, technical blog, and career journey in fullstack development." />
+      <meta property="og:description" content="Jelajahi portofolio, catatan teknis, dan perjalanan Ferilee dalam pengembangan fullstack." />
       <meta property="og:image" content={props.ogImage || "/static/ferilee.webp"} />
 
       {/* Twitter */}
       <meta property="twitter:card" content="summary_large_image" />
       <meta property="twitter:url" content="https://ferilee.dev/" />
       <meta property="twitter:title" content={props.title} />
-      <meta property="twitter:description" content="Explore my portfolio, technical blog, and career journey in fullstack development." />
+      <meta property="twitter:description" content="Jelajahi portofolio, catatan teknis, dan perjalanan Ferilee dalam pengembangan fullstack." />
       <meta property="twitter:image" content={props.ogImage || "/static/ferilee.webp"} />
 
       <link rel="icon" type="image/png" href="/static/favicon.png" />
@@ -106,11 +106,11 @@ export const Layout = (props: { title: string; children: any; notificationCount?
           <a href="/" class="text-2xl font-black text-red-700 tracking-wider">Research</a>
           
           <nav class="hidden md:flex items-center space-x-1 bg-white/5 backdrop-blur-xl border border-white/10 rounded-full p-1 shadow-2xl">
-            <a href="/" class={`nav-item px-6 py-2 rounded-full hover:bg-white/5 font-bold transition-all text-sm ${currentPath === '/' ? 'active text-red-500' : 'text-slate-300'}`}>Home</a>
-            <a href="/projects" class={`nav-item px-6 py-2 rounded-full hover:bg-white/5 font-bold transition-all text-sm ${currentPath === '/projects' ? 'active text-red-500' : 'text-slate-300'}`}>Portfolio</a>
+            <a href="/" class={`nav-item px-6 py-2 rounded-full hover:bg-white/5 font-bold transition-all text-sm ${currentPath === '/' ? 'active text-red-500' : 'text-slate-300'}`}>Beranda</a>
+            <a href="/projects" class={`nav-item px-6 py-2 rounded-full hover:bg-white/5 font-bold transition-all text-sm ${currentPath === '/projects' ? 'active text-red-500' : 'text-slate-300'}`}>Portofolio</a>
             <a href="/jejak" class={`nav-item px-6 py-2 rounded-full hover:bg-white/5 font-bold transition-all text-sm ${currentPath?.startsWith('/jejak') ? 'active text-red-500' : 'text-slate-300'}`}>Jejak</a>
             <a href="/blog" class={`nav-item px-6 py-2 rounded-full hover:bg-white/5 font-bold transition-all text-sm ${currentPath === '/blog' ? 'active text-red-500' : 'text-slate-300'}`}>Blog</a>
-            <a href="/contact" class={`nav-item px-6 py-2 rounded-full hover:bg-white/5 font-bold transition-all text-sm ${currentPath === '/contact' ? 'active text-red-500' : 'text-slate-300'}`}>Contact</a>
+            <a href="/contact" class={`nav-item px-6 py-2 rounded-full hover:bg-white/5 font-bold transition-all text-sm ${currentPath === '/contact' ? 'active text-red-500' : 'text-slate-300'}`}>Kontak</a>
           </nav>
 
           <div class="flex items-center gap-3">
@@ -153,7 +153,7 @@ export const Layout = (props: { title: string; children: any; notificationCount?
                     <div class="absolute right-0 mt-2 w-48 bg-slate-900 border border-white/10 rounded-2xl p-2 hidden group-focus-within:block shadow-2xl backdrop-blur-xl">
                       <a href="/auth/logout" class="flex items-center gap-2 px-4 py-3 text-sm font-bold text-red-500 hover:bg-white/5 rounded-xl transition-all">
                         <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
-                        Sign Out
+                        Keluar
                       </a>
                     </div>
                   </div>
@@ -173,11 +173,11 @@ export const Layout = (props: { title: string; children: any; notificationCount?
       <nav class="md:hidden fixed bottom-6 left-6 right-6 z-50 bg-slate-900/80 backdrop-blur-2xl border border-white/10 rounded-[2.5rem] p-4 flex justify-around items-end shadow-[0_20px_50px_rgba(0,0,0,0.5)]">
         <a href="/" class={`nav-bottom-item flex flex-col items-center transition-all ${currentPath === '/' ? 'active text-red-500' : 'text-slate-400'}`}>
           <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
-          <span class="text-[10px] font-black uppercase tracking-widest">Home</span>
+          <span class="text-[10px] font-black uppercase tracking-widest">Beranda</span>
         </a>
         <a href="/projects" class={`nav-bottom-item flex flex-col items-center transition-all ${currentPath === '/projects' ? 'active text-red-500' : 'text-slate-400'}`}>
           <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="20" height="14" x="2" y="7" rx="2" ry="2"/><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/></svg>
-          <span class="text-[10px] font-black uppercase tracking-widest">Work</span>
+          <span class="text-[10px] font-black uppercase tracking-widest">Karya</span>
         </a>
         <a href="/jejak" class={`nav-bottom-item flex flex-col items-center transition-all ${currentPath?.startsWith('/jejak') ? 'active text-red-500' : 'text-slate-400'}`}>
           <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
@@ -189,7 +189,7 @@ export const Layout = (props: { title: string; children: any; notificationCount?
         </a>
         <a href="/contact" class={`nav-bottom-item flex flex-col items-center transition-all ${currentPath === '/contact' ? 'active text-red-500' : 'text-slate-400'}`}>
           <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/></svg>
-          <span class="text-[10px] font-black uppercase tracking-widest">Reach</span>
+          <span class="text-[10px] font-black uppercase tracking-widest">Kontak</span>
         </a>
         {user?.role === 'admin' && (
           <a href="/admin" class={`nav-bottom-item flex flex-col items-center transition-all ${currentPath?.startsWith('/admin') ? 'active text-red-500' : 'text-slate-400'}`}>

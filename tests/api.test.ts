@@ -88,6 +88,11 @@ describe("Main Pages", () => {
   it("GET / returns 200 OK", async () => {
     const res = await app.request("/");
     expect(res.status).toBe(200);
+    const html = await res.text();
+    expect(html).toContain("Lihat Karya");
+    expect(html).toContain("Baca Blog");
+    expect(html).toContain("Kegiatan Pilihan");
+    expect(html).toContain('<html lang="id">');
   });
 
   it("GET /projects returns 200 OK", async () => {

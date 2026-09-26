@@ -266,10 +266,18 @@ app.get('/', async (c) => {
   const allSettings = await db.select().from(settingsTable);
   const settings = Object.fromEntries(allSettings.map(s => [s.key, s.value]));
   
-  const heroTitle = settings.hero_title || "Building <span class=\"text-red-700 italic\">Impact</span><br />Through Code";
-  const heroDesc = settings.hero_desc || "Hi, I'm Ferilee. I craft high-performance digital experiences that bridge the gap between complex technology and human-centric design.";
-  const philTitle = settings.phil_title || "Creative<br />Philosophies";
-  const philDesc = settings.phil_desc || "Sharing deep dives into fullstack development, architecture, and my journey in the tech industry.";
+  const heroTitle = settings.hero_title && settings.hero_title !== 'Building <span class="text-red-700 italic">Impact</span><br />Through Code'
+    ? settings.hero_title
+    : "Membangun <span class=\"text-red-700 italic\">Dampak</span><br />Lewat Kode";
+  const heroDesc = settings.hero_desc && settings.hero_desc !== "Hi, I'm Ferilee. I craft high-performance digital experiences that bridge the gap between complex technology and human-centric design."
+    ? settings.hero_desc
+    : 'Hai, saya Ferilee. Saya merancang pengalaman digital berkinerja tinggi yang menjembatani teknologi kompleks dengan kebutuhan manusia.';
+  const philTitle = settings.phil_title && settings.phil_title !== 'Creative<br />Philosophies'
+    ? settings.phil_title
+    : 'Gagasan<br /><span class="text-red-700">Kreatif</span>';
+  const philDesc = settings.phil_desc && settings.phil_desc !== 'Sharing deep dives into fullstack development, architecture, and my journey in the tech industry.'
+    ? settings.phil_desc
+    : 'Berbagi gagasan tentang pengembangan fullstack, arsitektur teknologi, dan perjalanan saya di dunia digital.';
 
   const projects = await db.select().from(projectTable).limit(3);
   const skills = await db.select().from(skillTable);
@@ -288,10 +296,10 @@ app.get('/', async (c) => {
               <h1 class="text-4xl md:text-6xl font-black mb-6 leading-[1.1] tracking-tight" dangerouslySetInnerHTML={{ __html: heroTitle }}></h1>
               <p class="text-slate-400 text-sm md:text-base max-w-sm mb-10 leading-relaxed mx-auto lg:mx-0">{heroDesc}</p>
               <div class="flex flex-col sm:flex-row justify-center lg:justify-start gap-4">
-                <a href="/projects" class="px-10 py-4 bg-red-700 hover:bg-red-800 text-white font-bold rounded-xl btn-shadow transition-all hover:scale-105 active:scale-95 text-center">View Work</a>
+                <a href="/projects" class="px-10 py-4 bg-red-700 hover:bg-red-800 text-white font-bold rounded-xl btn-shadow transition-all hover:scale-105 active:scale-95 text-center">Lihat Karya</a>
                 <a href={cvUrl} target="_blank" class="px-10 py-4 border border-white/10 hover:bg-white/5 text-white font-bold rounded-xl transition-all hover:scale-105 active:scale-95 text-center flex items-center justify-center gap-2">
                   <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-                  Resume
+                  Unduh CV
                 </a>
               </div>
             </div>
@@ -303,7 +311,7 @@ app.get('/', async (c) => {
               <h2 class="text-4xl md:text-6xl font-black mb-6 leading-[1.1] tracking-tight" dangerouslySetInnerHTML={{ __html: philTitle }}></h2>
               <p class="text-slate-400 text-sm md:text-base max-w-sm mb-10 leading-relaxed mx-auto lg:ml-auto lg:mr-0">{philDesc}</p>
               <div class="flex justify-center lg:justify-end">
-                <a href="/blog" class="px-10 py-4 bg-red-900/40 hover:bg-red-900/60 text-white font-bold rounded-xl border border-red-700/30 transition-all hover:scale-105 active:scale-95 text-center">Read Blog</a>
+                <a href="/blog" class="px-10 py-4 bg-red-900/40 hover:bg-red-900/60 text-white font-bold rounded-xl border border-red-700/30 transition-all hover:scale-105 active:scale-95 text-center">Baca Blog</a>
               </div>
             </div>
           </div>
@@ -311,8 +319,8 @@ app.get('/', async (c) => {
         {featuredActivities.length > 0 && (
           <section class="pb-24 px-6 md:px-12">
             <div class="flex flex-col sm:flex-row justify-between sm:items-end gap-4 mb-8">
-              <div><p class="text-xs font-black text-cyan-400 uppercase tracking-[0.3em] mb-3">Selected Activities</p><h2 class="text-3xl md:text-4xl font-black italic">FEATURED <span class="text-red-700">JEJAK</span></h2></div>
-              <a href="/jejak" class="text-xs font-black text-slate-400 uppercase tracking-widest hover:text-white">View all activities →</a>
+              <div><p class="text-xs font-black text-cyan-400 uppercase tracking-[0.3em] mb-3">Kegiatan Pilihan</p><h2 class="text-3xl md:text-4xl font-black italic">JEJAK <span class="text-red-700">PILIHAN</span></h2></div>
+              <a href="/jejak" class="text-xs font-black text-slate-400 uppercase tracking-widest hover:text-white">Lihat semua kegiatan →</a>
             </div>
             <div class="grid md:grid-cols-3 gap-5">
               {featuredActivities.map(activity => <a href={`/jejak/${activity.slug}`} class="group bg-white/5 border border-white/10 rounded-3xl overflow-hidden hover:border-cyan-500/40 transition-all"><div class="h-36 bg-gradient-to-br from-red-950 to-slate-950">{activity.coverImage && <img src={activity.coverImage} alt={activity.title} class="w-full h-full object-cover group-hover:scale-105 transition-transform" />}</div><div class="p-5"><p class="text-[10px] text-cyan-400 uppercase tracking-widest font-black">{activity.year} • {activity.role}</p><h3 class="font-bold mt-2 leading-snug">{activity.title}</h3></div></a>)}
