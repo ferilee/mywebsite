@@ -124,14 +124,10 @@ export const Layout = (props: { title: string; children: any; notificationCount?
               <div class="flex items-center gap-3">
                 {user.role === 'admin' && (
                   <div class="relative">
-                    <a href="/admin" class="w-10 h-10 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center hover:bg-white/10 transition-all text-slate-400">
+                    <a href="/admin" class="relative w-10 h-10 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center hover:bg-white/10 transition-all text-slate-400" aria-label="Notifikasi admin">
                       <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/></svg>
+                      <span data-admin-notification-badge class={`${props.notificationCount && props.notificationCount > 0 ? '' : 'hidden'} absolute -right-1 -top-1 flex h-5 min-w-5 items-center justify-center rounded-full border-2 border-slate-950 bg-red-600 px-1 text-[10px] font-black text-white`}>{props.notificationCount && props.notificationCount > 99 ? '99+' : props.notificationCount || ''}</span>
                     </a>
-                    {props.notificationCount !== undefined && props.notificationCount > 0 && (
-                      <div class="absolute -top-1 -right-1 w-5 h-5 bg-red-600 border-2 border-slate-950 rounded-full flex items-center justify-center animate-bounce">
-                        <span class="text-[10px] font-black text-white">{props.notificationCount}</span>
-                      </div>
-                    )}
                   </div>
                 )}
                 
@@ -330,6 +326,20 @@ export const Layout = (props: { title: string; children: any; notificationCount?
 
       <script dangerouslySetInnerHTML={{ __html: `
         (function() {
+          const notificationBadge = document.querySelector('[data-admin-notification-badge]');
+          const refreshAdminNotificationBadge = async () => {
+            if (!notificationBadge) return;
+            try {
+              const response = await fetch('/api/admin/notifications', { headers: { Accept: 'application/json' } });
+              if (!response.ok) return;
+              const data = await response.json();
+              const count = Number(data.unreadCount || 0);
+              notificationBadge.textContent = count > 99 ? '99+' : String(count);
+              notificationBadge.classList.toggle('hidden', count === 0);
+            } catch (error) {}
+          };
+          refreshAdminNotificationBadge();
+
           const searchBtn = document.getElementById('search-btn');
           const searchOverlay = document.getElementById('search-overlay');
           const closeSearch = document.getElementById('close-search');

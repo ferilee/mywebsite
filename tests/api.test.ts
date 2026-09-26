@@ -82,6 +82,11 @@ describe("Public API Endpoints", () => {
     expect(data).toHaveProperty("projects");
     expect(data).toHaveProperty("blog");
   });
+
+  it("GET /api/admin/notifications requires an admin session", async () => {
+    const res = await app.request("/api/admin/notifications");
+    expect(res.status).toBe(401);
+  });
 });
 
 describe("Main Pages", () => {
@@ -238,6 +243,8 @@ describe("Admin Access Control", () => {
     expect(html).toContain("Admin workspace");
     expect(html).toContain('href="/admin/activities"');
     expect(html).toContain('href="/admin/inbox"');
+    expect(html).toContain('id="admin-notification-button"');
+    expect(html).toContain('id="admin-notification-panel"');
     expect(html).toContain('BLOG <span class="text-red-500">POSTS</span>');
     expect(html).toContain('href="/admin/blog/edit/1"');
     expect(html).toContain('PORTFOLIO <span class="text-red-500">PROJECTS</span>');

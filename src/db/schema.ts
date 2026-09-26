@@ -195,3 +195,13 @@ export const pageViews = sqliteTable('page_views', {
   count: integer('count').default(0),
   lastViewed: integer('last_viewed', { mode: 'timestamp' }).$defaultFn(() => new Date()),
 });
+
+export const adminNotifications = sqliteTable('admin_notifications', {
+  id: integer('id').primaryKey({ autoIncrement: true }),
+  type: text('type').notNull(),
+  title: text('title').notNull(),
+  message: text('message').notNull(),
+  href: text('href').notNull(),
+  isRead: integer('is_read', { mode: 'boolean' }).default(false),
+  createdAt: integer('created_at', { mode: 'timestamp' }).$defaultFn(() => new Date()),
+});

@@ -69,11 +69,17 @@ export const AdminLayout = (props: AdminLayoutProps) => {
             )}
 
             <div class="flex shrink-0 items-center gap-2">
-              {notificationCount > 0 && (
-                <a href="/admin/inbox" class="relative flex h-10 w-10 items-center justify-center rounded-xl border border-white/10 bg-white/5 text-slate-300 hover:text-white md:hidden" aria-label={`${notificationCount} unread messages`}>
-                  <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a4 4 0 0 1-4 4H8l-5 3V7a4 4 0 0 1 4-4h10a4 4 0 0 1 4 4z"/></svg>
-                  <span class="absolute -right-1 -top-1 flex h-4 min-w-4 items-center justify-center rounded-full border-2 border-[#090d14] bg-red-600 px-1 text-[9px] font-black text-white">{notificationCount}</span>
-                </a>
+              {user && (
+                <div class="relative">
+                  <button id="admin-notification-button" type="button" class="relative flex h-10 w-10 items-center justify-center rounded-xl border border-white/10 bg-white/5 text-slate-300 transition-all hover:border-cyan-400/30 hover:text-white" aria-label="Notifikasi admin" aria-expanded="false" aria-controls="admin-notification-panel">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9"/><path d="M10 21h4"/></svg>
+                    <span data-admin-notification-badge class={`${notificationCount > 0 ? '' : 'hidden'} absolute -right-1 -top-1 flex h-5 min-w-5 items-center justify-center rounded-full border-2 border-[#090d14] bg-red-600 px-1 text-[10px] font-black text-white`}>{notificationCount > 99 ? '99+' : notificationCount || ''}</span>
+                  </button>
+                  <div id="admin-notification-panel" class="invisible absolute right-0 top-12 z-50 w-[min(22rem,calc(100vw-2rem))] translate-y-1 rounded-2xl border border-white/10 bg-slate-900 p-3 opacity-0 shadow-2xl transition-all" role="dialog" aria-label="Daftar pemberitahuan">
+                    <div class="flex items-center justify-between gap-3 border-b border-white/10 px-2 pb-3"><div><p class="text-sm font-black text-white">Pemberitahuan</p><p data-admin-notification-summary class="mt-1 text-[10px] font-bold uppercase tracking-widest text-slate-500">Memuat...</p></div><button id="admin-notification-read-all" type="button" class="text-[10px] font-black uppercase tracking-widest text-cyan-300 transition-colors hover:text-white">Tandai semua dilihat</button></div>
+                    <div data-admin-notification-list class="max-h-80 space-y-1 overflow-y-auto py-2"><p class="px-2 py-5 text-center text-xs text-slate-500">Memuat pemberitahuan...</p></div>
+                  </div>
+                </div>
               )}
               {user && (
                 <div class="group relative">
@@ -121,6 +127,98 @@ export const AdminLayout = (props: AdminLayoutProps) => {
             </nav>
 
           </div>
+        )}
+
+        {user && (
+          <script dangerouslySetInnerHTML={{ __html: `
+            (() => {
+              const button = document.getElementById('admin-notification-button');
+              const panel = document.getElementById('admin-notification-panel');
+              const badge = document.querySelector('[data-admin-notification-badge]');
+              const list = document.querySelector('[data-admin-notification-list]');
+              const summary = document.querySelector('[data-admin-notification-summary]');
+              const readAll = document.getElementById('admin-notification-read-all');
+
+              const formatDate = (value) => {
+                const date = new Date(value);
+                return Number.isNaN(date.getTime()) ? '' : date.toLocaleString('id-ID', { dateStyle: 'medium', timeStyle: 'short' });
+              };
+
+              const setBadge = (count) => {
+                const safeCount = Number(count || 0);
+                if (!badge) return;
+                badge.textContent = safeCount > 99 ? '99+' : String(safeCount);
+                badge.classList.toggle('hidden', safeCount === 0);
+              };
+
+              const renderNotifications = (notifications, unreadCount) => {
+                setBadge(unreadCount);
+                if (summary) summary.textContent = unreadCount ? unreadCount + ' belum dilihat' : 'Semua sudah dilihat';
+                if (!list) return;
+                list.innerHTML = '';
+                if (!notifications.length) {
+                  const empty = document.createElement('p');
+                  empty.className = 'px-2 py-5 text-center text-xs text-slate-500';
+                  empty.textContent = 'Belum ada pemberitahuan.';
+                  list.appendChild(empty);
+                  return;
+                }
+                notifications.forEach((notification) => {
+                  const link = document.createElement('a');
+                  link.href = notification.href;
+                  link.dataset.notificationId = String(notification.id);
+                  link.className = 'block rounded-xl px-2 py-3 transition-colors hover:bg-white/5 ' + (notification.isRead ? '' : 'bg-cyan-500/5');
+                  const title = document.createElement('p');
+                  title.className = 'text-xs font-black text-slate-200';
+                  title.textContent = notification.title;
+                  const message = document.createElement('p');
+                  message.className = 'mt-1 text-xs leading-relaxed text-slate-400';
+                  message.textContent = notification.message;
+                  const date = document.createElement('p');
+                  date.className = 'mt-2 text-[10px] font-bold uppercase tracking-wider text-slate-600';
+                  date.textContent = formatDate(notification.createdAt);
+                  link.append(title, message, date);
+                  link.addEventListener('click', () => {
+                    fetch('/api/admin/notifications/' + notification.id + '/read', { method: 'POST' }).catch(() => {});
+                  });
+                  list.appendChild(link);
+                });
+              };
+
+              const refresh = async () => {
+                try {
+                  const response = await fetch('/api/admin/notifications', { headers: { Accept: 'application/json' } });
+                  if (!response.ok) return;
+                  const data = await response.json();
+                  renderNotifications(data.notifications || [], data.unreadCount || 0);
+                } catch (error) {}
+              };
+
+              button?.addEventListener('click', () => {
+                const opening = panel?.classList.contains('invisible');
+                panel?.classList.toggle('invisible', !opening);
+                panel?.classList.toggle('opacity-0', !opening);
+                panel?.classList.toggle('translate-y-1', !opening);
+                button.setAttribute('aria-expanded', String(opening));
+                if (opening) refresh();
+              });
+              readAll?.addEventListener('click', async () => {
+                await fetch('/api/admin/notifications/read-all', { method: 'POST' }).catch(() => {});
+                await refresh();
+              });
+              document.addEventListener('click', (event) => {
+                if (panel && button && !panel.contains(event.target) && !button.contains(event.target)) {
+                  panel.classList.add('invisible', 'opacity-0', 'translate-y-1');
+                  button.setAttribute('aria-expanded', 'false');
+                }
+              });
+              refresh();
+              if (window.EventSource) {
+                const source = new EventSource('/api/admin/updates');
+                source.onmessage = (event) => { if (event.data === 'update') refresh(); };
+              }
+            })();
+          ` }} />
         )}
       </body>
     </html>

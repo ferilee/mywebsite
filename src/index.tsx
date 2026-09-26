@@ -10,7 +10,7 @@ import { setCookie, getCookie } from 'hono/cookie';
 import { EventEmitter } from 'node:events';
 import { mkdir } from 'node:fs/promises';
 import { db } from './db';
-import { projects as projectTable, blogPosts, skills as skillTable, experience as expTable, settings as settingsTable, contacts as contactTable, comments as commentTable, reactions as reactionTable, subscriptions as subTable, pageViews as viewTable, milestones as milestonesTable, activities as activityTable, activityMedia as activityMediaTable, activityLinks as activityLinkTable, participantWorks as participantWorkTable, participantWorkReactions as participantWorkReactionTable, testimonials as testimonialTable, profiles as profileTable } from './db/schema';
+import { projects as projectTable, blogPosts, skills as skillTable, experience as expTable, settings as settingsTable, contacts as contactTable, comments as commentTable, reactions as reactionTable, subscriptions as subTable, pageViews as viewTable, milestones as milestonesTable, activities as activityTable, activityMedia as activityMediaTable, activityLinks as activityLinkTable, participantWorks as participantWorkTable, participantWorkReactions as participantWorkReactionTable, testimonials as testimonialTable, profiles as profileTable, adminNotifications as adminNotificationTable } from './db/schema';
 import { eq, desc, or, like, and, inArray, sql } from 'drizzle-orm';
 import { Layout } from './components/Layout';
 import { AdminLayout } from './components/AdminLayout';
@@ -35,6 +35,29 @@ interface Env {
 
 const app = new Hono<Env>();
 const adminUpdates = new EventEmitter();
+
+type AdminNotificationInput = {
+  type: string;
+  title: string;
+  message: string;
+  href: string;
+};
+
+async function createAdminNotification(notification: AdminNotificationInput) {
+  try {
+    await db.insert(adminNotificationTable).values(notification);
+    adminUpdates.emit('update');
+  } catch (error) {
+    console.error('Admin notification error:', error);
+  }
+}
+
+async function getAdminNotificationCount() {
+  const unread = await db.select({ id: adminNotificationTable.id })
+    .from(adminNotificationTable)
+    .where(eq(adminNotificationTable.isRead, false));
+  return unread.length;
+}
 
 app.get('/healthz', (c) => c.json({ ok: true }));
 
@@ -106,6 +129,15 @@ try {
     updated_at INTEGER
   )`));
   await ensureColumn('testimonials', 'photo_url', 'text');
+  await db.run(sql.raw(`CREATE TABLE IF NOT EXISTS admin_notifications (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    type TEXT NOT NULL,
+    title TEXT NOT NULL,
+    message TEXT NOT NULL,
+    href TEXT NOT NULL,
+    is_read INTEGER DEFAULT 0,
+    created_at INTEGER
+  )`));
 } catch (error) {
   console.error('Schema compatibility check failed:', error);
 }
@@ -232,6 +264,29 @@ app.get('/api/admin/updates', (c) => {
       await stream.writeSSE({ data: 'ping' });
     }
   });
+});
+
+app.get('/api/admin/notifications', async (c) => {
+  if (c.var.user?.role !== 'admin') return c.json({ error: 'unauthorized' }, 401);
+
+  const notifications = await db.select().from(adminNotificationTable)
+    .orderBy(desc(adminNotificationTable.createdAt))
+    .limit(12);
+  return c.json({ unreadCount: await getAdminNotificationCount(), notifications });
+});
+
+app.post('/api/admin/notifications/read-all', async (c) => {
+  if (c.var.user?.role !== 'admin') return c.json({ error: 'unauthorized' }, 401);
+  await db.update(adminNotificationTable).set({ isRead: true }).where(eq(adminNotificationTable.isRead, false));
+  return c.json({ ok: true, unreadCount: 0 });
+});
+
+app.post('/api/admin/notifications/:id/read', async (c) => {
+  if (c.var.user?.role !== 'admin') return c.json({ error: 'unauthorized' }, 401);
+  const id = Number(c.req.param('id'));
+  if (!Number.isInteger(id) || id <= 0) return c.json({ error: 'invalid_notification' }, 400);
+  await db.update(adminNotificationTable).set({ isRead: true }).where(eq(adminNotificationTable.id, id));
+  return c.json({ ok: true });
 });
 
 app.get('/api/og', async (c) => {
@@ -870,6 +925,12 @@ app.post('/jejak/:slug/kirim-karya', async (c) => {
     createdAt: new Date(),
     updatedAt: new Date(),
   });
+  await createAdminNotification({
+    type: 'participant_work',
+    title: 'Karya baru menunggu tinjauan',
+    message: `${participantName} mengirim karya “${title}”.`,
+    href: '/admin/works',
+  });
   return c.redirect(`${destination}?submitted=1`);
 });
 
@@ -920,6 +981,12 @@ app.post('/jejak/:slug/testimoni', async (c) => {
     consent: true,
     createdAt: new Date(),
     updatedAt: new Date(),
+  });
+  await createAdminNotification({
+    type: 'testimonial',
+    title: 'Testimoni baru menunggu moderasi',
+    message: `${participantName} membagikan pengalaman kegiatan.`,
+    href: '/admin/testimonials',
   });
   return c.redirect(`${destination}?submitted=1`);
 });
@@ -1464,6 +1531,12 @@ app.post('/blog/:id/comment', async (c) => {
     picture: user.picture,
     content,
   });
+  await createAdminNotification({
+    type: 'comment',
+    title: 'Komentar baru',
+    message: `${user.name} menambahkan komentar pada blog.`,
+    href: '/admin/inbox#comments',
+  });
 
   const post = await db.select().from(blogPosts).where(eq(blogPosts.id, postId)).limit(1);
   return c.redirect(`/blog/${post[0].slug}`);
@@ -1594,7 +1667,12 @@ app.post('/contact/send', async (c) => {
       message: body.message as string,
       isRead: 0,
     });
-    adminUpdates.emit('update');
+    await createAdminNotification({
+      type: 'contact',
+      title: 'Pesan kontak baru',
+      message: `${body.name as string} mengirim pesan melalui halaman kontak.`,
+      href: '/admin/inbox#messages',
+    });
     return c.redirect('/contact?success=1');
   } catch (err: any) {
     console.error('Contact submission error:', err);
@@ -1768,7 +1846,7 @@ app.get('/auth/logout', (c) => {
 app.get('/admin/activities', async (c) => {
   const user = c.var.user;
   const activities = await db.select().from(activityTable).orderBy(desc(activityTable.eventDate));
-  const unreadCount = (await db.select().from(contactTable)).filter(message => !message.isRead).length;
+  const unreadCount = await getAdminNotificationCount();
   const publishedCount = activities.filter(activity => activity.status === 'published').length;
   const featuredCount = activities.filter(activity => activity.featuredOnCv).length;
   const pendingTestimonials = (await db.select().from(testimonialTable)).filter(testimonial => testimonial.status !== 'published').length;
@@ -1789,7 +1867,7 @@ app.get('/admin/testimonials', async (c) => {
   const testimonials = await db.select().from(testimonialTable).orderBy(desc(testimonialTable.createdAt));
   const activities = await db.select({ id: activityTable.id, title: activityTable.title }).from(activityTable);
   const activitiesById = new Map(activities.map(activity => [activity.id, activity.title]));
-  const unreadCount = (await db.select().from(contactTable)).filter(message => !message.isRead).length;
+  const unreadCount = await getAdminNotificationCount();
 
   return c.html(
     <AdminLayout title="Testimonials | Admin" notificationCount={unreadCount} user={user} currentPath="/admin/activities">
@@ -1821,7 +1899,7 @@ app.get('/admin/inbox', async (c) => {
   const messages = await db.select().from(contactTable).orderBy(desc(contactTable.id));
   const comments = await db.select().from(commentTable).orderBy(desc(commentTable.createdAt));
   const posts = await db.select({ id: blogPosts.id, title: blogPosts.title }).from(blogPosts);
-  const unreadCount = messages.filter(message => !message.isRead).length;
+  const unreadCount = await getAdminNotificationCount();
 
   const repliesByParent = new Map<number, typeof comments>();
   const rootIds = new Set(comments.filter(comment => !comment.parentId).map(comment => comment.id));
@@ -1945,7 +2023,7 @@ app.get('/admin', async (c) => {
   const projects = await db.select().from(projectTable).orderBy(desc(projectTable.id));
   const activities = await db.select().from(activityTable).orderBy(desc(activityTable.eventDate));
   const messages = await db.select().from(contactTable).orderBy(desc(contactTable.id));
-  const unreadCount = messages.filter(m => !m.isRead).length;
+  const unreadCount = await getAdminNotificationCount();
 
   // Analytics Data
   const totalViews = await db.select({ sum: sql<number>`sum(${viewTable.count})` }).from(viewTable);
@@ -2627,7 +2705,7 @@ app.get('/admin/works', async (c) => {
   const works = await db.select().from(participantWorkTable).orderBy(desc(participantWorkTable.createdAt));
   const activitiesById = new Map(activities.map(activity => [activity.id, activity]));
   const filteredWorks = selectedActivityId ? works.filter(work => work.activityId === selectedActivityId) : works;
-  const unreadCount = (await db.select().from(contactTable)).filter(message => !message.isRead).length;
+  const unreadCount = await getAdminNotificationCount();
 
   return c.html(
     <AdminLayout title="Participant Works | Admin" notificationCount={unreadCount} user={user} currentPath="/admin/activities">
