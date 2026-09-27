@@ -223,6 +223,23 @@ app.post('/admin/media/upload', async (c) => {
     return c.json({ error: 'Pilih gambar atau video terlebih dahulu.' }, 400);
   }
 
+  const missingStorageConfig = [
+    ['S3_ENDPOINT', process.env.S3_ENDPOINT],
+    ['S3_ACCESS_KEY', process.env.S3_ACCESS_KEY],
+    ['S3_SECRET_KEY', process.env.S3_SECRET_KEY],
+    ['S3_BUCKET', process.env.S3_BUCKET],
+    ['S3_PUBLIC_BASE_URL', process.env.S3_PUBLIC_BASE_URL],
+  ]
+    .filter(([, value]) => !value)
+    .map(([name]) => name);
+
+  if (missingStorageConfig.length > 0) {
+    console.error(`[Media upload] Konfigurasi penyimpanan belum lengkap: ${missingStorageConfig.join(', ')}`);
+    return c.json({
+      error: 'Penyimpanan media belum siap. Hubungi administrator untuk melengkapi konfigurasi penyimpanan.',
+    }, 503);
+  }
+
   try {
     if (file.type.startsWith('video/')) {
       const video = await uploadVideoToS3(file, 'content-media/videos');
@@ -2498,8 +2515,29 @@ function renderMarkdownMediaToolbar(editorId: string, accentClass: string) {
             const formData = new FormData();
             formData.append('file', file);
             const response = await fetch('/admin/media/upload', { method: 'POST', body: formData, credentials: 'same-origin' });
-            const data = await response.json();
-            if (!response.ok) throw new Error(data.error || 'Media gagal diunggah.');
+            const contentType = response.headers.get('content-type') || '';
+            const responseText = await response.text();
+            let data = {};
+
+            if (contentType.includes('application/json')) {
+              try {
+                data = JSON.parse(responseText);
+              } catch {
+                data = {};
+              }
+            }
+
+            if (response.redirected || response.url.includes('/admin/login')) {
+              throw new Error('Sesi admin sudah berakhir. Muat ulang halaman lalu masuk kembali.');
+            }
+
+            if (!response.ok) {
+              throw new Error(data.error || responseText || 'Media gagal diunggah.');
+            }
+
+            if (!data.url) {
+              throw new Error('Media berhasil diproses, tetapi alamat media tidak diterima. Periksa konfigurasi penyimpanan.');
+            }
 
             const snippet = data.mediaType === 'video'
               ? '<video controls preload="metadata" poster="' + (data.posterUrl || '') + '">\\n  <source src="' + data.url + '" type="video/mp4">\\n  Browser Anda tidak mendukung pemutaran video.\\n</video>'
@@ -2512,7 +2550,8 @@ function renderMarkdownMediaToolbar(editorId: string, accentClass: string) {
             editor.focus();
             setStatus('Media berhasil disisipkan.', 'success');
           } catch (error) {
-            setStatus(error.message || 'Media gagal diunggah.', 'error');
+            const message = error instanceof Error ? error.message : 'Media gagal diunggah.';
+            setStatus(message, 'error');
           } finally {
             buttons.forEach((button) => { button.disabled = false; button.classList.remove('opacity-50', 'cursor-wait'); });
             fileInput.value = '';

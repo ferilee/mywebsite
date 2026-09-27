@@ -341,6 +341,45 @@ describe("Admin Access Control", () => {
       expect(html).toContain("/admin/media/upload");
       expect(html).toContain("Gambar");
       expect(html).toContain("Video");
+      expect(html).toContain("response.headers.get('content-type')");
+      expect(html).toContain("Sesi admin sudah berakhir");
+    }
+  });
+
+  it("POST /admin/media/upload reports incomplete storage configuration", async () => {
+    const session = encodeURIComponent(JSON.stringify({
+      email: "admin@example.com",
+      name: "Admin User",
+      role: "admin",
+    }));
+    const storageKeys = [
+      "S3_ENDPOINT",
+      "S3_ACCESS_KEY",
+      "S3_SECRET_KEY",
+      "S3_BUCKET",
+      "S3_PUBLIC_BASE_URL",
+    ];
+    const originalValues = Object.fromEntries(storageKeys.map((key) => [key, process.env[key]]));
+
+    try {
+      storageKeys.forEach((key) => delete process.env[key]);
+      const form = new FormData();
+      form.append("file", new File(["media"], "image.png", { type: "image/png" }));
+      const res = await app.request("/admin/media/upload", {
+        method: "POST",
+        headers: { Cookie: `user_session=${session}` },
+        body: form,
+      });
+
+      expect(res.status).toBe(503);
+      expect(await res.json()).toEqual({
+        error: "Penyimpanan media belum siap. Hubungi administrator untuk melengkapi konfigurasi penyimpanan.",
+      });
+    } finally {
+      storageKeys.forEach((key) => {
+        if (originalValues[key] === undefined) delete process.env[key];
+        else process.env[key] = originalValues[key];
+      });
     }
   });
 
