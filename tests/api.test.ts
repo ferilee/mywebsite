@@ -325,6 +325,25 @@ describe("Admin Access Control", () => {
     expect(html).toContain("Pendidikan");
   });
 
+  it("GET admin content editors exposes inline media insertion controls", async () => {
+    const session = encodeURIComponent(JSON.stringify({
+      email: "admin@example.com",
+      name: "Admin User",
+      role: "admin",
+    }));
+    const headers = { Cookie: `user_session=${session}` };
+
+    for (const path of ["/admin/blog/new", "/admin/projects/new", "/admin/activities/new"]) {
+      const res = await app.request(path, { headers });
+      expect(res.status).toBe(200);
+      const html = await res.text();
+      expect(html).toContain("data-markdown-media-toolbar");
+      expect(html).toContain("/admin/media/upload");
+      expect(html).toContain("Gambar");
+      expect(html).toContain("Video");
+    }
+  });
+
   it("GET /admin/works/new exposes participant work moderation fields", async () => {
     const session = encodeURIComponent(JSON.stringify({
       email: "admin@example.com",

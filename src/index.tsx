@@ -216,6 +216,24 @@ app.use('/admin/*', async (c, next) => {
   await next();
 });
 
+app.post('/admin/media/upload', async (c) => {
+  const body = await c.req.parseBody();
+  const file = body.file;
+  if (!(file instanceof File) || file.size === 0) {
+    return c.json({ error: 'Pilih gambar atau video terlebih dahulu.' }, 400);
+  }
+
+  try {
+    if (file.type.startsWith('video/')) {
+      const video = await uploadVideoToS3(file, 'content-media/videos');
+      return c.json({ ...video, mediaType: 'video' });
+    }
+    return c.json({ url: await uploadToS3(file, 'content-media/images'), mediaType: 'image' });
+  } catch (error: any) {
+    return c.json({ error: error.message || 'Media gagal diunggah.' }, 400);
+  }
+});
+
 
 // --- API ROUTES ---
 app.get('/api/projects', async (c) => c.json(await db.select().from(projectTable)));
@@ -2432,6 +2450,79 @@ app.get('/admin/blog/edit/:id', async (c) => {
   return renderBlogForm(c, results[0], c.var.user);
 });
 
+function renderMarkdownMediaToolbar(editorId: string, accentClass: string) {
+  const fileInputId = `${editorId}-media-file`;
+  const statusId = `${editorId}-media-status`;
+  const editorIdLiteral = JSON.stringify(editorId);
+  const fileInputIdLiteral = JSON.stringify(fileInputId);
+  const statusIdLiteral = JSON.stringify(statusId);
+
+  return <>
+    <div data-markdown-media-toolbar class="mb-3 flex flex-wrap items-center gap-2 rounded-2xl border border-white/10 bg-slate-950/40 p-3">
+      <span class="mr-1 text-[10px] font-black uppercase tracking-widest text-slate-500">Sisipkan media</span>
+      <button type="button" data-media-kind="image" class={`rounded-lg border border-white/10 px-3 py-2 text-xs font-bold text-slate-300 transition-colors hover:border-${accentClass}-500/40 hover:text-white`}>Gambar</button>
+      <button type="button" data-media-kind="video" class={`rounded-lg border border-white/10 px-3 py-2 text-xs font-bold text-slate-300 transition-colors hover:border-${accentClass}-500/40 hover:text-white`}>Video</button>
+      <span id={statusId} role="status" class="ml-1 text-xs font-bold text-slate-500"></span>
+      <input id={fileInputId} type="file" class="hidden" />
+    </div>
+    <script dangerouslySetInnerHTML={{ __html: `
+      (() => {
+        const editor = document.getElementById(${editorIdLiteral});
+        const fileInput = document.getElementById(${fileInputIdLiteral});
+        const status = document.getElementById(${statusIdLiteral});
+        const buttons = Array.from(document.querySelectorAll('[data-markdown-media-toolbar] [data-media-kind]'));
+        let selectedKind = 'image';
+
+        if (!editor || !fileInput || !status) return;
+
+        const setStatus = (message, tone) => {
+          status.textContent = message;
+          status.className = 'ml-1 text-xs font-bold ' + (tone === 'error' ? 'text-red-400' : tone === 'success' ? 'text-green-400' : 'text-cyan-300');
+        };
+
+        buttons.forEach((button) => button.addEventListener('click', () => {
+          selectedKind = button.dataset.mediaKind || 'image';
+          fileInput.accept = selectedKind === 'video'
+            ? 'video/mp4,video/webm,video/quicktime'
+            : 'image/jpeg,image/png,image/webp';
+          fileInput.value = '';
+          fileInput.click();
+        }));
+
+        fileInput.addEventListener('change', async () => {
+          const file = fileInput.files?.[0];
+          if (!file) return;
+          buttons.forEach((button) => { button.disabled = true; button.classList.add('opacity-50', 'cursor-wait'); });
+          setStatus(selectedKind === 'video' ? 'Mengunggah video…' : 'Mengunggah gambar…', 'loading');
+          try {
+            const formData = new FormData();
+            formData.append('file', file);
+            const response = await fetch('/admin/media/upload', { method: 'POST', body: formData, credentials: 'same-origin' });
+            const data = await response.json();
+            if (!response.ok) throw new Error(data.error || 'Media gagal diunggah.');
+
+            const snippet = data.mediaType === 'video'
+              ? '<video controls preload="metadata" poster="' + (data.posterUrl || '') + '">\\n  <source src="' + data.url + '" type="video/mp4">\\n  Browser Anda tidak mendukung pemutaran video.\\n</video>'
+              : '![Deskripsi gambar](' + data.url + ')';
+            const insertion = '\\n\\n' + snippet + '\\n\\n';
+            const start = editor.selectionStart;
+            const end = editor.selectionEnd;
+            editor.setRangeText(insertion, start, end, 'end');
+            editor.dispatchEvent(new Event('input', { bubbles: true }));
+            editor.focus();
+            setStatus('Media berhasil disisipkan.', 'success');
+          } catch (error) {
+            setStatus(error.message || 'Media gagal diunggah.', 'error');
+          } finally {
+            buttons.forEach((button) => { button.disabled = false; button.classList.remove('opacity-50', 'cursor-wait'); });
+            fileInput.value = '';
+          }
+        });
+      })();
+    `}} />
+  </>;
+}
+
 function renderBlogForm(c: any, post: any = null, user: any = null) {
   const inputClass = "peer w-full bg-slate-950/50 border border-white/10 rounded-2xl px-5 pt-7 pb-3 focus:outline-none focus:border-red-500 transition-all text-white text-lg placeholder-transparent";
   const labelClass = "absolute left-5 top-5 text-slate-500 text-xs font-bold uppercase tracking-widest transition-all pointer-events-none peer-placeholder-shown:text-slate-500 peer-placeholder-shown:text-base peer-placeholder-shown:top-5 peer-placeholder-shown:font-medium peer-placeholder-shown:lowercase peer-focus:top-2 peer-focus:text-[10px] peer-focus:text-red-500 peer-focus:uppercase peer-focus:font-bold peer-[:not(:placeholder-shown)]:top-2 peer-[:not(:placeholder-shown)]:text-[10px] peer-[:not(:placeholder-shown)]:text-red-500 peer-[:not(:placeholder-shown)]:uppercase peer-[:not(:placeholder-shown)]:font-bold";
@@ -2455,9 +2546,12 @@ function renderBlogForm(c: any, post: any = null, user: any = null) {
             </div>
           </div>
 
-          <div class="relative">
-            <textarea name="content" id="content-input" placeholder=" " required class={`${inputClass} leading-relaxed min-h-[400px] font-mono text-sm`}>{post?.content || ''}</textarea>
-            <label for="content-input" class={labelClass}>Markdown Content</label>
+          <div>
+            {renderMarkdownMediaToolbar('content-input', 'red')}
+            <div class="relative">
+              <textarea name="content" id="content-input" placeholder=" " required class={`${inputClass} leading-relaxed min-h-[400px] font-mono text-sm`}>{post?.content || ''}</textarea>
+              <label for="content-input" class={labelClass}>Markdown Content</label>
+            </div>
           </div>
 
           <div class="relative">
@@ -2496,7 +2590,7 @@ function renderBlogForm(c: any, post: any = null, user: any = null) {
 
         <script dangerouslySetInnerHTML={{ __html: `
           const form = document.getElementById('blog-form');
-          const fileInput = document.querySelector('input[type="file"]');
+          const fileInput = document.getElementById('blog-cover-file');
           const btn = document.getElementById('submit-btn');
           const btnText = document.getElementById('btn-text');
           const btnLoader = document.getElementById('btn-loader');
@@ -3342,7 +3436,10 @@ function renderActivityForm(c: any, activity: any = null, media: any[] = [], lin
             <div class="relative"><input type="text" name="organizer" id="a-organizer" value={activity?.organizer || ''} placeholder=" " class={inputClass} /><label for="a-organizer" class={labelClass}>Organizer</label></div>
           </div>
           <div class="relative"><textarea name="summary" id="a-summary" placeholder=" " required class={inputClass + ' min-h-[110px] leading-relaxed'}>{activity?.summary || ''}</textarea><label for="a-summary" class={labelClass}>Short Summary</label></div>
-          <div class="relative"><textarea name="description" id="a-description" placeholder=" " class={inputClass + ' min-h-[280px] font-mono text-sm leading-relaxed'}>{activity?.description || ''}</textarea><label for="a-description" class={labelClass}>Description (Markdown)</label></div>
+          <div>
+            {renderMarkdownMediaToolbar('a-description', 'cyan')}
+            <div class="relative"><textarea name="description" id="a-description" placeholder=" " class={inputClass + ' min-h-[280px] font-mono text-sm leading-relaxed'}>{activity?.description || ''}</textarea><label for="a-description" class={labelClass}>Description (Markdown)</label></div>
+          </div>
           <div class="space-y-2"><label for="activity-cover-file" class="text-[10px] font-black text-slate-500 uppercase tracking-widest pl-1">Unggah gambar sampul kegiatan</label><input id="activity-cover-file" type="file" name="coverImageFile" accept="image/jpeg,image/png,image/webp" class="w-full bg-slate-950/50 border border-white/10 rounded-2xl px-5 py-4 text-sm text-slate-300 file:mr-4 file:rounded-lg file:border-0 file:bg-cyan-700 file:px-4 file:py-2 file:text-xs file:font-black file:text-white" /><p class="text-xs leading-relaxed text-slate-500">Pilih gambar JPG, PNG, atau WebP; maksimal 10 MB.</p></div>
           <div class="relative"><input type="text" name="coverImage" id="a-cover" value={activity?.coverImage || ''} placeholder=" " class={inputClass} /><label for="a-cover" class={labelClass}>Atau gunakan tautan gambar sampul</label><p class="mt-2 text-xs leading-relaxed text-slate-500">Jika keduanya diisi, gambar yang diunggah akan digunakan.</p></div>
           <div class="grid gap-6 md:grid-cols-2">
@@ -3433,9 +3530,12 @@ function renderProjectForm(c: any, project: any = null, user: any = null) {
             <label for="p-category" class={labelClass}>Kategori Karya</label>
           </div>
 
-          <div class="relative">
-            <textarea name="content" id="p-content-input" placeholder=" " required class={`${inputClass} leading-relaxed min-h-[300px] font-mono text-sm`}>{project?.content || ''}</textarea>
-            <label for="p-content-input" class={labelClass}>Case Study Markdown</label>
+          <div>
+            {renderMarkdownMediaToolbar('p-content-input', 'red')}
+            <div class="relative">
+              <textarea name="content" id="p-content-input" placeholder=" " required class={`${inputClass} leading-relaxed min-h-[300px] font-mono text-sm`}>{project?.content || ''}</textarea>
+              <label for="p-content-input" class={labelClass}>Case Study Markdown</label>
+            </div>
           </div>
 
           <div class="relative">
@@ -3480,7 +3580,7 @@ function renderProjectForm(c: any, project: any = null, user: any = null) {
             e.preventDefault();
             
             const form = e.target;
-            const fileInput = form.querySelector('input[type="file"]');
+            const fileInput = document.getElementById('project-image-file');
             const btn = document.getElementById('p-submit-btn');
             const btnText = document.getElementById('p-btn-text');
             const btnLoader = document.getElementById('p-btn-loader');
