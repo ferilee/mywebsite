@@ -8,7 +8,7 @@ import { cors } from 'hono/cors';
 import { streamSSE } from 'hono/streaming';
 import { setCookie, getCookie } from 'hono/cookie';
 import { EventEmitter } from 'node:events';
-import { mkdir } from 'node:fs/promises';
+import { mkdir, mkdtemp, rm } from 'node:fs/promises';
 import { db } from './db';
 import { projects as projectTable, blogPosts, skills as skillTable, experience as expTable, settings as settingsTable, contacts as contactTable, comments as commentTable, reactions as reactionTable, subscriptions as subTable, pageViews as viewTable, milestones as milestonesTable, activities as activityTable, activityMedia as activityMediaTable, activityLinks as activityLinkTable, participantWorks as participantWorkTable, participantWorkReactions as participantWorkReactionTable, testimonials as testimonialTable, profiles as profileTable, adminNotifications as adminNotificationTable } from './db/schema';
 import { eq, desc, or, like, and, inArray, sql } from 'drizzle-orm';
@@ -94,6 +94,7 @@ try {
   await ensureColumn('activities', 'certificate_available_until', 'integer');
   await ensureColumn('activities', 'publication_available_from', 'integer');
   await ensureColumn('activities', 'publication_available_until', 'integer');
+  await ensureColumn('activity_media', 'poster_url', 'text');
   await db.run(sql.raw(`CREATE TABLE IF NOT EXISTS activity_links (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     activity_id INTEGER NOT NULL REFERENCES activities(id),
@@ -1301,7 +1302,7 @@ app.get('/jejak/:slug', async (c) => {
           })();
         `}} />
 
-        {(media.length > 0 || activity.galleryAlbumUrl) && <section class="mt-20"><div class="mb-8 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between"><h2 class="text-2xl md:text-3xl font-black italic">DOKUMENTASI <span class="text-red-700">KEGIATAN</span></h2>{activity.galleryAlbumUrl && <a href={activity.galleryAlbumUrl} target="_blank" rel="noreferrer" class="shrink-0 rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-xs font-black uppercase tracking-widest text-red-300 transition-all hover:bg-red-500/20">Lihat Album Lengkap ↗</a>}</div>{media.length > 0 && <div class="grid sm:grid-cols-2 md:grid-cols-3 gap-5">{media.map(item => <figure class="group"><div class="relative aspect-[4/3] overflow-hidden rounded-2xl border border-white/10 group-hover:border-red-500/40 transition-all"><img src={item.url} alt={item.caption || activity.title} class="h-full w-full object-cover transition-transform group-hover:scale-105" onerror="this.classList.add('hidden'); this.nextElementSibling.classList.remove('hidden'); this.nextElementSibling.classList.add('flex')" /><div class="absolute inset-0 hidden items-center justify-center bg-slate-950/80 px-4 text-center text-xs font-bold text-slate-500">Gambar tidak tersedia</div></div>{item.caption && <figcaption class="text-xs text-slate-500 mt-2">{item.caption}</figcaption>}</figure>)}</div>}</section>}
+        {(media.length > 0 || activity.galleryAlbumUrl) && <section class="mt-20"><div class="mb-8 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between"><h2 class="text-2xl md:text-3xl font-black italic">DOKUMENTASI <span class="text-red-700">KEGIATAN</span></h2>{activity.galleryAlbumUrl && <a href={activity.galleryAlbumUrl} target="_blank" rel="noreferrer" class="shrink-0 rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-xs font-black uppercase tracking-widest text-red-300 transition-all hover:bg-red-500/20">Lihat Album Lengkap ↗</a>}</div>{media.length > 0 && <div class="grid sm:grid-cols-2 md:grid-cols-3 gap-5">{media.map(item => { const isVideo = item.mediaType === 'video' || isVideoMediaUrl(item.url); return <figure class="group"><div class="relative aspect-[4/3] overflow-hidden rounded-2xl border border-white/10 bg-slate-950 group-hover:border-red-500/40 transition-all">{isVideo ? <video controls preload="metadata" poster={item.posterUrl || undefined} class="h-full w-full object-cover"><source src={item.url} type={getVideoMimeType(item.url)} />Browser Anda belum mendukung pemutaran video.</video> : <img src={item.url} alt={item.caption || activity.title} loading="lazy" class="h-full w-full object-cover transition-transform group-hover:scale-105" onerror="this.classList.add('hidden'); this.nextElementSibling.classList.remove('hidden'); this.nextElementSibling.classList.add('flex')" />}<div class="absolute inset-0 hidden items-center justify-center bg-slate-950/80 px-4 text-center text-xs font-bold text-slate-500">Media tidak tersedia</div></div>{item.caption && <figcaption class="text-xs text-slate-500 mt-2">{item.caption}</figcaption>}</figure>; })}</div>}</section>}
 
         <section id="karya-peserta" class="mt-20 border-t border-white/10 pt-12"><div class="mb-8 flex flex-col gap-5 sm:flex-row sm:items-end sm:justify-between"><div><p class="text-xs font-black uppercase tracking-[0.3em] text-cyan-400">Ruang Karya Peserta</p><h2 class="mt-2 text-2xl font-black italic md:text-3xl">KARYA <span class="text-cyan-400">PESERTA</span></h2><p class="mt-2 max-w-2xl text-sm leading-relaxed text-slate-500">Hasil eksplorasi dan praktik peserta dalam kegiatan ini.</p></div><a href={'/jejak/' + activity.slug + '/kirim-karya'} class="shrink-0 rounded-xl border border-cyan-500/30 bg-cyan-500/10 px-4 py-3 text-xs font-black uppercase tracking-widest text-cyan-300 transition-all hover:bg-cyan-500/20 hover:text-white">Kirim Karya ↗</a></div>{publishedWorks.length > 0 ? <div class="grid gap-5 md:grid-cols-2">{publishedWorks.map(work => renderParticipantWorkCard(work, null, reactionCounts.get(work.id) || 0))}</div> : <div class="rounded-2xl border border-dashed border-white/10 bg-white/5 p-8 text-center"><p class="text-sm text-slate-500">Belum ada karya peserta yang dipublikasikan.</p><p class="mt-2 text-xs text-slate-600">Jika Anda mengikuti kegiatan ini, Anda dapat mengirimkan karya untuk ditinjau.</p></div>}</section>
         <section id="testimoni" class="mt-20 border-t border-white/10 pt-12"><div class="mb-8 flex flex-col gap-5 sm:flex-row sm:items-end sm:justify-between"><div><p class="text-xs font-black uppercase tracking-[0.3em] text-cyan-400">Pengalaman Peserta</p><h2 class="mt-2 text-2xl font-black italic md:text-3xl">TESTIMONI <span class="text-cyan-400">PESERTA</span></h2><p class="mt-2 max-w-2xl text-sm leading-relaxed text-slate-500">Cerita singkat dari peserta yang mengikuti kegiatan ini.</p></div><a href={`/jejak/${activity.slug}/testimoni`} class="shrink-0 rounded-xl border border-cyan-500/30 bg-cyan-500/10 px-4 py-3 text-xs font-black uppercase tracking-widest text-cyan-300 transition-all hover:bg-cyan-500/20 hover:text-white">Bagikan Pengalaman ↗</a></div>{testimonials.length > 0 ? <div class="grid gap-5 md:grid-cols-2 lg:grid-cols-3">{testimonials.map(testimonial => renderTestimonialCard(testimonial))}</div> : <div class="rounded-2xl border border-dashed border-white/10 bg-white/5 p-8 text-center"><p class="text-sm text-slate-500">Belum ada testimoni yang dipublikasikan.</p><p class="mt-2 text-xs text-slate-600">Anda dapat menjadi peserta pertama yang membagikan pengalaman.</p></div>}</section>
@@ -2589,6 +2590,99 @@ async function uploadToS3(file: File, folder: string): Promise<string> {
   return `${baseUrl}/${bucket}/${key}`;
 }
 
+function isVideoMediaUrl(value: string) {
+  return /\.(mp4|webm|mov)(?:[?#].*)?$/i.test(value);
+}
+
+function getVideoMimeType(value: string) {
+  if (/\.webm(?:[?#].*)?$/i.test(value)) return 'video/webm';
+  if (/\.mov(?:[?#].*)?$/i.test(value)) return 'video/quicktime';
+  return 'video/mp4';
+}
+
+async function runFfmpeg(args: string[]) {
+  const command = Bun.spawn(['ffmpeg', ...args], { stdout: 'ignore', stderr: 'pipe' });
+  const exitCode = await command.exited;
+  if (exitCode !== 0) {
+    const details = command.stderr ? await new Response(command.stderr).text() : '';
+    throw new Error(`Video gagal diproses${details ? `: ${details.trim().slice(-240)}` : '.'}`);
+  }
+}
+
+async function uploadVideoToS3(file: File, folder: string): Promise<{ url: string; posterUrl: string }> {
+  const maxSize = 100 * 1024 * 1024;
+  const supportedTypes = new Set(['video/mp4', 'video/webm', 'video/quicktime']);
+  if (!supportedTypes.has(file.type)) {
+    throw new Error('Format video harus MP4, WebM, atau MOV.');
+  }
+  if (file.size > maxSize) {
+    throw new Error('Ukuran video maksimal 100 MB.');
+  }
+
+  const tempDir = await mkdtemp('/tmp/ferilee-video-');
+  const inputPath = `${tempDir}/input-media`;
+  const videoPath = `${tempDir}/optimized.mp4`;
+  const posterPath = `${tempDir}/poster.jpg`;
+
+  try {
+    await Bun.write(inputPath, await file.arrayBuffer());
+    await runFfmpeg([
+      '-y',
+      '-i', inputPath,
+      '-map', '0:v:0',
+      '-map', '0:a?',
+      '-vf', "scale=w='min(1920,iw)':h=-2",
+      '-c:v', 'libx264',
+      '-preset', 'fast',
+      '-crf', '23',
+      '-pix_fmt', 'yuv420p',
+      '-c:a', 'aac',
+      '-b:a', '128k',
+      '-movflags', '+faststart',
+      videoPath,
+    ]);
+    await runFfmpeg([
+      '-y',
+      '-i', inputPath,
+      '-frames:v', '1',
+      '-vf', "scale=w='min(1200,iw)':h=-2",
+      '-q:v', '2',
+      posterPath,
+    ]);
+
+    const videoKey = `${folder}/${Date.now()}-${crypto.randomUUID()}.mp4`;
+    const posterKey = `${folder}/${Date.now()}-${crypto.randomUUID()}.webp`;
+    const videoBody = Buffer.from(await Bun.file(videoPath).arrayBuffer());
+    const posterBody = await sharp(posterPath)
+      .webp({ quality: 82, effort: 4 })
+      .toBuffer();
+
+    await s3Client.send(new PutObjectCommand({
+      Bucket: process.env.S3_BUCKET,
+      Key: videoKey,
+      Body: videoBody,
+      ContentType: 'video/mp4',
+      CacheControl: 'public, max-age=31536000, immutable',
+    }));
+    await s3Client.send(new PutObjectCommand({
+      Bucket: process.env.S3_BUCKET,
+      Key: posterKey,
+      Body: posterBody,
+      ContentType: 'image/webp',
+      CacheControl: 'public, max-age=31536000, immutable',
+    }));
+
+    const baseUrl = process.env.S3_PUBLIC_BASE_URL?.replace(/\/$/, '');
+    const bucket = process.env.S3_BUCKET;
+    return {
+      url: `${baseUrl}/${bucket}/${videoKey}`,
+      posterUrl: `${baseUrl}/${bucket}/${posterKey}`,
+    };
+  } finally {
+    await rm(tempDir, { recursive: true, force: true });
+  }
+}
+
 async function notifySubscribers(post: { title: string; slug: string }) {
   try {
     const apiKey = process.env.RESEND_API_KEY;
@@ -2939,7 +3033,7 @@ app.post('/admin/activities/save', async (c) => {
   const galleryFilesValue = body.galleryFiles;
   const galleryFiles = (Array.isArray(galleryFilesValue) ? galleryFilesValue : [galleryFilesValue]).filter((file): file is File => file instanceof File && file.size > 0);
   let coverImage = String(body.coverImage || '').trim();
-  let uploadedGalleryUrls: string[] = [];
+  let uploadedGalleryMedia: Array<{ url: string; mediaType: string; posterUrl: string | null }> = [];
   const linkLabels = Array.isArray(body.activityLinkLabel) ? body.activityLinkLabel : body.activityLinkLabel ? [body.activityLinkLabel] : [];
   const linkUrls = Array.isArray(body.activityLinkUrl) ? body.activityLinkUrl : body.activityLinkUrl ? [body.activityLinkUrl] : [];
   const linkAvailableFrom = Array.isArray(body.activityLinkAvailableFrom) ? body.activityLinkAvailableFrom : body.activityLinkAvailableFrom ? [body.activityLinkAvailableFrom] : [];
@@ -2968,7 +3062,13 @@ app.post('/admin/activities/save', async (c) => {
     if (coverImageFile instanceof File && coverImageFile.size > 0) {
       coverImage = await uploadToS3(coverImageFile, 'activity-covers');
     }
-    uploadedGalleryUrls = await Promise.all(galleryFiles.map(file => uploadToS3(file, 'activity-gallery')));
+    uploadedGalleryMedia = await Promise.all(galleryFiles.map(async (file) => {
+      if (file.type.startsWith('video/')) {
+        const video = await uploadVideoToS3(file, 'activity-gallery');
+        return { url: video.url, mediaType: 'video', posterUrl: video.posterUrl };
+      }
+      return { url: await uploadToS3(file, 'activity-gallery'), mediaType: 'image', posterUrl: null };
+    }));
   } catch (err: any) {
     return c.text(err.message || 'Gagal menyimpan gambar kegiatan.', 500);
   }
@@ -3011,9 +3111,25 @@ app.post('/admin/activities/save', async (c) => {
   }
 
   const galleryUrls = String(body.galleryUrls || '').split('\n').map(url => url.trim()).filter(Boolean);
-  const allGalleryUrls = [...uploadedGalleryUrls, ...galleryUrls];
-  if (activityId && allGalleryUrls.length > 0) {
-    await db.insert(activityMediaTable).values(allGalleryUrls.map((url, index) => ({ activityId: activityId!, url, sortOrder: index, mediaType: 'image' })));
+  let existingGalleryMedia: Array<{ url: string; mediaType?: string; posterUrl?: string | null }> = [];
+  try {
+    const parsed = JSON.parse(String(body.galleryMediaMetadata || '[]'));
+    if (Array.isArray(parsed)) existingGalleryMedia = parsed.filter(item => item && typeof item.url === 'string');
+  } catch {
+    existingGalleryMedia = [];
+  }
+  const existingMediaByUrl = new Map(existingGalleryMedia.map(item => [item.url, item]));
+  const linkedGalleryMedia = galleryUrls.map(url => {
+    const existing = existingMediaByUrl.get(url);
+    return {
+      url,
+      mediaType: existing?.mediaType || (isVideoMediaUrl(url) ? 'video' : 'image'),
+      posterUrl: existing?.posterUrl || null,
+    };
+  });
+  const allGalleryMedia = [...uploadedGalleryMedia, ...linkedGalleryMedia];
+  if (activityId && allGalleryMedia.length > 0) {
+    await db.insert(activityMediaTable).values(allGalleryMedia.map((item, index) => ({ activityId: activityId!, url: item.url, sortOrder: index, mediaType: item.mediaType, posterUrl: item.posterUrl })));
   }
   if (activityId) {
     await db.delete(activityLinkTable).where(eq(activityLinkTable.activityId, activityId));
@@ -3197,6 +3313,7 @@ function renderActivityForm(c: any, activity: any = null, media: any[] = [], lin
   const inputClass = "peer w-full bg-slate-950/50 border border-white/10 rounded-2xl px-5 pt-7 pb-3 focus:outline-none focus:border-cyan-500 transition-all text-white text-lg placeholder-transparent";
   const labelClass = "absolute left-5 top-5 text-slate-500 text-xs font-bold uppercase tracking-widest transition-all pointer-events-none peer-placeholder-shown:text-slate-500 peer-placeholder-shown:text-base peer-placeholder-shown:top-5 peer-placeholder-shown:font-medium peer-focus:top-2 peer-focus:text-[10px] peer-focus:text-cyan-500 peer-focus:uppercase peer-focus:font-bold peer-[:not(:placeholder-shown)]:top-2 peer-[:not(:placeholder-shown)]:text-[10px] peer-[:not(:placeholder-shown)]:text-cyan-500 peer-[:not(:placeholder-shown)]:uppercase peer-[:not(:placeholder-shown)]:font-bold";
   const galleryUrls = media.map(item => item.url).join('\n');
+  const galleryMediaMetadata = JSON.stringify(media.map(item => ({ url: item.url, mediaType: item.mediaType || 'image', posterUrl: item.posterUrl || null })));
   const additionalLinks = links.filter(link => link.label && link.url);
 
   return c.html(
@@ -3206,6 +3323,7 @@ function renderActivityForm(c: any, activity: any = null, media: any[] = [], lin
         <h1 class="text-4xl font-black mt-8 mb-12 italic tracking-tight">{activity ? 'EDIT' : 'NEW'} <span class="text-cyan-400">JEJAK</span></h1>
         <form id="activity-form" action="/admin/activities/save" method="post" enctype="multipart/form-data" class="space-y-8 bg-white/5 p-8 rounded-[2.5rem] border border-white/10 backdrop-blur-xl">
           {activity && <input type="hidden" name="id" value={activity.id} />}
+          <input type="hidden" name="galleryMediaMetadata" value={galleryMediaMetadata} />
           <div class="grid md:grid-cols-2 gap-6">
             <div class="relative"><input type="text" name="title" id="a-title" value={activity?.title || ''} placeholder=" " required class={inputClass} /><label for="a-title" class={labelClass}>Activity Title</label></div>
             <div class="relative"><input type="text" name="slug" id="a-slug" value={activity?.slug || ''} placeholder=" " class={inputClass} /><label for="a-slug" class={labelClass}>Slug (optional)</label></div>
@@ -3228,8 +3346,8 @@ function renderActivityForm(c: any, activity: any = null, media: any[] = [], lin
           <div class="space-y-2"><label for="activity-cover-file" class="text-[10px] font-black text-slate-500 uppercase tracking-widest pl-1">Unggah gambar sampul kegiatan</label><input id="activity-cover-file" type="file" name="coverImageFile" accept="image/jpeg,image/png,image/webp" class="w-full bg-slate-950/50 border border-white/10 rounded-2xl px-5 py-4 text-sm text-slate-300 file:mr-4 file:rounded-lg file:border-0 file:bg-cyan-700 file:px-4 file:py-2 file:text-xs file:font-black file:text-white" /><p class="text-xs leading-relaxed text-slate-500">Pilih gambar JPG, PNG, atau WebP; maksimal 10 MB.</p></div>
           <div class="relative"><input type="text" name="coverImage" id="a-cover" value={activity?.coverImage || ''} placeholder=" " class={inputClass} /><label for="a-cover" class={labelClass}>Atau gunakan tautan gambar sampul</label><p class="mt-2 text-xs leading-relaxed text-slate-500">Jika keduanya diisi, gambar yang diunggah akan digunakan.</p></div>
           <div class="grid gap-6 md:grid-cols-2">
-            <div class="space-y-2"><label for="activity-gallery-files" class="text-[10px] font-black text-slate-500 uppercase tracking-widest pl-1">Tambahkan foto dokumentasi</label><input id="activity-gallery-files" type="file" name="galleryFiles" accept="image/jpeg,image/png,image/webp" multiple class="w-full bg-slate-950/50 border border-white/10 rounded-2xl px-5 py-4 text-sm text-slate-300 file:mr-4 file:rounded-lg file:border-0 file:bg-cyan-700 file:px-4 file:py-2 file:text-xs file:font-black file:text-white" /><p class="text-xs leading-relaxed text-slate-500">Pilih beberapa foto sekaligus. Maksimal 10 MB per foto.</p></div>
-            <div class="relative"><textarea name="galleryUrls" id="a-gallery" placeholder=" " class={inputClass + ' min-h-[140px] font-mono text-sm leading-relaxed'}>{galleryUrls}</textarea><label for="a-gallery" class={labelClass}>Atau gunakan tautan foto</label><p class="mt-2 text-xs leading-relaxed text-slate-500">Gunakan tautan langsung ke file gambar, bukan tautan album.</p></div>
+            <div class="space-y-2"><label for="activity-gallery-files" class="text-[10px] font-black text-slate-500 uppercase tracking-widest pl-1">Tambahkan foto atau video dokumentasi</label><input id="activity-gallery-files" type="file" name="galleryFiles" accept="image/jpeg,image/png,image/webp,video/mp4,video/webm,video/quicktime" multiple class="w-full bg-slate-950/50 border border-white/10 rounded-2xl px-5 py-4 text-sm text-slate-300 file:mr-4 file:rounded-lg file:border-0 file:bg-cyan-700 file:px-4 file:py-2 file:text-xs file:font-black file:text-white" /><p class="text-xs leading-relaxed text-slate-500">Foto maksimal 10 MB. Video MP4, WebM, atau MOV maksimal 100 MB.</p></div>
+            <div class="relative"><textarea name="galleryUrls" id="a-gallery" placeholder=" " class={inputClass + ' min-h-[140px] font-mono text-sm leading-relaxed'}>{galleryUrls}</textarea><label for="a-gallery" class={labelClass}>Atau gunakan tautan media</label><p class="mt-2 text-xs leading-relaxed text-slate-500">Gunakan tautan langsung ke file foto atau video, bukan tautan album.</p></div>
           </div>
           <div class="relative"><input type="url" name="galleryAlbumUrl" id="a-gallery-album" value={activity?.galleryAlbumUrl || ''} placeholder=" " class={inputClass} /><label for="a-gallery-album" class={labelClass}>Google Photos Album URL (optional)</label></div>
           <div class="grid md:grid-cols-3 gap-6">
@@ -3271,7 +3389,7 @@ function renderActivityForm(c: any, activity: any = null, media: any[] = [], lin
             const hasFiles = fileInputs.some(input => input.files.length > 0);
             if (!button) return;
             button.disabled = true;
-            button.textContent = hasFiles ? 'Mengunggah gambar…' : 'Menyimpan kegiatan…';
+            button.textContent = hasFiles ? 'Mengunggah media…' : 'Menyimpan kegiatan…';
           });
         `}} />
       </div>

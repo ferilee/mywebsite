@@ -282,7 +282,7 @@ describe("Admin Access Control", () => {
     expect(await testimonialsRes.text()).toContain("TESTIMONI");
   });
 
-  it("GET /admin/activities/new exposes RustFS gallery upload and album link fields", async () => {
+  it("GET /admin/activities/new exposes gallery media and album link fields", async () => {
     const session = encodeURIComponent(JSON.stringify({
       email: "admin@example.com",
       name: "Admin User",
@@ -294,9 +294,9 @@ describe("Admin Access Control", () => {
     expect(res.status).toBe(200);
     const html = await res.text();
     expect(html).toContain('name="galleryFiles"');
-    expect(html).toContain('accept="image/jpeg,image/png,image/webp"');
-    expect(html).toContain("Tambahkan foto dokumentasi");
-    expect(html).toContain("Atau gunakan tautan foto");
+    expect(html).toContain('accept="image/jpeg,image/png,image/webp,video/mp4,video/webm,video/quicktime"');
+    expect(html).toContain("Tambahkan foto atau video dokumentasi");
+    expect(html).toContain("Atau gunakan tautan media");
     expect(html).toContain('name="galleryAlbumUrl"');
     expect(html).toContain("Google Photos Album URL");
     expect(html).toContain('name="activityLinkLabel"');

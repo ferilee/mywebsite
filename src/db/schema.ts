@@ -93,6 +93,7 @@ export const activityMedia = sqliteTable('activity_media', {
   caption: text('caption'),
   sortOrder: integer('sort_order').default(0),
   mediaType: text('media_type').default('image'),
+  posterUrl: text('poster_url'),
 });
 
 export const activityLinks = sqliteTable('activity_links', {
