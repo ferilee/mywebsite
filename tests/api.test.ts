@@ -188,7 +188,8 @@ describe("Main Pages", () => {
     expect(html).toContain('name="participantName"');
     expect(html).toContain('name="consent"');
     expect(html).toContain('name="photoFile"');
-    expect(html).toContain('otomatis dikonversi ke WebP');
+    expect(html).toContain('id="testimonial-upload-status"');
+    expect(html).toContain('Unggah foto profil');
     expect(html).toContain('enctype="multipart/form-data"');
   });
 
@@ -294,7 +295,8 @@ describe("Admin Access Control", () => {
     const html = await res.text();
     expect(html).toContain('name="galleryFiles"');
     expect(html).toContain('accept="image/jpeg,image/png,image/webp"');
-    expect(html).toContain("otomatis WebP");
+    expect(html).toContain("Tambahkan foto dokumentasi");
+    expect(html).toContain("Atau gunakan tautan foto");
     expect(html).toContain('name="galleryAlbumUrl"');
     expect(html).toContain("Google Photos Album URL");
     expect(html).toContain('name="activityLinkLabel"');
@@ -337,7 +339,9 @@ describe("Admin Access Control", () => {
     expect(html).toContain('name="participantName"');
     expect(html).toContain('name="previewImageFile"');
     expect(html).toContain('accept="image/jpeg,image/png,image/webp"');
-    expect(html).toContain("otomatis WebP");
+    expect(html).toContain("Unggah gambar pratinjau");
+    expect(html).toContain("Atau gunakan tautan gambar");
+    expect(html).toContain('id="admin-work-upload-status"');
     expect(html).toContain("Pending review");
   });
 });

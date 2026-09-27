@@ -762,7 +762,20 @@ function renderTestimonialSubmission(c: any, activity: any) {
   const destination = `/jejak/${activity.slug}/testimoni`;
   return c.html(
     <Layout title={`Bagikan Pengalaman | ${activity.title}`} user={c.var.user} needsProfiling={c.var.needsProfiling} currentPath="/jejak">
-      <div class="mx-auto max-w-3xl px-6 py-28 md:py-32"><a href={`/jejak/${activity.slug}#testimoni`} class="text-xs font-black uppercase tracking-widest text-red-500 transition-colors hover:text-white">← Kembali ke aktivitas</a><header class="mt-8 border-b border-white/10 pb-8"><p class="text-xs font-black uppercase tracking-[0.3em] text-cyan-400">Pengalaman Peserta</p><h1 class="mt-4 text-4xl font-black italic tracking-tight md:text-6xl">BAGIKAN <span class="text-cyan-400">PENGALAMAN</span></h1><p class="mt-5 leading-relaxed text-slate-400">Ceritakan pengalaman Anda mengikuti <strong class="text-slate-200">{activity.title}</strong>. Testimoni akan ditinjau sebelum ditampilkan secara publik.</p></header>{query.submitted && <div class="mt-8 rounded-2xl border border-green-500/20 bg-green-500/10 p-5 text-sm leading-relaxed text-green-200">Terima kasih. Testimoni Anda sudah diterima dan menunggu moderasi.</div>}{query.error && <div class="mt-8 rounded-2xl border border-red-500/20 bg-red-500/10 p-5 text-sm leading-relaxed text-red-200">{query.error === 'upload' ? 'Foto gagal diunggah. Pastikan formatnya JPG, PNG, atau WebP dan ukurannya maksimal 5 MB.' : 'Mohon lengkapi nama, testimoni, dan persetujuan publikasi.'}</div>}<form action={destination} method="post" enctype="multipart/form-data" class="mt-8 space-y-5 rounded-3xl border border-white/10 bg-white/5 p-6 backdrop-blur-xl sm:p-8"><input type="text" name="website" tabIndex={-1} autoComplete="off" class="hidden" aria-hidden="true" /><div class="grid gap-5 sm:grid-cols-2"><input type="text" name="participantName" placeholder="Nama Anda" required maxLength={100} class="w-full rounded-xl border border-white/10 bg-slate-950/60 px-4 py-4 text-sm text-white placeholder:text-slate-500 focus:border-cyan-500 focus:outline-none" /><input type="text" name="institution" placeholder="Institusi (opsional)" maxLength={150} class="w-full rounded-xl border border-white/10 bg-slate-950/60 px-4 py-4 text-sm text-white placeholder:text-slate-500 focus:border-cyan-500 focus:outline-none" /></div><div class="space-y-2"><label class="block text-[10px] font-black uppercase tracking-widest text-slate-500">Foto Profil (opsional)</label><input type="file" name="photoFile" accept="image/jpeg,image/png,image/webp" class="w-full rounded-xl border border-white/10 bg-slate-950/60 px-4 py-3 text-sm text-slate-300 file:mr-4 file:rounded-lg file:border-0 file:bg-cyan-700 file:px-4 file:py-2 file:text-xs file:font-black file:text-white" /><p class="text-xs leading-relaxed text-slate-500">JPG, PNG, atau WebP. Maksimal 5 MB; otomatis dikonversi ke WebP.</p></div><textarea name="content" placeholder="Ceritakan pengalaman Anda..." required minLength={20} maxLength={1000} class="min-h-40 w-full rounded-xl border border-white/10 bg-slate-950/60 px-4 py-4 text-sm leading-relaxed text-white placeholder:text-slate-500 focus:border-cyan-500 focus:outline-none"></textarea><label class="flex items-start gap-3 rounded-xl border border-white/10 bg-slate-950/40 p-4 text-xs leading-relaxed text-slate-400"><input type="checkbox" name="consent" required class="mt-0.5 h-4 w-4 shrink-0 accent-cyan-500" /> Saya menyetujui nama, foto, institusi, dan testimoni ini ditampilkan pada website.</label><button type="submit" class="w-full rounded-xl bg-cyan-700 px-5 py-4 text-xs font-black uppercase tracking-widest text-white transition-colors hover:bg-cyan-800">Kirim Testimoni untuk Ditinjau</button></form></div>
+      <div class="mx-auto max-w-3xl px-6 py-28 md:py-32"><a href={`/jejak/${activity.slug}#testimoni`} class="text-xs font-black uppercase tracking-widest text-red-500 transition-colors hover:text-white">← Kembali ke aktivitas</a><header class="mt-8 border-b border-white/10 pb-8"><p class="text-xs font-black uppercase tracking-[0.3em] text-cyan-400">Pengalaman Peserta</p><h1 class="mt-4 text-4xl font-black italic tracking-tight md:text-6xl">BAGIKAN <span class="text-cyan-400">PENGALAMAN</span></h1><p class="mt-5 leading-relaxed text-slate-400">Ceritakan pengalaman Anda mengikuti <strong class="text-slate-200">{activity.title}</strong>. Testimoni akan ditinjau sebelum ditampilkan secara publik.</p></header>{query.submitted && <div class="mt-8 rounded-2xl border border-green-500/20 bg-green-500/10 p-5 text-sm leading-relaxed text-green-200">Terima kasih. Testimoni Anda sudah diterima dan menunggu moderasi.</div>}{query.error && <div class="mt-8 rounded-2xl border border-red-500/20 bg-red-500/10 p-5 text-sm leading-relaxed text-red-200">{query.error === 'upload' ? 'Foto gagal diunggah. Pastikan formatnya JPG, PNG, atau WebP dan ukurannya maksimal 5 MB.' : 'Mohon lengkapi nama, testimoni, dan persetujuan publikasi.'}</div>}<form id="testimonial-form" action={destination} method="post" enctype="multipart/form-data" class="mt-8 space-y-5 rounded-3xl border border-white/10 bg-white/5 p-6 backdrop-blur-xl sm:p-8"><input type="text" name="website" tabIndex={-1} autoComplete="off" class="hidden" aria-hidden="true" /><div class="grid gap-5 sm:grid-cols-2"><input type="text" name="participantName" placeholder="Nama Anda" required maxLength={100} class="w-full rounded-xl border border-white/10 bg-slate-950/60 px-4 py-4 text-sm text-white placeholder:text-slate-500 focus:border-cyan-500 focus:outline-none" /><input type="text" name="institution" placeholder="Institusi (opsional)" maxLength={150} class="w-full rounded-xl border border-white/10 bg-slate-950/60 px-4 py-4 text-sm text-white placeholder:text-slate-500 focus:border-cyan-500 focus:outline-none" /></div><div class="space-y-2"><label for="testimonial-photo-file" class="block text-[10px] font-black uppercase tracking-widest text-slate-500">Unggah foto profil <span class="font-normal normal-case tracking-normal text-slate-600">(opsional)</span></label><input id="testimonial-photo-file" type="file" name="photoFile" accept="image/jpeg,image/png,image/webp" class="w-full rounded-xl border border-white/10 bg-slate-950/60 px-4 py-3 text-sm text-slate-300 file:mr-4 file:rounded-lg file:border-0 file:bg-cyan-700 file:px-4 file:py-2 file:text-xs file:font-black file:text-white" /><p class="text-xs leading-relaxed text-slate-500">Pilih gambar JPG, PNG, atau WebP; maksimal 5 MB.</p><p id="testimonial-upload-status" role="status" class="hidden text-xs font-bold text-cyan-300"></p></div><textarea name="content" placeholder="Ceritakan pengalaman Anda..." required minLength={20} maxLength={1000} class="min-h-40 w-full rounded-xl border border-white/10 bg-slate-950/60 px-4 py-4 text-sm leading-relaxed text-white placeholder:text-slate-500 focus:border-cyan-500 focus:outline-none"></textarea><label class="flex items-start gap-3 rounded-xl border border-white/10 bg-slate-950/40 p-4 text-xs leading-relaxed text-slate-400"><input type="checkbox" name="consent" required class="mt-0.5 h-4 w-4 shrink-0 accent-cyan-500" /> Saya menyetujui nama, foto, institusi, dan testimoni ini ditampilkan pada website.</label><button id="testimonial-submit-button" type="submit" class="w-full rounded-xl bg-cyan-700 px-5 py-4 text-xs font-black uppercase tracking-widest text-white transition-colors hover:bg-cyan-800 disabled:cursor-wait disabled:opacity-70">Kirim Testimoni untuk Ditinjau</button></form><script dangerouslySetInnerHTML={{ __html: `
+        document.getElementById('testimonial-form')?.addEventListener('submit', function() {
+          const button = document.getElementById('testimonial-submit-button');
+          const status = document.getElementById('testimonial-upload-status');
+          const fileInput = document.getElementById('testimonial-photo-file');
+          if (!button) return;
+          button.disabled = true;
+          button.textContent = fileInput?.files.length ? 'Mengunggah foto…' : 'Mengirim testimoni…';
+          if (fileInput?.files.length && status) {
+            status.textContent = 'Foto sedang diunggah, mohon tunggu…';
+            status.classList.remove('hidden');
+          }
+        });
+      `}} /></div>
     </Layout>
   );
 }
@@ -2446,19 +2459,19 @@ function renderBlogForm(c: any, post: any = null, user: any = null) {
             <label for="content-input" class={labelClass}>Markdown Content</label>
           </div>
 
-          <div class="grid md:grid-cols-2 gap-6">
-            <div class="relative">
-              <input type="text" name="category" id="cat" value={post?.category || ''} placeholder=" " class={inputClass} />
-              <label for="cat" class={labelClass}>Category</label>
-            </div>
-            <div class="relative">
-              <input type="text" name="coverImage" id="cover" value={post?.coverImage || ''} placeholder=" " class={inputClass} />
-              <label for="cover" class={labelClass}>Cover Image URL</label>
-            </div>
+          <div class="relative">
+            <input type="text" name="category" id="cat" value={post?.category || ''} placeholder=" " class={inputClass} />
+            <label for="cat" class={labelClass}>Category</label>
           </div>
-          <div class="relative space-y-2 mt-4">
-            <label class="text-[10px] font-black text-slate-500 uppercase tracking-widest pl-1">Atau Upload Cover Image Baru <span class="text-cyan-400">(otomatis WebP)</span></label>
-            <input type="file" name="coverImageFile" accept="image/jpeg,image/png,image/webp" class="w-full bg-slate-950/50 border border-white/10 rounded-2xl px-5 py-4 text-sm text-slate-300 file:mr-4 file:rounded-lg file:border-0 file:bg-red-700 file:px-4 file:py-2 file:text-xs file:font-black file:text-white hover:file:bg-red-800 cursor-pointer transition-all" />
+          <div class="relative space-y-2">
+            <label for="blog-cover-file" class="text-[10px] font-black text-slate-500 uppercase tracking-widest pl-1">Unggah gambar sampul</label>
+            <input id="blog-cover-file" type="file" name="coverImageFile" accept="image/jpeg,image/png,image/webp" class="w-full bg-slate-950/50 border border-white/10 rounded-2xl px-5 py-4 text-sm text-slate-300 file:mr-4 file:rounded-lg file:border-0 file:bg-red-700 file:px-4 file:py-2 file:text-xs file:font-black file:text-white hover:file:bg-red-800 cursor-pointer transition-all" />
+            <p class="text-xs leading-relaxed text-slate-500">Pilih gambar JPG, PNG, atau WebP; maksimal 10 MB.</p>
+          </div>
+          <div class="relative">
+            <input type="text" name="coverImage" id="cover" value={post?.coverImage || ''} placeholder=" " class={inputClass} />
+            <label for="cover" class={labelClass}>Atau gunakan tautan gambar</label>
+            <p class="mt-2 text-xs leading-relaxed text-slate-500">Jika keduanya diisi, gambar yang diunggah akan digunakan.</p>
           </div>
 
           <div class="relative">
@@ -2473,7 +2486,7 @@ function renderBlogForm(c: any, post: any = null, user: any = null) {
             <button id="submit-btn" type="submit" class="px-10 py-4 bg-red-700 text-white font-black rounded-xl btn-shadow hover:scale-[1.02] disabled:opacity-50 disabled:scale-100 transition-all tracking-widest uppercase relative overflow-hidden group">
               <span id="btn-text" class="transition-opacity">SAVE POST</span>
               <div id="btn-loader" class="absolute inset-0 flex items-center justify-center bg-red-900 opacity-0 pointer-events-none transition-opacity">
-                <span id="loader-msg" class="text-sm font-black">UPLOADING...</span>
+                <span id="loader-msg" class="text-sm font-black">MENYIAPKAN...</span>
               </div>
             </button>
             <a href="/admin" class="px-10 py-4 border border-white/10 rounded-xl font-black text-slate-400 hover:text-white transition-all text-center flex items-center justify-center">CANCEL</a>
@@ -2492,9 +2505,9 @@ function renderBlogForm(c: any, post: any = null, user: any = null) {
             e.preventDefault();
             
             if (fileInput.files.length > 0) {
-              loaderMsg.innerHTML = '<span class="animate-pulse">UPLOADING TO RUSTFS...</span>';
+              loaderMsg.innerHTML = '<span class="animate-pulse">MENGUNGGAH GAMBAR...</span>';
             } else {
-              loaderMsg.innerHTML = '<span class="animate-pulse">SAVING...</span>';
+              loaderMsg.innerHTML = '<span class="animate-pulse">MENYIMPAN...</span>';
             }
             
             btn.disabled = true;
@@ -2509,17 +2522,17 @@ function renderBlogForm(c: any, post: any = null, user: any = null) {
               });
               
               if (res.ok) {
-                loaderMsg.innerHTML = '<span class="text-green-400">SUCCESS!</span>';
+                loaderMsg.innerHTML = '<span class="text-green-400">BERHASIL!</span>';
                 setTimeout(() => window.location.href = '/admin', 800);
               } else {
                 const errorText = await res.text();
-                alert('Upload Gagal: ' + errorText);
+                alert('Penyimpanan gagal: ' + errorText);
                 btn.disabled = false;
                 btnText.style.opacity = '1';
                 btnLoader.style.opacity = '0';
               }
             } catch (err) {
-              alert('Network Error: ' + err.message);
+              alert('Terjadi kesalahan jaringan: ' + err.message);
               btn.disabled = false;
               btnText.style.opacity = '1';
               btnLoader.style.opacity = '0';
@@ -2638,7 +2651,7 @@ app.post('/admin/blog/save', async (c) => {
       coverImage = await uploadToS3(coverImageFile, 'blog-covers');
     }
   } catch (err: any) {
-    return c.text(err.message || 'Failed to upload to RustFS', 500);
+    return c.text(err.message || 'Gagal menyimpan gambar.', 500);
   }
   const data = {
     title: body.title as string,
@@ -2688,7 +2701,7 @@ app.post('/admin/projects/save', async (c) => {
       image = await uploadToS3(projectImageFile, 'project-thumbnails');
     }
   } catch (err: any) {
-    return c.text(err.message || 'Failed to upload to RustFS', 500);
+    return c.text(err.message || 'Gagal menyimpan gambar.', 500);
   }
   const data = {
     title: body.title as string,
@@ -2957,7 +2970,7 @@ app.post('/admin/activities/save', async (c) => {
     }
     uploadedGalleryUrls = await Promise.all(galleryFiles.map(file => uploadToS3(file, 'activity-gallery')));
   } catch (err: any) {
-    return c.text(err.message || 'Failed to upload activity media to RustFS', 500);
+    return c.text(err.message || 'Gagal menyimpan gambar kegiatan.', 500);
   }
 
   const data = {
@@ -3110,13 +3123,28 @@ function renderParticipantSubmission(c: any, activity: any) {
                 <legend class="px-2 text-xs font-black uppercase tracking-widest text-cyan-300">Bukti karya</legend>
                 <p class="text-sm leading-relaxed text-slate-400">Isi minimal salah satu: URL karya atau gambar preview.</p>
                 <div><label for="work-url" class="mb-2 block text-xs font-black uppercase tracking-widest text-slate-500">URL karya <span class="font-normal normal-case tracking-normal text-slate-600">(opsional jika ada preview)</span></label><input id="work-url" type="url" name="workUrl" placeholder="https://..." class={fieldClass} /></div>
-                <div><label for="preview-image-url" class="mb-2 block text-xs font-black uppercase tracking-widest text-slate-500">URL gambar preview <span class="font-normal normal-case tracking-normal text-slate-600">(opsional)</span></label><input id="preview-image-url" type="url" name="previewImage" placeholder="https://..." class={fieldClass} /></div>
-                <div><label for="preview-image-file" class="mb-2 block text-xs font-black uppercase tracking-widest text-slate-500">Unggah gambar preview <span class="font-normal normal-case tracking-normal text-slate-600">(opsional)</span></label><input id="preview-image-file" type="file" name="previewImageFile" accept="image/jpeg,image/png,image/webp" class="w-full rounded-2xl border border-white/10 bg-slate-950/60 px-5 py-4 text-sm text-slate-300 file:mr-4 file:rounded-lg file:border-0 file:bg-cyan-700 file:px-4 file:py-2 file:text-xs file:font-black file:text-white" /><p class="mt-2 text-xs leading-relaxed text-slate-500">JPG, PNG, atau WebP; maksimal 10 MB. Gambar otomatis dikonversi ke WebP.</p></div>
+                <div><label for="preview-image-file" class="mb-2 block text-xs font-black uppercase tracking-widest text-slate-500">Unggah gambar pratinjau <span class="font-normal normal-case tracking-normal text-slate-600">(opsional)</span></label><input id="preview-image-file" type="file" name="previewImageFile" accept="image/jpeg,image/png,image/webp" class="w-full rounded-2xl border border-white/10 bg-slate-950/60 px-5 py-4 text-sm text-slate-300 file:mr-4 file:rounded-lg file:border-0 file:bg-cyan-700 file:px-4 file:py-2 file:text-xs file:font-black file:text-white" /><p class="mt-2 text-xs leading-relaxed text-slate-500">Pilih gambar JPG, PNG, atau WebP; maksimal 10 MB.</p><p id="participant-upload-status" role="status" class="hidden text-xs font-bold text-cyan-300"></p></div>
+                <div><label for="preview-image-url" class="mb-2 block text-xs font-black uppercase tracking-widest text-slate-500">Atau gunakan tautan gambar <span class="font-normal normal-case tracking-normal text-slate-600">(opsional)</span></label><input id="preview-image-url" type="url" name="previewImage" placeholder="https://..." class={fieldClass} /><p class="mt-2 text-xs leading-relaxed text-slate-500">Jika unggahan dan tautan diisi, gambar yang diunggah akan digunakan.</p></div>
               </fieldset>
               <div><label for="work-tags" class="mb-2 block text-xs font-black uppercase tracking-widest text-slate-500">Kategori atau tag <span class="font-normal normal-case tracking-normal text-slate-600">(opsional)</span></label><input id="work-tags" type="text" name="tags" placeholder="Contoh: AI, Matematika, Canva" class={fieldClass} /></div>
               <label class="flex items-start gap-3 rounded-2xl border border-white/10 bg-white/5 p-4 text-sm leading-relaxed text-slate-400"><input type="checkbox" name="consent" required class="mt-1 h-5 w-5 shrink-0 accent-cyan-600" /><span>Saya menyetujui karya, nama, dan institusi saya ditampilkan di Ruang Karya Peserta setelah ditinjau.</span></label>
-              <button id="participant-submit-button" type="submit" class="w-full rounded-2xl bg-cyan-700 px-6 py-4 text-sm font-black uppercase tracking-widest text-white transition-all hover:bg-cyan-800">Kirim Karya untuk Ditinjau</button>
+              <button id="participant-submit-button" type="submit" class="w-full rounded-2xl bg-cyan-700 px-6 py-4 text-sm font-black uppercase tracking-widest text-white transition-all hover:bg-cyan-800 disabled:cursor-wait disabled:opacity-70">Kirim Karya untuk Ditinjau</button>
             </form>
+            <script dangerouslySetInnerHTML={{ __html: `
+              document.getElementById('participant-submission-form')?.addEventListener('submit', function() {
+                const form = this;
+                const button = document.getElementById('participant-submit-button');
+                const status = document.getElementById('participant-upload-status');
+                const fileInput = document.getElementById('preview-image-file');
+                if (!button) return;
+                button.disabled = true;
+                button.textContent = fileInput?.files.length ? 'Mengunggah gambar…' : 'Mengirim karya…';
+                if (fileInput?.files.length && status) {
+                  status.textContent = 'Gambar sedang diunggah, mohon tunggu…';
+                  status.classList.remove('hidden');
+                }
+              });
+            `}} />
           </>
         )}
       </div>
@@ -3134,17 +3162,32 @@ function renderParticipantWorkForm(c: any, work: any = null, activities: any[] =
       <div class="mx-auto max-w-4xl px-6 pt-10 pb-32">
         <a href="/admin/works" class="text-xs font-black uppercase tracking-widest text-cyan-400 hover:text-white">← Participant Works</a>
         <h1 class="mt-8 mb-12 text-4xl font-black italic tracking-tight">{work ? 'EDIT' : 'NEW'} <span class="text-cyan-400">PARTICIPANT WORK</span></h1>
-        <form action="/admin/works/save" method="post" enctype="multipart/form-data" class="space-y-8 rounded-[2.5rem] border border-white/10 bg-white/5 p-8 backdrop-blur-xl">
+        <form id="participant-work-form" action="/admin/works/save" method="post" enctype="multipart/form-data" class="space-y-8 rounded-[2.5rem] border border-white/10 bg-white/5 p-8 backdrop-blur-xl">
           {work && <input type="hidden" name="id" value={work.id} />}
           <div class="relative"><select name="activityId" required class={`${inputClass} appearance-none`}><option value="">Pilih aktivitas workshop</option>{activities.map(activity => <option value={activity.id} selected={String(activity.id) === String(activityValue)}>{activity.title}</option>)}</select><label class={labelClass}>Activity</label></div>
           <div class="grid gap-6 md:grid-cols-2"><div class="relative"><input type="text" name="title" value={work?.title || ''} placeholder=" " required class={inputClass} /><label class={labelClass}>Work Title</label></div><div class="relative"><input type="text" name="participantName" value={work?.participantName || ''} placeholder=" " required class={inputClass} /><label class={labelClass}>Participant Name</label></div></div>
           <div class="grid gap-6 md:grid-cols-2"><div class="relative"><input type="text" name="institution" value={work?.institution || ''} placeholder=" " class={inputClass} /><label class={labelClass}>Institution (optional)</label></div><div class="relative"><input type="text" name="tags" value={work?.tags || ''} placeholder=" " class={inputClass} /><label class={labelClass}>Tags (comma separated)</label></div></div>
           <div class="relative"><textarea name="description" placeholder=" " class={`${inputClass} min-h-[150px] leading-relaxed`}>{work?.description || ''}</textarea><label class={labelClass}>Description</label></div>
           <div class="grid gap-6 md:grid-cols-2"><div class="relative"><input type="url" name="workUrl" value={work?.workUrl || ''} placeholder=" " class={inputClass} /><label class={labelClass}>Work URL (optional)</label></div><div class="relative"><input type="number" name="sortOrder" value={work?.sortOrder || 0} placeholder=" " min="0" class={inputClass} /><label class={labelClass}>Display Order</label></div></div>
-          <div class="grid gap-6 md:grid-cols-2"><div class="relative"><input type="url" name="previewImage" value={work?.previewImage || ''} placeholder=" " class={inputClass} /><label class={labelClass}>Preview Image URL</label></div><div class="space-y-2"><label class="pl-1 text-[10px] font-black uppercase tracking-widest text-slate-500">Or Upload Preview to RustFS <span class="text-cyan-400">(otomatis WebP)</span></label><input type="file" name="previewImageFile" accept="image/jpeg,image/png,image/webp" class="w-full rounded-2xl border border-white/10 bg-slate-950/50 px-5 py-4 text-sm text-slate-300 file:mr-4 file:rounded-lg file:border-0 file:bg-cyan-700 file:px-4 file:py-2 file:text-xs file:font-black file:text-white" /><p class="text-xs leading-relaxed text-slate-500">JPG, PNG, atau WebP; maksimal 10 MB.</p></div></div>
+          <div class="space-y-2"><label for="admin-preview-image-file" class="pl-1 text-[10px] font-black uppercase tracking-widest text-slate-500">Unggah gambar pratinjau</label><input id="admin-preview-image-file" type="file" name="previewImageFile" accept="image/jpeg,image/png,image/webp" class="w-full rounded-2xl border border-white/10 bg-slate-950/50 px-5 py-4 text-sm text-slate-300 file:mr-4 file:rounded-lg file:border-0 file:bg-cyan-700 file:px-4 file:py-2 file:text-xs file:font-black file:text-white" /><p class="text-xs leading-relaxed text-slate-500">Pilih gambar JPG, PNG, atau WebP; maksimal 10 MB.</p><p id="admin-work-upload-status" role="status" class="hidden text-xs font-bold text-cyan-300"></p></div>
+          <div class="relative"><input type="url" name="previewImage" value={work?.previewImage || ''} placeholder=" " class={inputClass} /><label class={labelClass}>Atau gunakan tautan gambar</label><p class="mt-2 text-xs leading-relaxed text-slate-500">Jika keduanya diisi, gambar yang diunggah akan digunakan.</p></div>
           <div class="flex flex-col gap-5 rounded-2xl border border-white/5 bg-slate-950/40 p-5"><label class="flex items-center gap-3 text-sm font-bold text-slate-300"><input type="checkbox" name="consent" checked={Boolean(work?.consent)} class="h-5 w-5 accent-cyan-600" /> Peserta menyetujui karya ditampilkan secara publik</label><div class="flex flex-col gap-4 sm:flex-row sm:items-center"><select name="status" class="rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-slate-300"><option value="draft" selected={work?.status !== 'published'}>Draft / Pending review</option><option value="published" selected={work?.status === 'published'}>Published</option></select><p class="text-xs leading-relaxed text-slate-500">Karya hanya tampil publik jika status Published dan consent aktif.</p></div></div>
-          <div class="flex gap-4 pt-4"><button type="submit" class="rounded-xl bg-cyan-700 px-8 py-4 font-black uppercase tracking-widest text-white transition-all hover:bg-cyan-800">Save Work</button><a href="/admin/works" class="rounded-xl border border-white/10 px-8 py-4 font-black text-slate-400 transition-colors hover:text-white">Cancel</a></div>
+          <div class="flex gap-4 pt-4"><button id="participant-work-submit" type="submit" class="rounded-xl bg-cyan-700 px-8 py-4 font-black uppercase tracking-widest text-white transition-all hover:bg-cyan-800 disabled:cursor-wait disabled:opacity-70">Simpan Karya</button><a href="/admin/works" class="rounded-xl border border-white/10 px-8 py-4 font-black text-slate-400 transition-colors hover:text-white">Batal</a></div>
         </form>
+        <script dangerouslySetInnerHTML={{ __html: `
+          document.getElementById('participant-work-form')?.addEventListener('submit', function() {
+            const button = document.getElementById('participant-work-submit');
+            const status = document.getElementById('admin-work-upload-status');
+            const fileInput = document.getElementById('admin-preview-image-file');
+            if (!button) return;
+            button.disabled = true;
+            button.textContent = fileInput?.files.length ? 'Mengunggah gambar…' : 'Menyimpan karya…';
+            if (fileInput?.files.length && status) {
+              status.textContent = 'Gambar sedang diunggah, mohon tunggu…';
+              status.classList.remove('hidden');
+            }
+          });
+        `}} />
       </div>
     </AdminLayout>
   );
@@ -3161,7 +3204,7 @@ function renderActivityForm(c: any, activity: any = null, media: any[] = [], lin
       <div class="max-w-5xl mx-auto px-6 pt-10 pb-32">
         <a href="/admin" class="text-xs font-black text-cyan-400 uppercase tracking-widest hover:text-white">← Admin Dashboard</a>
         <h1 class="text-4xl font-black mt-8 mb-12 italic tracking-tight">{activity ? 'EDIT' : 'NEW'} <span class="text-cyan-400">JEJAK</span></h1>
-        <form action="/admin/activities/save" method="post" enctype="multipart/form-data" class="space-y-8 bg-white/5 p-8 rounded-[2.5rem] border border-white/10 backdrop-blur-xl">
+        <form id="activity-form" action="/admin/activities/save" method="post" enctype="multipart/form-data" class="space-y-8 bg-white/5 p-8 rounded-[2.5rem] border border-white/10 backdrop-blur-xl">
           {activity && <input type="hidden" name="id" value={activity.id} />}
           <div class="grid md:grid-cols-2 gap-6">
             <div class="relative"><input type="text" name="title" id="a-title" value={activity?.title || ''} placeholder=" " required class={inputClass} /><label for="a-title" class={labelClass}>Activity Title</label></div>
@@ -3182,13 +3225,11 @@ function renderActivityForm(c: any, activity: any = null, media: any[] = [], lin
           </div>
           <div class="relative"><textarea name="summary" id="a-summary" placeholder=" " required class={inputClass + ' min-h-[110px] leading-relaxed'}>{activity?.summary || ''}</textarea><label for="a-summary" class={labelClass}>Short Summary</label></div>
           <div class="relative"><textarea name="description" id="a-description" placeholder=" " class={inputClass + ' min-h-[280px] font-mono text-sm leading-relaxed'}>{activity?.description || ''}</textarea><label for="a-description" class={labelClass}>Description (Markdown)</label></div>
-          <div class="grid md:grid-cols-2 gap-6">
-            <div class="relative"><input type="text" name="coverImage" id="a-cover" value={activity?.coverImage || ''} placeholder=" " class={inputClass} /><label for="a-cover" class={labelClass}>Cover Image URL</label></div>
-            <div class="space-y-2"><label class="text-[10px] font-black text-slate-500 uppercase tracking-widest pl-1">Or Upload Cover to RustFS <span class="text-cyan-400">(otomatis WebP)</span></label><input type="file" name="coverImageFile" accept="image/jpeg,image/png,image/webp" class="w-full bg-slate-950/50 border border-white/10 rounded-2xl px-5 py-4 text-sm text-slate-300 file:mr-4 file:rounded-lg file:border-0 file:bg-cyan-700 file:px-4 file:py-2 file:text-xs file:font-black file:text-white" /><p class="text-xs leading-relaxed text-slate-500">JPG, PNG, atau WebP; maksimal 10 MB.</p></div>
-          </div>
+          <div class="space-y-2"><label for="activity-cover-file" class="text-[10px] font-black text-slate-500 uppercase tracking-widest pl-1">Unggah gambar sampul kegiatan</label><input id="activity-cover-file" type="file" name="coverImageFile" accept="image/jpeg,image/png,image/webp" class="w-full bg-slate-950/50 border border-white/10 rounded-2xl px-5 py-4 text-sm text-slate-300 file:mr-4 file:rounded-lg file:border-0 file:bg-cyan-700 file:px-4 file:py-2 file:text-xs file:font-black file:text-white" /><p class="text-xs leading-relaxed text-slate-500">Pilih gambar JPG, PNG, atau WebP; maksimal 10 MB.</p></div>
+          <div class="relative"><input type="text" name="coverImage" id="a-cover" value={activity?.coverImage || ''} placeholder=" " class={inputClass} /><label for="a-cover" class={labelClass}>Atau gunakan tautan gambar sampul</label><p class="mt-2 text-xs leading-relaxed text-slate-500">Jika keduanya diisi, gambar yang diunggah akan digunakan.</p></div>
           <div class="grid gap-6 md:grid-cols-2">
-            <div class="space-y-2"><label class="text-[10px] font-black text-slate-500 uppercase tracking-widest pl-1">Upload Gallery Photos to RustFS <span class="text-cyan-400">(otomatis WebP)</span></label><input type="file" name="galleryFiles" accept="image/jpeg,image/png,image/webp" multiple class="w-full bg-slate-950/50 border border-white/10 rounded-2xl px-5 py-4 text-sm text-slate-300 file:mr-4 file:rounded-lg file:border-0 file:bg-cyan-700 file:px-4 file:py-2 file:text-xs file:font-black file:text-white" /><p class="text-xs leading-relaxed text-slate-500">Pilih beberapa foto sekaligus. JPG, PNG, atau WebP; maksimal 10 MB per file.</p></div>
-            <div class="relative"><textarea name="galleryUrls" id="a-gallery" placeholder=" " class={inputClass + ' min-h-[140px] font-mono text-sm leading-relaxed'}>{galleryUrls}</textarea><label for="a-gallery" class={labelClass}>Direct Image URLs (optional)</label><p class="mt-2 text-xs leading-relaxed text-amber-400/80">Gunakan URL file gambar langsung, bukan link album Google Photos.</p></div>
+            <div class="space-y-2"><label for="activity-gallery-files" class="text-[10px] font-black text-slate-500 uppercase tracking-widest pl-1">Tambahkan foto dokumentasi</label><input id="activity-gallery-files" type="file" name="galleryFiles" accept="image/jpeg,image/png,image/webp" multiple class="w-full bg-slate-950/50 border border-white/10 rounded-2xl px-5 py-4 text-sm text-slate-300 file:mr-4 file:rounded-lg file:border-0 file:bg-cyan-700 file:px-4 file:py-2 file:text-xs file:font-black file:text-white" /><p class="text-xs leading-relaxed text-slate-500">Pilih beberapa foto sekaligus. Maksimal 10 MB per foto.</p></div>
+            <div class="relative"><textarea name="galleryUrls" id="a-gallery" placeholder=" " class={inputClass + ' min-h-[140px] font-mono text-sm leading-relaxed'}>{galleryUrls}</textarea><label for="a-gallery" class={labelClass}>Atau gunakan tautan foto</label><p class="mt-2 text-xs leading-relaxed text-slate-500">Gunakan tautan langsung ke file gambar, bukan tautan album.</p></div>
           </div>
           <div class="relative"><input type="url" name="galleryAlbumUrl" id="a-gallery-album" value={activity?.galleryAlbumUrl || ''} placeholder=" " class={inputClass} /><label for="a-gallery-album" class={labelClass}>Google Photos Album URL (optional)</label></div>
           <div class="grid md:grid-cols-3 gap-6">
@@ -3221,8 +3262,18 @@ function renderActivityForm(c: any, activity: any = null, media: any[] = [], lin
             <label class="flex items-center gap-3 text-sm font-bold text-slate-300"><input type="checkbox" name="featuredOnCv" checked={Boolean(activity?.featuredOnCv)} class="w-5 h-5 accent-cyan-600" /> Feature on CV / selected highlights</label>
             <select name="status" class="bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-sm text-slate-300"><option value="draft" selected={activity?.status !== 'published'}>Draft</option><option value="published" selected={activity?.status === 'published'}>Published</option></select>
           </div>
-          <div class="flex gap-4 pt-4"><button type="submit" class="px-10 py-4 bg-cyan-700 hover:bg-cyan-800 text-white font-black rounded-xl transition-all uppercase tracking-widest">Save Activity</button><a href="/admin" class="px-10 py-4 border border-white/10 rounded-xl font-black text-slate-400 hover:text-white transition-all">Cancel</a></div>
+          <div class="flex gap-4 pt-4"><button id="activity-submit-button" type="submit" class="px-10 py-4 bg-cyan-700 hover:bg-cyan-800 text-white font-black rounded-xl transition-all uppercase tracking-widest disabled:cursor-wait disabled:opacity-70">Simpan kegiatan</button><a href="/admin" class="px-10 py-4 border border-white/10 rounded-xl font-black text-slate-400 hover:text-white transition-all">Batal</a></div>
         </form>
+        <script dangerouslySetInnerHTML={{ __html: `
+          document.getElementById('activity-form')?.addEventListener('submit', function() {
+            const button = document.getElementById('activity-submit-button');
+            const fileInputs = Array.from(this.querySelectorAll('input[type="file"]'));
+            const hasFiles = fileInputs.some(input => input.files.length > 0);
+            if (!button) return;
+            button.disabled = true;
+            button.textContent = hasFiles ? 'Mengunggah gambar…' : 'Menyimpan kegiatan…';
+          });
+        `}} />
       </div>
     </AdminLayout>
   );
@@ -3273,15 +3324,15 @@ function renderProjectForm(c: any, project: any = null, user: any = null) {
             <input type="text" name="techStack" id="tech" value={project?.techStack || ''} placeholder=" " class={inputClass} />
             <label for="tech" class={labelClass}>Tech Stack (comma separated)</label>
           </div>
-          <div class="grid md:grid-cols-2 gap-6">
-            <div class="relative">
-              <input type="text" name="image" id="p-image" value={project?.image || ''} placeholder=" " class={inputClass} />
-              <label for="p-image" class={labelClass}>Thumbnail Image URL</label>
-            </div>
-            <div class="relative space-y-2 mt-4 md:mt-0">
-              <label class="text-[10px] font-black text-slate-500 uppercase tracking-widest pl-1">Atau Upload Thumbnail Baru <span class="text-cyan-400">(otomatis WebP)</span></label>
-              <input type="file" name="projectImageFile" accept="image/jpeg,image/png,image/webp" class="w-full bg-slate-950/50 border border-white/10 rounded-2xl px-5 py-4 text-sm text-slate-300 file:mr-4 file:rounded-lg file:border-0 file:bg-red-700 file:px-4 file:py-2 file:text-xs file:font-black file:text-white hover:file:bg-red-800 cursor-pointer transition-all" />
-            </div>
+          <div class="relative space-y-2">
+            <label for="project-image-file" class="text-[10px] font-black text-slate-500 uppercase tracking-widest pl-1">Unggah gambar karya</label>
+            <input id="project-image-file" type="file" name="projectImageFile" accept="image/jpeg,image/png,image/webp" class="w-full bg-slate-950/50 border border-white/10 rounded-2xl px-5 py-4 text-sm text-slate-300 file:mr-4 file:rounded-lg file:border-0 file:bg-red-700 file:px-4 file:py-2 file:text-xs file:font-black file:text-white hover:file:bg-red-800 cursor-pointer transition-all" />
+            <p class="text-xs leading-relaxed text-slate-500">Pilih gambar JPG, PNG, atau WebP; maksimal 10 MB.</p>
+          </div>
+          <div class="relative">
+            <input type="text" name="image" id="p-image" value={project?.image || ''} placeholder=" " class={inputClass} />
+            <label for="p-image" class={labelClass}>Atau gunakan tautan gambar</label>
+            <p class="mt-2 text-xs leading-relaxed text-slate-500">Jika keduanya diisi, gambar yang diunggah akan digunakan.</p>
           </div>
 
           <div class="grid md:grid-cols-2 gap-6">
@@ -3299,7 +3350,7 @@ function renderProjectForm(c: any, project: any = null, user: any = null) {
             <button id="p-submit-btn" type="submit" class="px-10 py-4 bg-red-700 text-white font-black rounded-xl btn-shadow hover:scale-[1.02] disabled:opacity-50 disabled:scale-100 transition-all tracking-widest uppercase relative overflow-hidden group">
               <span id="p-btn-text" class="transition-opacity">SAVE PROJECT</span>
               <div id="p-btn-loader" class="absolute inset-0 flex items-center justify-center bg-red-900 opacity-0 pointer-events-none transition-opacity">
-                <span id="p-loader-msg" class="text-sm font-black">UPLOADING...</span>
+                <span id="p-loader-msg" class="text-sm font-black">MENYIAPKAN...</span>
               </div>
             </button>
             <a href="/admin" class="px-10 py-4 border border-white/10 rounded-xl font-black text-slate-400 hover:text-white transition-all text-center flex items-center justify-center">CANCEL</a>
@@ -3318,9 +3369,9 @@ function renderProjectForm(c: any, project: any = null, user: any = null) {
             const loaderMsg = document.getElementById('p-loader-msg');
             
             if (fileInput.files.length > 0) {
-              loaderMsg.innerHTML = '<span class="animate-pulse">UPLOADING TO RUSTFS...</span>';
+              loaderMsg.innerHTML = '<span class="animate-pulse">MENGUNGGAH GAMBAR...</span>';
             } else {
-              loaderMsg.innerHTML = '<span class="animate-pulse">SAVING...</span>';
+              loaderMsg.innerHTML = '<span class="animate-pulse">MENYIMPAN...</span>';
             }
             
             btn.disabled = true;
@@ -3335,17 +3386,17 @@ function renderProjectForm(c: any, project: any = null, user: any = null) {
               });
               
               if (res.ok) {
-                loaderMsg.innerHTML = '<span class="text-green-400">SUCCESS!</span>';
+                loaderMsg.innerHTML = '<span class="text-green-400">BERHASIL!</span>';
                 setTimeout(() => window.location.href = '/admin', 800);
               } else {
                 const errorText = await res.text();
-                alert('Upload Gagal: ' + errorText);
+                alert('Penyimpanan gagal: ' + errorText);
                 btn.disabled = false;
                 btnText.style.opacity = '1';
                 btnLoader.style.opacity = '0';
               }
             } catch (err) {
-              alert('Network Error: ' + err.message);
+              alert('Terjadi kesalahan jaringan: ' + err.message);
               btn.disabled = false;
               btnText.style.opacity = '1';
               btnLoader.style.opacity = '0';
