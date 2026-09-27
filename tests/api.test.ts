@@ -106,6 +106,8 @@ describe("Main Pages", () => {
     const html = await res.text();
     expect(html).toContain("Karya");
     expect(html).toContain("Semua");
+    expect(html).toContain("project-category-btn");
+    expect(html).toContain("Lainnya");
   });
 
   it("GET /blog returns 200 OK", async () => {
@@ -303,6 +305,22 @@ describe("Admin Access Control", () => {
     expect(html).toContain('name="publicationAvailableUntil"');
     expect(html).toContain('Waktu mengikuti WIB (Asia/Jakarta)');
     expect(html).toContain("addActivityLink");
+  });
+
+  it("GET /admin/projects/new exposes project category choices", async () => {
+    const session = encodeURIComponent(JSON.stringify({
+      email: "admin@example.com",
+      name: "Admin User",
+      role: "admin",
+    }));
+    const res = await app.request("/admin/projects/new", {
+      headers: { Cookie: `user_session=${session}` },
+    });
+    expect(res.status).toBe(200);
+    const html = await res.text();
+    expect(html).toContain('name="category"');
+    expect(html).toContain("Kategori Karya");
+    expect(html).toContain("Pendidikan");
   });
 
   it("GET /admin/works/new exposes participant work moderation fields", async () => {

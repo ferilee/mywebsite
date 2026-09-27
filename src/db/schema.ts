@@ -7,6 +7,7 @@ export const projects = sqliteTable('projects', {
   description: text('description').notNull(),
   content: text('content'), // Markdown Case Study
   image: text('image'),
+  category: text('category').default('Lainnya'),
   techStack: text('tech_stack'),
   link: text('link'),
   github: text('github'),

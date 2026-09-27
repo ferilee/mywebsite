@@ -35,6 +35,18 @@ interface Env {
 
 const app = new Hono<Env>();
 const adminUpdates = new EventEmitter();
+const projectCategories = [
+  'Pendidikan & Sekolah',
+  'Toko & UMKM',
+  'Portofolio Pribadi',
+  'Administrasi',
+  'Produktivitas',
+  'Komunitas',
+  'Media & Konten',
+  'Sistem Internal',
+  'Eksperimen & Prototipe',
+  'Lainnya',
+];
 
 type AdminNotificationInput = {
   type: string;
@@ -73,6 +85,7 @@ try {
   await ensureColumn('projects', 'slug', 'text');
   await ensureColumn('projects', 'content', 'text');
   await ensureColumn('projects', 'github', 'text');
+  await ensureColumn('projects', 'category', "text DEFAULT 'Lainnya'");
   await ensureColumn('blog_posts', 'cover_image', 'text');
   await ensureColumn('activities', 'gallery_album_url', 'text');
   await ensureColumn('activities', 'material_available_from', 'integer');
@@ -216,6 +229,7 @@ app.get('/api/search', async (c) => {
     .where(or(
       like(projectTable.title, `%${query}%`),
       like(projectTable.description, `%${query}%`),
+      like(projectTable.category, `%${query}%`),
       like(projectTable.techStack, `%${query}%`)
     ))
     .limit(5);
@@ -390,9 +404,8 @@ app.get('/', async (c) => {
 app.get('/projects', async (c) => {
   const user = c.var.user;
   const projects = await db.select().from(projectTable).orderBy(desc(projectTable.id));
-  
-  // Extract all unique tech tags
-  const allTech = [...new Set(projects.flatMap(p => p.techStack?.split(',').map(t => t.trim()) || []))].filter(Boolean);
+  const selectedCategory = c.req.query('category') || '';
+  const categories = [...new Set(projects.map(project => project.category || 'Lainnya'))];
 
   return c.html(
     <Layout title="Ferilee | Portofolio" user={user} needsProfiling={c.var.needsProfiling} currentPath="/projects">
@@ -403,15 +416,15 @@ app.get('/projects', async (c) => {
           <p class="text-slate-400 max-w-xl mx-auto">Jelajahi perjalanan teknis saya melalui berbagai karya pilihan, mulai dari aplikasi fullstack hingga eksplorasi arsitektur.</p>
         </header>
 
-        {/* Tech Filter */}
+        {/* Category Filter */}
         <div class="flex flex-wrap justify-center gap-3 mb-16">
-          <button onclick="filterProjects('all')" class="tech-filter-btn active px-6 py-2 rounded-full border border-white/10 text-xs font-bold uppercase tracking-widest bg-white/5 hover:bg-white/10 transition-all">Semua</button>
-          {allTech.map(tech => (
+          <button onclick="filterProjects('all')" class={`project-category-btn px-6 py-2 rounded-full border border-white/10 text-xs font-bold uppercase tracking-widest transition-all ${!selectedCategory ? 'bg-red-500/20 border-red-500/50 text-red-500' : 'bg-white/5 hover:bg-white/10'}`}>Semua</button>
+          {categories.map(category => (
             <button 
-              onclick={`filterProjects(${JSON.stringify(tech)})`}
-              class="tech-filter-btn px-6 py-2 rounded-full border border-white/10 text-xs font-bold uppercase tracking-widest bg-white/5 hover:bg-white/10 transition-all"
+              onclick={`filterProjects(${JSON.stringify(category)})`}
+              class={`project-category-btn px-6 py-2 rounded-full border border-white/10 text-xs font-bold uppercase tracking-widest transition-all ${selectedCategory === category ? 'bg-red-500/20 border-red-500/50 text-red-500' : 'bg-white/5 hover:bg-white/10'}`}
             >
-              {tech}
+              {category}
             </button>
           ))}
         </div>
@@ -420,7 +433,7 @@ app.get('/projects', async (c) => {
           {projects.map(project => (
             <div 
               class="project-card group relative bg-white/5 border border-white/10 rounded-[2rem] overflow-hidden hover:border-red-500/30 transition-all duration-500 hover:-translate-y-2 flex flex-col h-full"
-              data-tech={project.techStack}
+              data-category={project.category || 'Lainnya'}
             >
               <div class="aspect-video w-full overflow-hidden bg-slate-900/70 border-b border-white/5">
                 <img
@@ -430,6 +443,7 @@ app.get('/projects', async (c) => {
                 />
               </div>
               <div class="p-8 flex flex-col flex-1 min-h-0">
+                <span class="self-start mb-3 px-3 py-1 bg-red-900/20 border border-red-500/20 rounded-lg text-[10px] font-bold uppercase tracking-widest text-red-400">{project.category || 'Lainnya'}</span>
                 <h3 class="text-2xl font-bold mb-3">{project.title}</h3>
                 <p class="text-slate-400 mb-8 text-sm leading-relaxed" style="display:-webkit-box;-webkit-line-clamp:4;-webkit-box-orient:vertical;overflow:hidden;">{project.description}</p>
                 <div class="flex flex-wrap gap-2 mb-8 max-h-16 overflow-hidden">
@@ -460,7 +474,7 @@ app.get('/projects', async (c) => {
         <script dangerouslySetInnerHTML={{ __html: `
           function filterProjects(tech) {
             const cards = document.querySelectorAll('.project-card');
-            const buttons = document.querySelectorAll('.tech-filter-btn');
+            const buttons = document.querySelectorAll('.project-category-btn');
             
             buttons.forEach(btn => {
               if (btn.innerText.toLowerCase() === tech.toLowerCase() || (tech === 'all' && btn.innerText.toLowerCase() === 'semua')) {
@@ -475,8 +489,8 @@ app.get('/projects', async (c) => {
                 card.style.display = 'block';
                 setTimeout(() => card.style.opacity = '1', 10);
               } else {
-                const projectTech = card.getAttribute('data-tech').toLowerCase();
-                if (projectTech.includes(tech.toLowerCase())) {
+                const projectCategory = card.getAttribute('data-category').toLowerCase();
+                if (projectCategory === tech.toLowerCase()) {
                   card.style.display = 'block';
                   setTimeout(() => card.style.opacity = '1', 10);
                 } else {
@@ -487,7 +501,7 @@ app.get('/projects', async (c) => {
             });
           }
           // Set initial active state
-          document.querySelector('.tech-filter-btn').classList.add('bg-red-500/20', 'border-red-500/50', 'text-red-500');
+          filterProjects(${JSON.stringify(selectedCategory || 'all')});
         `}} />
       </div>
     </Layout>
@@ -515,6 +529,7 @@ app.get('/projects/:slug', async (c) => {
           <a href="/projects" class="text-xs font-bold text-slate-500 uppercase tracking-widest hover:text-white transition-all mb-8 block">← Kembali ke Portofolio</a>
           <h1 class="text-6xl font-black mb-6 tracking-tight leading-tight">{project.title}</h1>
           <div class="flex flex-wrap gap-3">
+            <span class="px-4 py-1.5 bg-red-900/20 border border-red-500/30 rounded-lg text-xs font-bold uppercase tracking-widest text-red-400">{project.category || 'Lainnya'}</span>
             {project.techStack?.split(',').map(tech => (
               <span class="px-4 py-1.5 bg-red-900/20 border border-red-500/30 rounded-lg text-xs font-bold uppercase tracking-widest text-red-400">{tech.trim()}</span>
             ))}
@@ -2681,6 +2696,7 @@ app.post('/admin/projects/save', async (c) => {
     description: body.description as string,
     content: body.content as string,
     image,
+    category: String(body.category || 'Lainnya').trim() || 'Lainnya',
     techStack: body.techStack as string,
     link: body.link as string,
     github: body.github as string,
@@ -3215,6 +3231,7 @@ function renderActivityForm(c: any, activity: any = null, media: any[] = [], lin
 function renderProjectForm(c: any, project: any = null, user: any = null) {
   const inputClass = "peer w-full bg-slate-950/50 border border-white/10 rounded-2xl px-5 pt-7 pb-3 focus:outline-none focus:border-red-500 transition-all text-white text-lg placeholder-transparent";
   const labelClass = "absolute left-5 top-5 text-slate-500 text-xs font-bold uppercase tracking-widest transition-all pointer-events-none peer-placeholder-shown:text-slate-500 peer-placeholder-shown:text-base peer-placeholder-shown:top-5 peer-placeholder-shown:font-medium peer-placeholder-shown:lowercase peer-focus:top-2 peer-focus:text-[10px] peer-focus:text-red-500 peer-focus:uppercase peer-focus:font-bold peer-[:not(:placeholder-shown)]:top-2 peer-[:not(:placeholder-shown)]:text-[10px] peer-[:not(:placeholder-shown)]:text-red-500 peer-[:not(:placeholder-shown)]:uppercase peer-[:not(:placeholder-shown)]:font-bold";
+  const categories = [...new Set([...projectCategories, project?.category].filter(Boolean))];
 
   return c.html(
     <AdminLayout title={`${project ? 'Edit' : 'New'} Project | Admin`} user={user} currentPath="/admin/projects" showNavigation={false}>
@@ -3238,6 +3255,13 @@ function renderProjectForm(c: any, project: any = null, user: any = null) {
           <div class="relative">
             <textarea name="description" id="desc" rows={2} placeholder=" " required class={`${inputClass} leading-relaxed min-h-[80px]`}>{project?.description || ''}</textarea>
             <label for="desc" class={labelClass}>Short Description</label>
+          </div>
+
+          <div class="relative">
+            <select name="category" id="p-category" class={`${inputClass} appearance-none`}>
+              {categories.map(category => <option value={category} selected={(project?.category || 'Lainnya') === category}>{category}</option>)}
+            </select>
+            <label for="p-category" class={labelClass}>Kategori Karya</label>
           </div>
 
           <div class="relative">

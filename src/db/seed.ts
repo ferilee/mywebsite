@@ -9,12 +9,14 @@ async function seed() {
     {
       title: 'IdeTech Platform',
       description: 'A multi-role dashboard for students, teachers, and admins with game-like aesthetics.',
+      category: 'Pendidikan & Sekolah',
       techStack: 'Next.js, Tailwind CSS, Drizzle ORM, PostgreSQL',
       link: 'https://idetech.io',
     },
     {
       title: 'Gamer Portal',
       description: 'Community platform for gamers featuring news, tournaments, and social integration.',
+      category: 'Komunitas',
       techStack: 'React, Hono, Bun, SQLite',
       link: 'https://gamer.ferilee.dev',
     }
