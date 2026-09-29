@@ -122,7 +122,7 @@ export const Layout = (props: { title: string; children: any; notificationCount?
             
             {user ? (
               <div class="flex items-center gap-3">
-                {user.role === 'admin' && (
+                {(user.role === 'admin' || user.role === 'editor') && (
                   <div class="relative">
                     <a href="/admin" class="relative w-10 h-10 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center hover:bg-white/10 transition-all text-slate-400" aria-label="Notifikasi admin">
                       <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/></svg>
@@ -133,7 +133,7 @@ export const Layout = (props: { title: string; children: any; notificationCount?
                 
                 <div class="flex items-center gap-2 pl-2 border-l border-white/10">
                   <div class="hidden lg:block text-right">
-                    <p class="text-[10px] font-black uppercase text-red-500 tracking-tighter leading-none">{user.role}</p>
+                    <p class="text-[10px] font-black uppercase text-red-500 tracking-tighter leading-none">{user.role === 'editor' ? 'Pengelola Konten' : user.role}</p>
                     <p class="text-xs font-bold text-slate-300 truncate max-w-[100px]">{user.name}</p>
                   </div>
                   <div class="relative group">
@@ -187,10 +187,10 @@ export const Layout = (props: { title: string; children: any; notificationCount?
           <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/></svg>
           <span class="text-[10px] font-black uppercase tracking-widest">Kontak</span>
         </a>
-        {user?.role === 'admin' && (
+        {(user?.role === 'admin' || user?.role === 'editor') && (
           <a href="/admin" class={`nav-bottom-item flex flex-col items-center transition-all ${currentPath?.startsWith('/admin') ? 'active text-red-500' : 'text-slate-400'}`}>
             <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M9 8h6"/><path d="M9 12h6"/><path d="M9 16h4"/></svg>
-            <span class="text-[10px] font-black uppercase tracking-widest">Admin</span>
+            <span class="text-[10px] font-black uppercase tracking-widest">CMS</span>
           </a>
         )}
       </nav>

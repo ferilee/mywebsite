@@ -258,6 +258,49 @@ describe("Admin Access Control", () => {
     expect(html).not.toContain("JEJAK ACTIVITIES");
   });
 
+  it("GET /admin allows the content editor but hides system controls", async () => {
+    const session = encodeURIComponent(JSON.stringify({
+      email: "editor:1@local",
+      name: "Pengelola Konten",
+      role: "editor",
+    }));
+    const res = await app.request("/admin", {
+      headers: { Cookie: `user_session=${session}` },
+    });
+    expect(res.status).toBe(200);
+    const html = await res.text();
+    expect(html).toContain("Pengelola Konten");
+    expect(html).toContain('href="/admin/activities"');
+    expect(html).not.toContain('href="/admin/settings/editors"');
+    expect(html).not.toContain('href="/admin/visitors"');
+    expect(html).not.toContain('action="/admin/milestones/save"');
+    expect(html).not.toContain('action="/admin/settings/cv"');
+  });
+
+  it("GET /admin/settings/editors is restricted to the admin role", async () => {
+    const editorSession = encodeURIComponent(JSON.stringify({
+      email: "editor:1@local",
+      name: "Pengelola Konten",
+      role: "editor",
+    }));
+    const editorRes = await app.request("/admin/settings/editors", {
+      headers: { Cookie: `user_session=${editorSession}` },
+    });
+    expect(editorRes.status).toBe(302);
+    expect(editorRes.headers.get("Location")).toBe("/admin?error=forbidden");
+
+    const adminSession = encodeURIComponent(JSON.stringify({
+      email: "admin@example.com",
+      name: "Admin User",
+      role: "admin",
+    }));
+    const adminRes = await app.request("/admin/settings/editors", {
+      headers: { Cookie: `user_session=${adminSession}` },
+    });
+    expect(adminRes.status).toBe(200);
+    expect(await adminRes.text()).toContain("BUAT AKUN");
+  });
+
   it("GET /admin/activities and /admin/inbox are standalone admin pages", async () => {
     const session = encodeURIComponent(JSON.stringify({
       email: "admin@example.com",

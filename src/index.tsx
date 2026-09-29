@@ -10,7 +10,7 @@ import { setCookie, getCookie } from 'hono/cookie';
 import { EventEmitter } from 'node:events';
 import { mkdir, mkdtemp, rm } from 'node:fs/promises';
 import { db } from './db';
-import { projects as projectTable, blogPosts, skills as skillTable, experience as expTable, settings as settingsTable, contacts as contactTable, comments as commentTable, reactions as reactionTable, subscriptions as subTable, pageViews as viewTable, milestones as milestonesTable, activities as activityTable, activityMedia as activityMediaTable, activityLinks as activityLinkTable, participantWorks as participantWorkTable, participantWorkReactions as participantWorkReactionTable, testimonials as testimonialTable, profiles as profileTable, adminNotifications as adminNotificationTable } from './db/schema';
+import { projects as projectTable, blogPosts, skills as skillTable, experience as expTable, settings as settingsTable, contacts as contactTable, comments as commentTable, reactions as reactionTable, subscriptions as subTable, pageViews as viewTable, milestones as milestonesTable, activities as activityTable, activityMedia as activityMediaTable, activityLinks as activityLinkTable, participantWorks as participantWorkTable, participantWorkReactions as participantWorkReactionTable, testimonials as testimonialTable, profiles as profileTable, adminNotifications as adminNotificationTable, contentEditors as contentEditorTable } from './db/schema';
 import { eq, desc, or, like, and, inArray, sql } from 'drizzle-orm';
 import { Layout } from './components/Layout';
 import { AdminLayout } from './components/AdminLayout';
@@ -23,7 +23,8 @@ type SessionUser = {
   email: string;
   name: string;
   picture?: string;
-  role: 'admin' | 'visitor';
+  editorId?: number;
+  role: 'admin' | 'editor' | 'visitor';
 };
 
 interface Env {
@@ -78,6 +79,18 @@ async function ensureColumn(table: string, column: string, definition: string) {
   if (!columns.some((entry) => entry.name === column)) {
     await db.run(sql.raw(`ALTER TABLE ${table} ADD COLUMN ${column} ${definition}`));
   }
+}
+
+async function createContentEditorsTable() {
+  await db.run(sql.raw(`CREATE TABLE IF NOT EXISTS content_editors (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    username TEXT NOT NULL UNIQUE,
+    display_name TEXT NOT NULL,
+    password_hash TEXT NOT NULL,
+    is_active INTEGER DEFAULT 1,
+    created_at INTEGER,
+    updated_at INTEGER
+  )`));
 }
 
 try {
@@ -152,6 +165,7 @@ try {
     is_read INTEGER DEFAULT 0,
     created_at INTEGER
   )`));
+  await createContentEditorsTable();
 } catch (error) {
   console.error('Schema compatibility check failed:', error);
 }
@@ -175,6 +189,68 @@ app.use('*', async (c, next) => {
   await next();
 });
 
+const isContentManager = (user: SessionUser | undefined) => user?.role === 'admin' || user?.role === 'editor';
+const isAdmin = (user: SessionUser | undefined) => user?.role === 'admin';
+
+const sessionEncoder = new TextEncoder();
+const sessionSecret = process.env.SESSION_SECRET || process.env.ADMIN_PASSWORD || 'development-session-secret';
+
+function toBase64Url(value: ArrayBuffer | Uint8Array) {
+  const bytes = value instanceof Uint8Array ? value : new Uint8Array(value);
+  let binary = '';
+  bytes.forEach(byte => { binary += String.fromCharCode(byte); });
+  return btoa(binary).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+}
+
+function fromBase64Url(value: string) {
+  const normalized = value.replace(/-/g, '+').replace(/_/g, '/') + '='.repeat((4 - value.length % 4) % 4);
+  const binary = atob(normalized);
+  return Uint8Array.from(binary, character => character.charCodeAt(0));
+}
+
+async function sessionSignature(payload: string) {
+  const key = await crypto.subtle.importKey('raw', sessionEncoder.encode(sessionSecret), { name: 'HMAC', hash: 'SHA-256' }, false, ['sign', 'verify']);
+  return toBase64Url(await crypto.subtle.sign('HMAC', key, sessionEncoder.encode(payload)));
+}
+
+async function encodeSession(user: SessionUser) {
+  const payload = toBase64Url(sessionEncoder.encode(JSON.stringify(user)));
+  return `${payload}.${await sessionSignature(payload)}`;
+}
+
+async function decodeSession(value: string | undefined): Promise<SessionUser | undefined> {
+  if (!value) return undefined;
+  const separator = value.lastIndexOf('.');
+  if (separator > 0 && /^[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+$/.test(value)) {
+    try {
+      const payload = value.slice(0, separator);
+      const signature = value.slice(separator + 1);
+      const expected = await sessionSignature(payload);
+      const valid = signature.length === expected.length &&
+        (await crypto.subtle.verify(
+          'HMAC',
+          await crypto.subtle.importKey('raw', sessionEncoder.encode(sessionSecret), { name: 'HMAC', hash: 'SHA-256' }, false, ['verify']),
+          fromBase64Url(signature),
+          sessionEncoder.encode(payload),
+        ));
+      if (!valid) return undefined;
+      return JSON.parse(new TextDecoder().decode(fromBase64Url(payload))) as SessionUser;
+    } catch {
+      return undefined;
+    }
+  }
+
+  // Preserve local development/test sessions; production sessions must be signed.
+  if (process.env.NODE_ENV !== 'production') {
+    try {
+      return JSON.parse(decodeURIComponent(value)) as SessionUser;
+    } catch {
+      return undefined;
+    }
+  }
+  return undefined;
+}
+
 app.use('*', logger());
 app.use('*', cors());
 app.use('/static/*', serveStatic({
@@ -186,7 +262,15 @@ app.use('*', async (c, next) => {
   const session = getCookie(c, 'user_session');
   if (session) {
     try {
-      const user = JSON.parse(decodeURIComponent(session)) as SessionUser;
+      const user = await decodeSession(session);
+      if (!user) return await next();
+      if (user.role === 'editor') {
+        const editorId = user.editorId || Number(user.email.replace('editor:', '').replace('@local', ''));
+        if (!Number.isInteger(editorId) || editorId <= 0) return await next();
+        const editorAccount = await db.select().from(contentEditorTable).where(eq(contentEditorTable.id, editorId)).limit(1);
+        if (!editorAccount[0] || editorAccount[0].isActive === false) return await next();
+        if (editorAccount[0].displayName) user.name = editorAccount[0].displayName;
+      }
       c.set('user', user);
       
       // Check profiling for visitors
@@ -210,11 +294,21 @@ app.use('/admin/*', async (c, next) => {
     return await next();
   }
   const user = c.var.user;
-  if (!user || user.role !== 'admin') {
+  if (!isContentManager(user)) {
     return c.redirect('/admin/login?error=unauthorized');
   }
   await next();
 });
+
+const requireAdminOnly = async (c: any, next: any) => {
+  if (!isAdmin(c.var.user)) return c.redirect('/admin?error=forbidden');
+  await next();
+};
+
+app.use('/admin/settings', requireAdminOnly);
+app.use('/admin/settings/*', requireAdminOnly);
+app.use('/admin/visitors', requireAdminOnly);
+app.use('/admin/milestones/*', requireAdminOnly);
 
 app.post('/admin/media/upload', async (c) => {
   const body = await c.req.parseBody();
@@ -317,7 +411,7 @@ app.get('/api/admin/updates', (c) => {
 });
 
 app.get('/api/admin/notifications', async (c) => {
-  if (c.var.user?.role !== 'admin') return c.json({ error: 'unauthorized' }, 401);
+  if (!isContentManager(c.var.user)) return c.json({ error: 'unauthorized' }, 401);
 
   const notifications = await db.select().from(adminNotificationTable)
     .orderBy(desc(adminNotificationTable.createdAt))
@@ -326,13 +420,13 @@ app.get('/api/admin/notifications', async (c) => {
 });
 
 app.post('/api/admin/notifications/read-all', async (c) => {
-  if (c.var.user?.role !== 'admin') return c.json({ error: 'unauthorized' }, 401);
+  if (!isContentManager(c.var.user)) return c.json({ error: 'unauthorized' }, 401);
   await db.update(adminNotificationTable).set({ isRead: true }).where(eq(adminNotificationTable.isRead, false));
   return c.json({ ok: true, unreadCount: 0 });
 });
 
 app.post('/api/admin/notifications/:id/read', async (c) => {
-  if (c.var.user?.role !== 'admin') return c.json({ error: 'unauthorized' }, 401);
+  if (!isContentManager(c.var.user)) return c.json({ error: 'unauthorized' }, 401);
   const id = Number(c.req.param('id'));
   if (!Number.isInteger(id) || id <= 0) return c.json({ error: 'invalid_notification' }, 400);
   await db.update(adminNotificationTable).set({ isRead: true }).where(eq(adminNotificationTable.id, id));
@@ -1757,7 +1851,7 @@ app.post('/contact/send', async (c) => {
 
 app.get('/admin/login', (c) => {
   const user = c.var.user;
-  if (user?.role === 'admin') return c.redirect('/admin');
+  if (isContentManager(user)) return c.redirect('/admin');
   
   return c.html(
     <AdminLayout title="Admin Login | Ferilee" user={user} currentPath="/admin/login" showNavigation={false}>
@@ -1806,16 +1900,120 @@ app.get('/admin/login', (c) => {
 
 app.post('/admin/login', async (c) => {
   const body = await c.req.parseBody();
-  if (body.username === process.env.ADMIN_USERNAME && body.password === process.env.ADMIN_PASSWORD) {
-    const sessionUser: SessionUser = {
+  const username = String(body.username || '').trim().toLowerCase();
+  const password = String(body.password || '');
+  let sessionUser: SessionUser | null = null;
+
+  if (username === String(process.env.ADMIN_USERNAME || '').trim().toLowerCase() && password === process.env.ADMIN_PASSWORD) {
+    sessionUser = {
       email: 'the.real.ferilee@gmail.com',
       name: 'Ferilee Admin',
       role: 'admin'
     };
-    setCookie(c, 'user_session', encodeURIComponent(JSON.stringify(sessionUser)), { path: '/', httpOnly: true, secure: process.env.NODE_ENV === 'production', maxAge: 3600 * 24 });
+  }
+
+  if (!sessionUser && username) {
+    const editor = await db.select().from(contentEditorTable).where(eq(contentEditorTable.username, username)).limit(1);
+    if (editor[0]?.isActive && await Bun.password.verify(password, editor[0].passwordHash)) {
+      sessionUser = {
+        email: `editor:${editor[0].id}@local`,
+        name: editor[0].displayName,
+        editorId: editor[0].id,
+        role: 'editor',
+      };
+    }
+  }
+
+  if (sessionUser) {
+    setCookie(c, 'user_session', await encodeSession(sessionUser), { path: '/', httpOnly: true, secure: process.env.NODE_ENV === 'production', maxAge: 3600 * 24 });
     return c.redirect('/admin');
   }
   return c.redirect('/admin/login?error=1');
+});
+
+app.get('/admin/settings/editors', async (c) => {
+  const editors = await db.select().from(contentEditorTable).orderBy(desc(contentEditorTable.createdAt));
+  const status = c.req.query('status');
+  return c.html(
+    <AdminLayout title="Pengelola Konten | Admin" user={c.var.user} currentPath="/admin/settings/editors">
+      <div class="mx-auto max-w-5xl px-6 py-10 md:py-16">
+        <header class="mb-10">
+          <a href="/admin" class="text-xs font-black uppercase tracking-widest text-cyan-400 hover:text-white">← Kembali ke dashboard</a>
+          <h1 class="mt-5 text-4xl font-black italic tracking-tight md:text-5xl">PENGELOLA <span class="text-cyan-400">KONTEN</span></h1>
+          <p class="mt-3 max-w-2xl text-slate-500">Buat akun username dan password untuk orang yang membantu mengelola blog, Jejak, portofolio, karya peserta, dan testimoni.</p>
+        </header>
+
+        {status === 'created' && <p class="mb-6 rounded-xl border border-green-500/20 bg-green-500/10 px-4 py-3 text-sm font-bold text-green-300">Akun Pengelola Konten berhasil dibuat.</p>}
+        {status === 'updated' && <p class="mb-6 rounded-xl border border-cyan-500/20 bg-cyan-500/10 px-4 py-3 text-sm font-bold text-cyan-300">Status akun berhasil diperbarui.</p>}
+        {status === 'deleted' && <p class="mb-6 rounded-xl border border-amber-500/20 bg-amber-500/10 px-4 py-3 text-sm font-bold text-amber-300">Akun berhasil dihapus.</p>}
+        {status === 'error' && <p class="mb-6 rounded-xl border border-red-500/20 bg-red-500/10 px-4 py-3 text-sm font-bold text-red-300">Akun tidak dapat dibuat. Pastikan username belum digunakan dan password memenuhi syarat.</p>}
+
+        <section class="mb-8 rounded-[2rem] border border-white/10 bg-white/5 p-6 backdrop-blur-xl md:p-8">
+          <h2 class="mb-6 text-xl font-black italic">BUAT AKUN <span class="text-red-500">BARU</span></h2>
+          <form action="/admin/settings/editors/save" method="post" class="grid gap-5 md:grid-cols-2">
+            <input name="username" required pattern="[A-Za-z0-9._-]{3,40}" autocomplete="username" placeholder="Username" class="rounded-xl border border-white/10 bg-slate-950/50 px-5 py-4 text-white outline-none focus:border-cyan-500" />
+            <input name="displayName" required minLength={2} maxLength={80} placeholder="Nama tampilan" class="rounded-xl border border-white/10 bg-slate-950/50 px-5 py-4 text-white outline-none focus:border-cyan-500" />
+            <input name="password" type="password" required minLength={12} autocomplete="new-password" placeholder="Password (minimal 12 karakter)" class="rounded-xl border border-white/10 bg-slate-950/50 px-5 py-4 text-white outline-none focus:border-cyan-500" />
+            <input name="passwordConfirmation" type="password" required minLength={12} autocomplete="new-password" placeholder="Ulangi password" class="rounded-xl border border-white/10 bg-slate-950/50 px-5 py-4 text-white outline-none focus:border-cyan-500" />
+            <p class="text-xs leading-relaxed text-slate-500 md:col-span-2">Bagikan username dan password hanya kepada orang yang dipercaya. Password tidak dapat dilihat kembali setelah akun dibuat.</p>
+            <button type="submit" class="rounded-xl bg-cyan-700 px-5 py-4 text-xs font-black uppercase tracking-widest text-white transition-colors hover:bg-cyan-800 md:col-span-2">Buat akun pengelola konten</button>
+          </form>
+        </section>
+
+        <section class="space-y-4">
+          {editors.map(editor => <article class="flex flex-col gap-5 rounded-2xl border border-white/10 bg-white/5 p-5 md:flex-row md:items-center md:justify-between md:p-6">
+            <div><h2 class="font-black text-white">{editor.displayName}</h2><p class="mt-1 text-sm text-slate-400">@{editor.username}</p><span class={`mt-3 inline-flex rounded-md px-2 py-1 text-[9px] font-black uppercase ${editor.isActive ? 'bg-green-900/30 text-green-400' : 'bg-slate-800 text-slate-500'}`}>{editor.isActive ? 'Aktif' : 'Nonaktif'}</span></div>
+            <div class="flex flex-wrap gap-2">
+              <form action={`/admin/settings/editors/toggle/${editor.id}`} method="post"><button type="submit" class="rounded-lg border border-white/10 px-3 py-2 text-sm font-bold text-slate-300 hover:border-cyan-500/30 hover:text-cyan-300">{editor.isActive ? 'Nonaktifkan' : 'Aktifkan'}</button></form>
+              <form action={`/admin/settings/editors/delete/${editor.id}`} method="post" onsubmit="return confirm('Hapus akun ini?')"><button type="submit" class="rounded-lg border border-white/10 px-3 py-2 text-sm font-bold text-slate-500 hover:border-red-500/30 hover:text-red-400">Hapus</button></form>
+            </div>
+          </article>)}
+          {editors.length === 0 && <p class="rounded-2xl border border-dashed border-white/10 p-8 text-center text-sm text-slate-500">Belum ada akun Pengelola Konten.</p>}
+        </section>
+      </div>
+    </AdminLayout>
+  );
+});
+
+app.post('/admin/settings/editors/save', async (c) => {
+  const body = await c.req.parseBody();
+  const username = String(body.username || '').trim().toLowerCase();
+  const displayName = String(body.displayName || '').trim();
+  const password = String(body.password || '');
+  const passwordConfirmation = String(body.passwordConfirmation || '');
+  if (!/^[a-z0-9._-]{3,40}$/.test(username) || displayName.length < 2 || displayName.length > 80 || password.length < 12 || password !== passwordConfirmation) {
+    return c.redirect('/admin/settings/editors?status=error');
+  }
+
+  try {
+    await db.insert(contentEditorTable).values({
+      username,
+      displayName,
+      passwordHash: await Bun.password.hash(password),
+      isActive: true,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    });
+    adminUpdates.emit('update');
+    return c.redirect('/admin/settings/editors?status=created');
+  } catch (error) {
+    console.error('Content editor creation failed:', error);
+    return c.redirect('/admin/settings/editors?status=error');
+  }
+});
+
+app.post('/admin/settings/editors/toggle/:id', async (c) => {
+  const id = Number(c.req.param('id'));
+  const editor = await db.select().from(contentEditorTable).where(eq(contentEditorTable.id, id)).limit(1);
+  if (editor[0]) {
+    await db.update(contentEditorTable).set({ isActive: !editor[0].isActive, updatedAt: new Date() }).where(eq(contentEditorTable.id, id));
+  }
+  return c.redirect('/admin/settings/editors?status=updated');
+});
+
+app.post('/admin/settings/editors/delete/:id', async (c) => {
+  await db.delete(contentEditorTable).where(eq(contentEditorTable.id, Number(c.req.param('id'))));
+  return c.redirect('/admin/settings/editors?status=deleted');
 });
 
 
@@ -1883,7 +2081,7 @@ app.get('/auth/google/callback', async (c) => {
       role: isAdmin ? 'admin' : 'visitor',
     };
 
-    setCookie(c, 'user_session', encodeURIComponent(JSON.stringify(sessionUser)), { 
+    setCookie(c, 'user_session', await encodeSession(sessionUser), { 
       path: '/', 
       httpOnly: true, 
       secure: process.env.NODE_ENV === 'production', 
@@ -2083,6 +2281,7 @@ app.get('/admin/inbox', async (c) => {
 
 app.get('/admin', async (c) => {
   const user = c.var.user;
+  const canManageSystem = isAdmin(user);
   const posts = await db.select().from(blogPosts).orderBy(desc(blogPosts.id));
   const projects = await db.select().from(projectTable).orderBy(desc(projectTable.id));
   const activities = await db.select().from(activityTable).orderBy(desc(activityTable.eventDate));
@@ -2111,8 +2310,9 @@ app.get('/admin', async (c) => {
         <header class="flex flex-col md:flex-row justify-between items-start md:items-center gap-6 mb-16">
           <h1 class="text-5xl font-black tracking-tight mb-2">Admin <span class="text-red-700">Control</span></h1>
           <div class="flex flex-wrap gap-4">
-            <a href="/admin/visitors" class="px-6 py-3 bg-white/5 border border-white/10 rounded-xl text-sm font-bold hover:bg-white/10 transition-all">Visitors</a>
-            <a href="/admin/settings" class="px-6 py-3 bg-white/5 border border-white/10 rounded-xl text-sm font-bold hover:bg-white/10 transition-all">Home Settings</a>
+            {canManageSystem && <a href="/admin/visitors" class="px-6 py-3 bg-white/5 border border-white/10 rounded-xl text-sm font-bold hover:bg-white/10 transition-all">Visitors</a>}
+            {canManageSystem && <a href="/admin/settings" class="px-6 py-3 bg-white/5 border border-white/10 rounded-xl text-sm font-bold hover:bg-white/10 transition-all">Home Settings</a>}
+            {canManageSystem && <a href="/admin/settings/editors" class="px-6 py-3 bg-white/5 border border-white/10 rounded-xl text-sm font-bold hover:bg-white/10 transition-all">Pengelola Konten</a>}
             <a href="/admin/blog/new" class="px-6 py-3 bg-white/5 border border-white/10 rounded-xl text-sm font-bold hover:bg-white/10 transition-all">+ New Post</a>
             <a href="/admin/projects/new" class="px-6 py-3 bg-red-700 text-white rounded-xl text-sm font-bold hover:bg-red-800 transition-all btn-shadow">+ New Project</a>
             <a href="/admin/activities/new" class="px-6 py-3 bg-cyan-700 text-white rounded-xl text-sm font-bold hover:bg-cyan-800 transition-all">+ New Activity</a>
@@ -2133,7 +2333,7 @@ app.get('/admin', async (c) => {
               </div>
             </div>
 
-            <div class="bg-white/5 border border-white/10 p-6 sm:p-8 rounded-[2rem] backdrop-blur-xl">
+            {canManageSystem && <div class="bg-white/5 border border-white/10 p-6 sm:p-8 rounded-[2rem] backdrop-blur-xl">
               {/* Timeline Milestones */}
               <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 sm:gap-0 mb-8">
                 <h2 class="text-xl sm:text-2xl font-black italic">ACTIVITY <span class="text-red-700">TIMELINE</span></h2>
@@ -2169,17 +2369,17 @@ app.get('/admin', async (c) => {
                   </div>
                 ))}
               </div>
-            </div>
+            </div>}
           </div>
 
           <div class="space-y-6">
-            <div class="bg-white/5 border border-white/10 p-6 sm:p-8 rounded-[2rem] backdrop-blur-xl">
+            {canManageSystem && <div class="bg-white/5 border border-white/10 p-6 sm:p-8 rounded-[2rem] backdrop-blur-xl">
               <h2 class="text-xl sm:text-2xl font-black italic mb-6">RESUME / <span class="text-red-700">CV</span></h2>
               <form action="/admin/settings/cv" method="post" class="flex flex-col sm:flex-row gap-4">
                 <input type="url" name="cv_url" value={(await db.select().from(settingsTable).where(eq(settingsTable.key, 'cv_url')).limit(1))[0]?.value || ''} placeholder="https://drive.google.com/..." class="flex-grow bg-slate-950/50 border border-white/10 rounded-xl px-4 sm:px-6 py-3 sm:py-4 text-slate-300 focus:outline-none focus:border-red-500" />
                 <button type="submit" class="px-8 py-3 sm:py-4 bg-red-700 hover:bg-red-800 text-white font-black rounded-xl transition-all uppercase text-xs tracking-widest">Update</button>
               </form>
-            </div>
+            </div>}
 
             <div class="bg-white/5 border border-white/10 rounded-[2.5rem] p-6 sm:p-8 backdrop-blur-xl h-full">
               <h2 class="text-xl sm:text-2xl font-black italic mb-8">NEWSLETTER <span class="text-cyan-500">SUBSCRIBERS</span></h2>

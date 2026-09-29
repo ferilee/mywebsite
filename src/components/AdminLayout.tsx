@@ -19,6 +19,8 @@ type AdminLayoutProps = {
 
 export const AdminLayout = (props: AdminLayoutProps) => {
   const { currentPath = '', user, notificationCount = 0, showNavigation = true } = props;
+  const isAdminUser = user?.role === 'admin';
+  const isEditorUser = user?.role === 'editor';
   const isDashboard = currentPath === '/admin';
   const isJejak = currentPath.startsWith('/admin/activities');
   const isSettings = currentPath.startsWith('/admin/settings');
@@ -55,7 +57,7 @@ export const AdminLayout = (props: AdminLayoutProps) => {
               <a href="/admin" class="shrink-0 text-lg font-black tracking-[0.18em] text-cyan-300 md:text-xl">FERILEE</a>
               <span class="hidden rounded-md border border-cyan-400/20 bg-cyan-400/10 px-2 py-1 text-[9px] font-black uppercase tracking-widest text-cyan-300 sm:inline-block">CMS</span>
               <span class="hidden h-5 w-px bg-white/10 md:block"></span>
-              <span class="hidden truncate text-sm font-bold text-slate-400 md:block">Admin workspace</span>
+              <span class="hidden truncate text-sm font-bold text-slate-400 md:block">{isEditorUser ? 'Pengelola Konten' : 'Admin workspace'}</span>
             </div>
 
             {showNavigation && (
@@ -63,7 +65,8 @@ export const AdminLayout = (props: AdminLayoutProps) => {
                 <a href="/admin" class={navItem(isDashboard)}>Dashboard</a>
                 <a href="/admin/activities" class={navItem(isJejak)}>Jejak</a>
                 <a href="/admin/inbox" class={navItem(currentPath.startsWith('/admin/inbox'))}>Inbox{notificationCount > 0 && <span class="rounded-full bg-red-600 px-1.5 py-0.5 text-[9px] text-white">{notificationCount}</span>}</a>
-                <a href="/admin/settings" class={navItem(isSettings)}>Settings</a>
+                {isAdminUser && <a href="/admin/settings" class={navItem(isSettings)}>Settings</a>}
+                {isAdminUser && <a href="/admin/settings/editors" class={navItem(currentPath.startsWith('/admin/settings/editors'))}>Pengelola Konten</a>}
                 <a href="/" class="ml-2 rounded-xl border border-white/10 px-4 py-2.5 text-sm font-bold text-slate-400 transition-all hover:border-cyan-400/30 hover:text-white">View site</a>
               </nav>
             )}
