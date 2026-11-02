@@ -101,7 +101,7 @@ export const Layout = (props: { title: string; children: any; notificationCount?
         Offline
       </div>
 
-      <header class="fixed top-0 md:top-8 w-full z-50 px-6 md:px-12 py-4 md:py-0 bg-slate-950/50 md:bg-transparent backdrop-blur-lg md:backdrop-blur-none border-b border-white/5 md:border-none">
+      <header id="site-header" class="fixed top-0 md:top-8 w-full z-50 px-6 md:px-12 py-4 md:py-0 bg-slate-950/50 md:bg-transparent backdrop-blur-lg md:backdrop-blur-none border-b border-white/5 md:border-none transition-transform duration-300 ease-out">
         <div class="max-w-7xl mx-auto flex justify-between items-center">
           <a href="/" class="text-2xl font-black text-red-700 tracking-wider">Ferilee</a>
           
@@ -339,6 +339,19 @@ export const Layout = (props: { title: string; children: any; notificationCount?
             } catch (error) {}
           };
           refreshAdminNotificationBadge();
+
+          const siteHeader = document.getElementById('site-header');
+          let lastScrollY = window.scrollY;
+          window.addEventListener('scroll', () => {
+            if (!siteHeader) return;
+            const currentScrollY = window.scrollY;
+            if (currentScrollY > 160 && currentScrollY > lastScrollY + 4) {
+              siteHeader.style.transform = 'translateY(-220%)';
+            } else if (currentScrollY < lastScrollY - 4 || currentScrollY <= 160) {
+              siteHeader.style.transform = '';
+            }
+            lastScrollY = currentScrollY;
+          }, { passive: true });
 
           const searchBtn = document.getElementById('search-btn');
           const searchOverlay = document.getElementById('search-overlay');
