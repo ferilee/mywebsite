@@ -304,7 +304,15 @@ export const Layout = (props: { title: string; children: any; notificationCount?
 
       <footer class="w-full px-6 md:px-12 py-10 pb-32 md:pb-10 flex flex-col md:flex-row justify-between items-center gap-8 border-t border-white/5 mt-20">
         <div class="text-slate-500 text-sm font-medium">© {new Date().getFullYear()} Ferilee. Seluruh hak dilindungi.</div>
-        
+
+        <nav class="flex flex-wrap justify-center gap-x-8 gap-y-3 text-sm font-bold text-slate-400">
+          <a href="/" class="hover:text-red-500 transition-all">Beranda</a>
+          <a href="/projects" class="hover:text-red-500 transition-all">Portofolio</a>
+          <a href="/jejak" class="hover:text-red-500 transition-all">Jejak</a>
+          <a href="/blog" class="hover:text-red-500 transition-all">Blog</a>
+          <a href="/contact" class="hover:text-red-500 transition-all">Kontak</a>
+        </nav>
+
         <div class="flex gap-6 text-slate-400">
           <a href="https://instagram.com/therealferilee" target="_blank" class="hover:text-red-500 transition-all flex items-center gap-2" title="Instagram">
             <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="currentColor" viewBox="0 0 24 24">
