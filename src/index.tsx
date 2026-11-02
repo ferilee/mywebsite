@@ -478,7 +478,13 @@ app.get('/', async (c) => {
     ? settings.phil_desc
     : 'Berbagi gagasan tentang pengembangan fullstack, arsitektur teknologi, dan perjalanan saya di dunia digital.';
 
-  const projects = await db.select().from(projectTable).limit(3);
+  const allProjects = await db.select().from(projectTable).orderBy(desc(projectTable.id));
+  const featuredSlugs = ['simak', 'ruang-asesmen', 'gemastika'];
+  const featuredProjects = featuredSlugs.flatMap(slug => {
+    const found = allProjects.find(project => project.slug === slug);
+    return found ? [found] : [];
+  });
+  const projects = featuredProjects.length > 0 ? featuredProjects : allProjects.slice(0, 3);
   const skills = await db.select().from(skillTable);
   const experience = await db.select().from(expTable);
   const featuredActivities = await db.select().from(activityTable).where(and(eq(activityTable.status, 'published'), eq(activityTable.featuredOnCv, true))).orderBy(desc(activityTable.eventDate)).limit(3);
@@ -515,6 +521,44 @@ app.get('/', async (c) => {
             </div>
           </div>
         </section>
+
+        <section class="pb-24 px-6 md:px-12">
+          <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+            {[
+              { value: '32', label: 'Sekolah Terhubung' },
+              { value: '79', label: 'Guru dalam Komunitas' },
+              { value: '19', label: 'Materi Berbagi' },
+              { value: '20+', label: 'Tahun Mengajar' },
+            ].map(stat => (
+              <div class="bg-white/5 border border-white/10 rounded-2xl p-5 text-center backdrop-blur-xl">
+                <p class="text-2xl md:text-3xl font-black text-white">{stat.value}</p>
+                <p class="text-[10px] text-slate-500 uppercase tracking-widest font-black mt-2">{stat.label}</p>
+              </div>
+            ))}
+          </div>
+        </section>
+
+        {projects.length > 0 && (
+          <section class="pb-24 px-6 md:px-12">
+            <div class="flex flex-col sm:flex-row justify-between sm:items-end gap-4 mb-8">
+              <div><p class="text-xs font-black text-cyan-400 uppercase tracking-[0.3em] mb-3">Karya Pilihan</p><h2 class="text-3xl md:text-4xl font-black italic">APLIKASI <span class="text-red-700">UNGGULAN</span></h2></div>
+              <a href="/projects" class="text-xs font-black text-slate-400 uppercase tracking-widest hover:text-white">Lihat semua karya →</a>
+            </div>
+            <div class="grid md:grid-cols-3 gap-5">
+              {projects.map(project => (
+                <a href={`/projects/${project.slug || project.id}`} class="group bg-white/5 border border-white/10 rounded-3xl overflow-hidden hover:border-red-500/40 transition-all flex flex-col">
+                  <div class="h-40 bg-gradient-to-br from-red-950 to-slate-950 overflow-hidden">{project.image && <img src={project.image} alt={project.title} class="w-full h-full object-cover group-hover:scale-105 transition-transform" />}</div>
+                  <div class="p-5 flex flex-col flex-grow">
+                    <p class="text-[10px] text-red-400 uppercase tracking-widest font-black">{project.category || 'Lainnya'}</p>
+                    <h3 class="font-bold mt-2 leading-snug">{project.title}</h3>
+                    <p class="text-sm text-slate-400 mt-2 leading-relaxed line-clamp-3">{project.description}</p>
+                  </div>
+                </a>
+              ))}
+            </div>
+          </section>
+        )}
+
         {featuredActivities.length > 0 && (
           <section class="pb-24 px-6 md:px-12">
             <div class="flex flex-col sm:flex-row justify-between sm:items-end gap-4 mb-8">
@@ -526,6 +570,15 @@ app.get('/', async (c) => {
             </div>
           </section>
         )}
+
+        <section class="pb-24 px-6 md:px-12">
+          <div class="relative overflow-hidden bg-gradient-to-br from-red-950/80 to-slate-950 border border-red-500/20 rounded-[2.5rem] p-8 md:p-12 text-center">
+            <p class="text-xs font-black text-red-400 uppercase tracking-[0.3em] mb-4">RakitApp</p>
+            <h2 class="text-3xl md:text-4xl font-black italic mb-4">Punya Masalah di Kelas? <span class="text-red-500">Rakit Jadi Aplikasi</span></h2>
+            <p class="text-slate-400 max-w-2xl mx-auto leading-relaxed mb-8">Saya membantu guru dan sekolah mengubah pekerjaan berulang menjadi aplikasi yang ringan dipakai — mulai dari portofolio, kuis, sampai presensi. Ceritakan dulu masalahnya, konsultasinya gratis.</p>
+            <a href="https://rakitapp.ferilee.gurumuda.eu.org" target="_blank" class="inline-flex px-10 py-4 bg-red-700 hover:bg-red-800 text-white font-bold rounded-xl transition-all hover:scale-105 active:scale-95">Konsultasi Gratis via RakitApp</a>
+          </div>
+        </section>
       </div>
     </Layout>
   );
