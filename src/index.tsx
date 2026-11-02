@@ -486,7 +486,7 @@ app.get('/', async (c) => {
   const cvUrl = cvSetting[0]?.value || '#';
 
   return c.html(
-    <Layout title="Ferilee | Portfolio" user={user} needsProfiling={c.var.needsProfiling} currentPath="/">
+    <Layout title="Ferilee | Portofolio" user={user} needsProfiling={c.var.needsProfiling} currentPath="/">
       <div class="max-w-6xl mx-auto px-6">
 
         <section class="relative pt-32 pb-20 px-6 md:px-12 min-h-[85vh] flex items-center overflow-hidden">
