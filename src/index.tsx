@@ -755,11 +755,15 @@ app.get('/blog', async (c) => {
                   <span class="text-[10px] text-slate-500 font-bold uppercase tracking-widest">
                     {Math.ceil((post.content?.split(/\s+/).length || 0) / 200)} menit baca
                   </span>
-                  <div class="w-1 h-1 bg-slate-700 rounded-full"></div>
-                  <span class="text-[10px] text-slate-500 font-bold uppercase tracking-widest flex items-center gap-1">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 1 1-7.6-10.6 8.38 8.38 0 0 1 3.8.9L21 4.5l-1.5 6.5z"/></svg>
-                    {allComments.filter(c => c.postId === post.id).length} Komentar
-                  </span>
+                  {allComments.filter(c => c.postId === post.id).length > 0 && (
+                    <>
+                      <div class="w-1 h-1 bg-slate-700 rounded-full"></div>
+                      <span class="text-[10px] text-slate-500 font-bold uppercase tracking-widest flex items-center gap-1">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 1 1-7.6-10.6 8.38 8.38 0 0 1 3.8.9L21 4.5l-1.5 6.5z"/></svg>
+                        {allComments.filter(c => c.postId === post.id).length} Komentar
+                      </span>
+                    </>
+                  )}
                 </div>
                 <h2 class="text-2xl font-bold mb-4 line-clamp-2 group-hover:text-cyan-400 transition-colors leading-tight">
                   {post.title}
