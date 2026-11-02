@@ -1815,7 +1815,7 @@ app.post('/subscribe', async (c) => {
 app.get('/contact', (c) => {
   const user = c.var.user;
   const inputClass = "peer w-full bg-slate-950/50 border border-white/10 rounded-2xl px-5 pt-7 pb-3 focus:outline-none focus:border-red-500 transition-all text-white text-lg placeholder-transparent";
-  const labelClass = "absolute left-5 top-5 text-slate-500 text-xs font-bold uppercase tracking-widest transition-all pointer-events-none peer-placeholder-shown:text-slate-500 peer-placeholder-shown:text-base peer-placeholder-shown:top-5 peer-placeholder-shown:font-medium peer-placeholder-shown:lowercase peer-focus:top-2 peer-focus:text-[10px] peer-focus:text-red-500 peer-focus:uppercase peer-focus:font-bold peer-[:not(:placeholder-shown)]:top-2 peer-[:not(:placeholder-shown)]:text-[10px] peer-[:not(:placeholder-shown)]:text-red-500 peer-[:not(:placeholder-shown)]:uppercase peer-[:not(:placeholder-shown)]:font-bold";
+  const labelClass = "absolute left-5 top-5 text-slate-500 text-xs font-bold uppercase tracking-widest transition-all pointer-events-none peer-placeholder-shown:text-slate-500 peer-placeholder-shown:text-base peer-placeholder-shown:top-5 peer-placeholder-shown:font-medium peer-focus:top-2 peer-focus:text-[10px] peer-focus:text-red-500 peer-focus:uppercase peer-focus:font-bold peer-[:not(:placeholder-shown)]:top-2 peer-[:not(:placeholder-shown)]:text-[10px] peer-[:not(:placeholder-shown)]:text-red-500 peer-[:not(:placeholder-shown)]:uppercase peer-[:not(:placeholder-shown)]:font-bold";
   const success = c.req.query('success');
 
   return c.html(
@@ -1825,6 +1825,24 @@ app.get('/contact', (c) => {
         <div class="text-center mb-16">
           <h1 class="text-5xl font-black mb-4 tracking-tight">Mari <span class="text-red-700">Terhubung</span></h1>
           <p class="text-slate-400 text-lg">Punya proyek dalam pikiran atau sekadar ingin menyapa?</p>
+        </div>
+
+        <div class="grid sm:grid-cols-3 gap-4 mb-10">
+          <a href="https://wa.me/6285174244128" target="_blank" class="bg-white/5 border border-white/10 rounded-2xl p-5 text-center hover:border-red-500/40 transition-all">
+            <p class="text-[10px] text-red-400 uppercase tracking-widest font-black mb-2">Paling Cepat</p>
+            <p class="font-bold text-white">WhatsApp</p>
+            <p class="text-sm text-slate-400 mt-1">+62 851-7424-4128</p>
+          </a>
+          <a href="https://instagram.com/therealferilee" target="_blank" class="bg-white/5 border border-white/10 rounded-2xl p-5 text-center hover:border-red-500/40 transition-all">
+            <p class="text-[10px] text-slate-500 uppercase tracking-widest font-black mb-2">Media Sosial</p>
+            <p class="font-bold text-white">Instagram</p>
+            <p class="text-sm text-slate-400 mt-1">@therealferilee</p>
+          </a>
+          <a href="https://t.me/ferilee" target="_blank" class="bg-white/5 border border-white/10 rounded-2xl p-5 text-center hover:border-red-500/40 transition-all">
+            <p class="text-[10px] text-slate-500 uppercase tracking-widest font-black mb-2">Media Sosial</p>
+            <p class="font-bold text-white">Telegram</p>
+            <p class="text-sm text-slate-400 mt-1">@ferilee</p>
+          </a>
         </div>
 
         <div class="bg-white/5 border border-white/10 p-8 md:p-12 rounded-[3rem] backdrop-blur-xl relative overflow-hidden">
