@@ -3967,7 +3967,24 @@ app.post('/admin/comments/delete/:id', async (c) => {
 
 // Profile saving moved to main profiling section above
 
-
+app.notFound((c) => {
+  return c.html(
+    <Layout title="Halaman Tidak Ditemukan | Ferilee" currentPath="">
+      <div class="max-w-6xl mx-auto px-6">
+        <section class="pt-40 pb-28 text-center">
+          <p class="text-7xl md:text-8xl font-black italic text-red-700">404</p>
+          <h1 class="mt-6 text-3xl md:text-4xl font-black italic">Halaman Tidak <span class="text-red-700">Ditemukan</span></h1>
+          <p class="mt-5 text-slate-400 max-w-xl mx-auto leading-relaxed">Alamat yang Anda tuju tidak ada atau sudah dipindahkan. Silakan kembali ke beranda atau jelajahi portofolio.</p>
+          <div class="mt-10 flex flex-wrap justify-center gap-4">
+            <a href="/" class="rounded-full bg-red-700 px-7 py-3 text-sm font-bold text-white transition-all hover:bg-red-600">Ke Beranda</a>
+            <a href="/projects" class="rounded-full border border-white/15 px-7 py-3 text-sm font-bold text-slate-200 transition-all hover:bg-white/5">Lihat Portofolio</a>
+          </div>
+        </section>
+      </div>
+    </Layout>,
+    404
+  );
+});
 
 export { app };
 
