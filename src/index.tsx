@@ -785,8 +785,8 @@ app.get('/blog', async (c) => {
           <h1 class="text-5xl font-black mb-4">Wawasan & Gagasan</h1>
         </header>
         <div class="grid grid-cols-1 md:grid-cols-2 gap-10">
-          {posts.map(post => (
-            <article class="group bg-white/5 border border-white/10 rounded-[2.5rem] overflow-hidden hover:border-cyan-500/30 transition-all duration-500 flex flex-col h-full shadow-2xl">
+          {posts.map((post, index) => (
+            <article class={`group bg-white/5 border border-white/10 rounded-[2.5rem] overflow-hidden hover:border-cyan-500/30 transition-all duration-500 flex flex-col h-full shadow-2xl ${index >= 8 ? 'blog-extra hidden' : ''}`}>
               <div class="aspect-video w-full overflow-hidden relative bg-slate-900">
                 <img 
                   src={post.coverImage || `https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?q=80&w=1000&auto=format&fit=crop`} 
@@ -834,6 +834,12 @@ app.get('/blog', async (c) => {
             </article>
           ))}
         </div>
+
+        {posts.length > 8 && (
+          <div class="mt-16 text-center" id="blog-load-more-wrap">
+            <button type="button" id="blog-load-more" onclick="document.querySelectorAll('.blog-extra').forEach(el => el.classList.remove('hidden')); document.getElementById('blog-load-more-wrap').style.display = 'none';" class="px-10 py-4 bg-white/5 border border-white/10 hover:bg-white/10 text-white font-bold rounded-xl transition-all hover:scale-105 active:scale-95">Muat Lebih Banyak ({posts.length - 8} tulisan lagi)</button>
+          </div>
+        )}
 
         {/* Newsletter Section */}
         {c.req.query('subscribed') ? (
