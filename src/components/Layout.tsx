@@ -103,7 +103,7 @@ export const Layout = (props: { title: string; children: any; notificationCount?
 
       <header class="fixed top-0 md:top-8 w-full z-50 px-6 md:px-12 py-4 md:py-0 bg-slate-950/50 md:bg-transparent backdrop-blur-lg md:backdrop-blur-none border-b border-white/5 md:border-none">
         <div class="max-w-7xl mx-auto flex justify-between items-center">
-          <a href="/" class="text-2xl font-black text-red-700 tracking-wider">Research</a>
+          <a href="/" class="text-2xl font-black text-red-700 tracking-wider">Ferilee</a>
           
           <nav class="hidden md:flex items-center space-x-1 bg-white/5 backdrop-blur-xl border border-white/10 rounded-full p-1 shadow-2xl">
             <a href="/" class={`nav-item px-6 py-2 rounded-full hover:bg-white/5 font-bold transition-all text-sm ${currentPath === '/' ? 'active text-red-500' : 'text-slate-300'}`}>Beranda</a>
@@ -226,7 +226,7 @@ export const Layout = (props: { title: string; children: any; notificationCount?
             
             <header class="mb-10 relative">
               <h2 class="text-4xl font-black italic mb-2">LENGKAPI <span class="text-red-700">PROFIL</span></h2>
-              <p class="text-slate-400 text-sm">Selamat datang di Research Ferilee. Ceritakan sedikit tentang diri Anda untuk melanjutkan.</p>
+              <p class="text-slate-400 text-sm">Selamat datang di Ferilee. Ceritakan sedikit tentang diri Anda untuk melanjutkan.</p>
             </header>
 
             <form action="/api/profile/save" method="post" class="space-y-6 relative">
