@@ -1541,6 +1541,7 @@ app.get('/blog/:slug', async (c) => {
       <Layout title={`${post.title} | Ferilee`} user={user} ogImage={ogImage} needsProfiling={c.var.needsProfiling} currentPath="/blog">
         {/* Progress Bar */}
         <div id="progress-bar" class="fixed top-0 left-0 h-1 bg-cyan-500 z-[100] transition-all duration-150" style="width: 0%"></div>
+        <style>{`.comment-card:target{border-color:rgba(34,211,238,.55);background:rgba(34,211,238,.08)}`}</style>
         <script dangerouslySetInnerHTML={{ __html: `
           window.onscroll = function() {
             const winScroll = document.body.scrollTop || document.documentElement.scrollTop;
@@ -1683,7 +1684,7 @@ app.get('/blog/:slug', async (c) => {
             <div class="space-y-8">
               {mainComments.map(comment => (
                 <div class="space-y-4">
-                  <div class="bg-white/5 border border-white/5 p-6 rounded-2xl">
+                  <div id={`comment-${comment.id}`} class="comment-card scroll-mt-28 bg-white/5 border border-white/5 p-6 rounded-2xl">
                     <div class="flex justify-between items-start mb-4">
                       <div class="flex items-center gap-3">
                         <div class="w-8 h-8 rounded-full overflow-hidden bg-red-900/20 flex items-center justify-center text-red-500 text-xs font-bold">
@@ -1704,7 +1705,7 @@ app.get('/blog/:slug', async (c) => {
                   {/* Replies */}
                   <div class="ml-4 md:ml-8 space-y-4 border-l-2 border-white/5 pl-4 md:pl-8">
                     {replies.filter(r => r.parentId === comment.id).map(reply => (
-                      <div class="bg-white/5 border border-white/5 p-6 rounded-2xl">
+                      <div id={`comment-${reply.id}`} class="comment-card scroll-mt-28 bg-white/5 border border-white/5 p-6 rounded-2xl">
                         <div class="flex justify-between items-start mb-4">
                           <div class="flex items-center gap-3">
                             <div class="w-8 h-8 rounded-full overflow-hidden bg-cyan-900/20 flex items-center justify-center text-cyan-400 text-xs font-bold">
@@ -2241,7 +2242,7 @@ app.get('/admin/inbox', async (c) => {
   const user = c.var.user;
   const messages = await db.select().from(contactTable).orderBy(desc(contactTable.id));
   const comments = await db.select().from(commentTable).orderBy(desc(commentTable.createdAt));
-  const posts = await db.select({ id: blogPosts.id, title: blogPosts.title }).from(blogPosts);
+  const posts = await db.select({ id: blogPosts.id, title: blogPosts.title, slug: blogPosts.slug, status: blogPosts.status }).from(blogPosts);
   const unreadCount = await getAdminNotificationCount();
 
   const repliesByParent = new Map<number, typeof comments>();
@@ -2279,7 +2280,7 @@ app.get('/admin/inbox', async (c) => {
     ? Math.min(Math.max(requestedCommentPage, 1), totalCommentPages)
     : 1;
   const visibleThreads = commentThreads.slice((commentPage - 1) * commentsPerPage, commentPage * commentsPerPage);
-  const postTitles = new Map(posts.map(post => [post.id, post.title]));
+  const postById = new Map(posts.map(post => [post.id, post]));
 
   return c.html(
     <AdminLayout title="Inbox | Admin" notificationCount={unreadCount} user={user} currentPath="/admin/inbox">
@@ -2301,14 +2302,16 @@ app.get('/admin/inbox', async (c) => {
             <div class="space-y-3">
               {visibleThreads.map(thread => {
                 const threadId = `comment-thread-${thread.parent.id}`;
-                const postTitle = postTitles.get(thread.parent.postId) || 'Unknown post';
+                const post = postById.get(thread.parent.postId);
+                const postTitle = post?.title || 'Unknown post';
+                const commentUrl = post && post.status === 'published' ? `/blog/${post.slug}#comment-${thread.parent.id}` : null;
                 return <article class="rounded-2xl border border-white/5 bg-slate-950/40 p-4">
                   <div class="flex items-start gap-3">
                     <div class="flex h-9 w-9 shrink-0 items-center justify-center overflow-hidden rounded-xl bg-red-900/20 text-xs font-black text-red-400">{thread.parent.picture ? <img src={thread.parent.picture} alt="" class="h-full w-full object-cover" /> : thread.parent.name.charAt(0).toUpperCase()}</div>
-                    <div class="min-w-0 flex-1"><div class="flex items-start justify-between gap-3"><div class="min-w-0"><p class="truncate text-xs font-black uppercase tracking-widest text-slate-300">{thread.parent.name}</p><p class="truncate text-[10px] font-bold text-red-400">{thread.parent.email}</p></div><form action={`/admin/comments/delete/${thread.parent.id}`} method="post" onsubmit="return confirm('Delete this comment and its replies?')"><button type="submit" class="rounded-lg p-1 text-slate-600 hover:text-red-400" title="Delete thread">×</button></form></div><p class="mt-3 line-clamp-2 text-sm italic leading-relaxed text-slate-400">"{thread.parent.content}"</p><div class="mt-3 flex flex-wrap items-center gap-x-2 gap-y-1 text-[9px] font-black uppercase tracking-widest text-slate-600"><span>{postTitle}</span><span>•</span><span>{new Date(thread.parent.createdAt!).toLocaleString()}</span>{thread.replies.length > 0 && <span class="contents"><span>•</span><button type="button" data-thread-toggle={threadId} data-reply-count={thread.replies.length} aria-expanded="false" class="text-cyan-400 hover:text-white">{thread.replies.length} {thread.replies.length === 1 ? 'reply' : 'replies'}</button></span>}</div></div>
+                    <div class="min-w-0 flex-1"><div class="flex items-start justify-between gap-3"><div class="min-w-0"><p class="truncate text-xs font-black uppercase tracking-widest text-slate-300">{thread.parent.name}</p><p class="truncate text-[10px] font-bold text-red-400">{thread.parent.email}</p></div><form action={`/admin/comments/delete/${thread.parent.id}`} method="post" onsubmit="return confirm('Delete this comment and its replies?')"><button type="submit" class="rounded-lg p-1 text-slate-600 hover:text-red-400" title="Delete thread">×</button></form></div><p class="mt-3 line-clamp-2 text-sm italic leading-relaxed text-slate-400">{commentUrl ? <a href={commentUrl} target="_blank" rel="noreferrer" title="Buka komentar ini di tulisannya" class="transition-colors hover:text-slate-200 hover:underline">"{thread.parent.content}"</a> : '"' + thread.parent.content + '"'}</p><div class="mt-3 flex flex-wrap items-center gap-x-2 gap-y-1 text-[9px] font-black uppercase tracking-widest text-slate-600">{commentUrl ? <a href={commentUrl} target="_blank" rel="noreferrer" title="Buka komentar ini di tulisannya" class="text-slate-400 underline decoration-dotted underline-offset-2 transition-colors hover:text-cyan-300">{postTitle}</a> : <span>{postTitle}</span>}<span>•</span><span>{new Date(thread.parent.createdAt!).toLocaleString()}</span>{thread.replies.length > 0 && <span class="contents"><span>•</span><button type="button" data-thread-toggle={threadId} data-reply-count={thread.replies.length} aria-expanded="false" class="text-cyan-400 hover:text-white">{thread.replies.length} {thread.replies.length === 1 ? 'reply' : 'replies'}</button></span>}</div></div>
                   </div>
                   {thread.replies.length > 0 && <div id={threadId} class="mt-3 hidden space-y-2 border-l-2 border-cyan-500/20 pl-4">
-                    {thread.replies.map(reply => <div class="rounded-xl border border-white/5 bg-white/[0.03] p-3"><div class="flex items-start justify-between gap-3"><div class="min-w-0"><p class="truncate text-[10px] font-black uppercase tracking-widest text-cyan-300">{reply.name}</p><p class="truncate text-[9px] text-slate-500">{reply.email}</p></div><form action={`/admin/comments/delete/${reply.id}`} method="post" onsubmit="return confirm('Delete this reply?')"><button type="submit" class="rounded-lg p-1 text-slate-600 hover:text-red-400" title="Delete reply">×</button></form></div><p class="mt-2 text-xs italic leading-relaxed text-slate-400">"{reply.content}"</p></div>)}
+                    {thread.replies.map(reply => <div class="rounded-xl border border-white/5 bg-white/[0.03] p-3"><div class="flex items-start justify-between gap-3"><div class="min-w-0"><p class="truncate text-[10px] font-black uppercase tracking-widest text-cyan-300">{reply.name}</p><p class="truncate text-[9px] text-slate-500">{reply.email}</p></div><form action={`/admin/comments/delete/${reply.id}`} method="post" onsubmit="return confirm('Delete this reply?')"><button type="submit" class="rounded-lg p-1 text-slate-600 hover:text-red-400" title="Delete reply">×</button></form></div><p class="mt-2 text-xs italic leading-relaxed text-slate-400">{post && post.status === 'published' ? <a href={`/blog/${post.slug}#comment-${reply.id}`} target="_blank" rel="noreferrer" title="Buka balasan ini di tulisannya" class="transition-colors hover:text-slate-200 hover:underline">"{reply.content}"</a> : '"' + reply.content + '"'}</p></div>)}
                   </div>}
                 </article>;
               })}
