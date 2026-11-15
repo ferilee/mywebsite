@@ -2760,23 +2760,95 @@ function renderMarkdownMediaToolbar(editorId: string, accentClass: string) {
       <span class="mr-1 text-[10px] font-black uppercase tracking-widest text-slate-500">Sisipkan media</span>
       <button type="button" data-media-kind="image" class={`rounded-lg border border-white/10 px-3 py-2 text-xs font-bold text-slate-300 transition-colors hover:border-${accentClass}-500/40 hover:text-white`}>Gambar</button>
       <button type="button" data-media-kind="video" class={`rounded-lg border border-white/10 px-3 py-2 text-xs font-bold text-slate-300 transition-colors hover:border-${accentClass}-500/40 hover:text-white`}>Video</button>
+      <button type="button" data-media-link class={`rounded-lg border border-white/10 px-3 py-2 text-xs font-bold text-slate-300 transition-colors hover:border-${accentClass}-500/40 hover:text-white`}>Tautan</button>
       <span id={statusId} role="status" class="ml-1 text-xs font-bold text-slate-500"></span>
       <input id={fileInputId} type="file" class="hidden" />
     </div>
     <script dangerouslySetInnerHTML={{ __html: `
       (() => {
+      const boot = () => {
         const editor = document.getElementById(${editorIdLiteral});
         const fileInput = document.getElementById(${fileInputIdLiteral});
         const status = document.getElementById(${statusIdLiteral});
-        const buttons = Array.from(document.querySelectorAll('[data-markdown-media-toolbar] [data-media-kind]'));
+        const toolbar = fileInput ? fileInput.closest('[data-markdown-media-toolbar]') : null;
+        const buttons = toolbar ? Array.from(toolbar.querySelectorAll('[data-media-kind]')) : [];
+        const linkButton = toolbar ? toolbar.querySelector('[data-media-link]') : null;
         let selectedKind = 'image';
 
-        if (!editor || !fileInput || !status) return;
+        if (!editor || !fileInput || !status || !toolbar) return;
 
         const setStatus = (message, tone) => {
           status.textContent = message;
           status.className = 'ml-1 text-xs font-bold ' + (tone === 'error' ? 'text-red-400' : tone === 'success' ? 'text-green-400' : 'text-cyan-300');
         };
+
+        const insertSnippet = (snippet) => {
+          const insertion = '\\n\\n' + snippet + '\\n\\n';
+          const start = editor.selectionStart;
+          const end = editor.selectionEnd;
+          editor.setRangeText(insertion, start, end, 'end');
+          editor.dispatchEvent(new Event('input', { bubbles: true }));
+          editor.focus();
+        };
+
+        const buildExternalSnippet = (rawUrl) => {
+          let parsed;
+          try {
+            parsed = new URL(rawUrl);
+          } catch {
+            return null;
+          }
+          if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') return null;
+          const host = parsed.hostname.replace(/^www\\./, '').toLowerCase();
+          const isValidId = (value) => typeof value === 'string' && /^[\\w-]{6,}$/.test(value);
+          let youtubeId = null;
+          if (host === 'youtu.be') {
+            const candidate = parsed.pathname.slice(1).split('/')[0];
+            if (isValidId(candidate)) youtubeId = candidate;
+          } else if (host === 'youtube.com' || host === 'm.youtube.com' || host === 'music.youtube.com' || host === 'youtube-nocookie.com') {
+            if (parsed.pathname === '/watch') {
+              const candidate = parsed.searchParams.get('v');
+              if (isValidId(candidate)) youtubeId = candidate;
+            } else {
+              const match = parsed.pathname.match(/^\\/(?:shorts|embed|live)\\/([\\w-]{6,})/);
+              if (match) youtubeId = match[1];
+            }
+          }
+          if (youtubeId) {
+            return '<div style="position:relative;padding-top:56.25%;margin:1.5rem 0"><iframe src="https://www.youtube-nocookie.com/embed/' + youtubeId + '" title="Video YouTube" loading="lazy" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen referrerpolicy="strict-origin-when-cross-origin" style="position:absolute;inset:0;width:100%;height:100%;border:0;border-radius:1rem"></iframe></div>';
+          }
+          if (host === 'vimeo.com') {
+            const match = parsed.pathname.match(/^\\/(\\d{6,})/);
+            if (match) {
+              return '<div style="position:relative;padding-top:56.25%;margin:1.5rem 0"><iframe src="https://player.vimeo.com/video/' + match[1] + '" title="Video Vimeo" loading="lazy" allow="autoplay; fullscreen; picture-in-picture" allowfullscreen style="position:absolute;inset:0;width:100%;height:100%;border:0;border-radius:1rem"></iframe></div>';
+            }
+          }
+          const path = parsed.pathname.toLowerCase();
+          if (/\\.(mp4|webm|mov|m4v)$/.test(path)) {
+            const type = path.endsWith('.webm') ? 'video/webm' : 'video/mp4';
+            return '<video controls preload="metadata">\\n  <source src="' + rawUrl + '" type="' + type + '">\\n  Browser Anda tidak mendukung pemutaran video.\\n</video>';
+          }
+          if (/\\.(jpe?g|png|webp|gif|avif|svg)$/.test(path)) {
+            return '![Deskripsi gambar](' + rawUrl + ')';
+          }
+          return null;
+        };
+
+        if (linkButton) {
+          linkButton.addEventListener('click', () => {
+            const raw = window.prompt('Tempel tautan media (video YouTube/Vimeo, gambar, atau berkas video):');
+            if (raw === null) return;
+            const url = raw.trim();
+            if (!url) return;
+            const snippet = buildExternalSnippet(url);
+            if (!snippet) {
+              setStatus('Tautan tidak dikenali. Gunakan tautan YouTube/Vimeo, gambar (jpg/png/webp/gif), atau berkas video (mp4/webm).', 'error');
+              return;
+            }
+            insertSnippet(snippet);
+            setStatus('Media dari tautan berhasil disisipkan.', 'success');
+          });
+        }
 
         buttons.forEach((button) => button.addEventListener('click', () => {
           selectedKind = button.dataset.mediaKind || 'image';
@@ -2838,6 +2910,12 @@ function renderMarkdownMediaToolbar(editorId: string, accentClass: string) {
             fileInput.value = '';
           }
         });
+      };
+      if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', boot);
+      } else {
+        boot();
+      }
       })();
     `}} />
   </>;
