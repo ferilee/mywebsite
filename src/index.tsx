@@ -15,9 +15,32 @@ import { eq, desc, or, like, and, inArray, sql } from 'drizzle-orm';
 import { Layout } from './components/Layout';
 import { AdminLayout } from './components/AdminLayout';
 import { marked } from 'marked';
+import katex from 'katex';
 import { z as zod } from 'zod';
 import { S3Client, PutObjectCommand } from '@aws-sdk/client-s3';
 import sharp from 'sharp';
+
+// Render Markdown + LaTeX: rumus $...$ (inline) dan $$...$$ (display) dirender
+// KaTeX di server. Rumus dilindungi token SEBELUM marked berjalan supaya
+// sintaks LaTeX tidak rusak oleh parser Markdown, lalu token diganti hasil
+// render KaTeX sesudahnya. Blok kode (```) dan kode inline (`...`) tidak disentuh.
+async function renderMarkdownWithMath(md: string): Promise<string> {
+  const formulas: { tex: string; display: boolean }[] = [];
+  const protectedMd = md.replace(
+    /(```[\s\S]*?```|`[^`\n]+`)|(\$\$[\s\S]+?\$\$)|(\$[^$\n]+?\$)/g,
+    (match: string, code: string, displayMath: string, inlineMath: string) => {
+      if (code) return match;
+      const raw = displayMath ?? inlineMath;
+      formulas.push({ tex: raw.replace(/^\$+|\$+$/g, '').trim(), display: Boolean(displayMath) });
+      return `KATEXTOKEN${formulas.length - 1}END`;
+    }
+  );
+  const html = await marked.parse(protectedMd);
+  return html.replace(/KATEXTOKEN(\d+)END/g, (_m: string, idx: string) => {
+    const f = formulas[Number(idx)];
+    return katex.renderToString(f.tex, { displayMode: f.display, throwOnError: false, strict: false });
+  });
+}
 
 type SessionUser = {
   email: string;
@@ -1512,7 +1535,7 @@ app.get('/blog/:slug', async (c) => {
     const post = results[0];
     if (!post) return c.notFound();
     
-    const contentHtml = await marked.parse(post.content || '');
+    const contentHtml = await renderMarkdownWithMath(post.content || '');
     const ogImage = post.coverImage || `/api/og?title=${encodeURIComponent(post.title)}&category=${encodeURIComponent(post.category || 'Blog')}`;
     
     // Reading Time Calculation
@@ -1542,6 +1565,8 @@ app.get('/blog/:slug', async (c) => {
         {/* Progress Bar */}
         <div id="progress-bar" class="fixed top-0 left-0 h-1 bg-cyan-500 z-[100] transition-all duration-150" style="width: 0%"></div>
         <style>{`.comment-card:target{border-color:rgba(34,211,238,.55);background:rgba(34,211,238,.08)}`}</style>
+        <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.19.1/dist/katex.min.css" />
+        <style>{`.katex{font-size:1.05em}.katex-display{margin:1.25em 0;overflow-x:auto;overflow-y:hidden;padding:.25em 0}`}</style>
         <script dangerouslySetInnerHTML={{ __html: `
           window.onscroll = function() {
             const winScroll = document.body.scrollTop || document.documentElement.scrollTop;
