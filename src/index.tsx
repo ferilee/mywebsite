@@ -295,14 +295,6 @@ app.use('*', async (c, next) => {
         if (editorAccount[0].displayName) user.name = editorAccount[0].displayName;
       }
       c.set('user', user);
-      
-      // Check profiling for visitors
-      if (user.role === 'visitor') {
-        const profile = await db.select().from(profileTable).where(eq(profileTable.email, user.email)).limit(1);
-        if (profile.length === 0) {
-          c.set('needsProfiling', true);
-        }
-      }
     } catch (e) {
       console.error('Session parse error:', e);
     }
@@ -969,6 +961,75 @@ function renderParticipantWorkReactionScript() {
   `}} />;
 }
 
+function renderProfilePromptCard(user: { name: string }) {
+  return (
+    <div class="bg-white/5 border border-white/10 p-6 md:p-8 rounded-[2rem] backdrop-blur-xl mb-10">
+      <h4 class="text-xl font-black italic tracking-tight mb-2">KENALAN <span class="text-red-500">SEBENTAR?</span></h4>
+      <p class="text-slate-400 text-sm leading-relaxed mb-6">Biar saya tahu siapa yang mampir dan dari mana. Cukup sekali saja — dan boleh dilewati; Anda tetap bisa membaca dan berkomentar seperti biasa.</p>
+      <form action="/api/profile/save" method="post" class="space-y-4">
+        <div class="space-y-1">
+          <label class="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-2">Nama (dari akun Google Anda)</label>
+          <input type="text" name="fullName" value={user.name} readonly class="w-full bg-slate-950/60 border border-white/10 rounded-2xl px-5 py-3.5 text-slate-400 outline-none cursor-not-allowed" />
+        </div>
+        <div class="space-y-1">
+          <label class="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-2">Pekerjaan (opsional)</label>
+          <select name="occupation" class="w-full bg-slate-950/60 border border-white/10 rounded-2xl px-5 py-3.5 text-white focus:border-red-500 transition-all outline-none appearance-none">
+            <option value="">— Pilih bila berkenan —</option>
+            <option value="Guru/Pendidik">Guru/Pendidik</option>
+            <option value="Pelajar/Mahasiswa">Pelajar/Mahasiswa</option>
+            <option value="Umum">Umum</option>
+          </select>
+        </div>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div class="space-y-1">
+            <label class="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-2">Provinsi</label>
+            <select id="pp-prov" name="province" required class="w-full bg-slate-950/60 border border-white/10 rounded-2xl px-5 py-3.5 text-white focus:border-red-500 transition-all outline-none appearance-none">
+              <option value="">Pilih Provinsi</option>
+            </select>
+            <input type="hidden" name="provinceName" id="pp-prov-name" />
+          </div>
+          <div class="space-y-1">
+            <label class="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-2">Kabupaten/Kota</label>
+            <select id="pp-reg" name="regency" required class="w-full bg-slate-950/60 border border-white/10 rounded-2xl px-5 py-3.5 text-white focus:border-red-500 transition-all outline-none appearance-none">
+              <option value="">Pilih Kabupaten/Kota</option>
+            </select>
+            <input type="hidden" name="regencyName" id="pp-reg-name" />
+          </div>
+        </div>
+        <div class="pt-2">
+          <button type="submit" class="px-8 py-3 bg-red-700 hover:bg-red-800 text-white font-bold rounded-xl transition-all hover:scale-105 active:scale-95">Simpan Profil</button>
+        </div>
+      </form>
+      <form action="/api/profile/defer" method="post" class="mt-4">
+        <button type="submit" class="text-xs font-bold text-slate-500 hover:text-white underline underline-offset-4 transition-all">Nanti saja — jangan tanya lagi selama 30 hari</button>
+      </form>
+      <script dangerouslySetInnerHTML={{ __html: `
+        (async function() {
+          const provSel = document.getElementById('pp-prov');
+          const regSel = document.getElementById('pp-reg');
+          const provName = document.getElementById('pp-prov-name');
+          const regName = document.getElementById('pp-reg-name');
+          if (!provSel || !regSel) return;
+          try {
+            const resProv = await fetch('https://www.emsifa.com/api-wilayah-indonesia/api/provinces.json');
+            const provinces = await resProv.json();
+            provinces.forEach(p => provSel.add(new Option(p.name, p.id)));
+          } catch (e) { /* daftar wilayah gagal dimuat; kartu tetap bisa dilewati */ }
+          provSel.onchange = async () => {
+            provName.value = provSel.options[provSel.selectedIndex].text;
+            regSel.innerHTML = '<option value="">Pilih Kabupaten/Kota</option>';
+            if (!provSel.value) return;
+            const resReg = await fetch(\`https://www.emsifa.com/api-wilayah-indonesia/api/regencies/\${provSel.value}.json\`);
+            const regencies = await resReg.json();
+            regencies.forEach(r => regSel.add(new Option(r.name, r.id)));
+          };
+          regSel.onchange = () => { regName.value = regSel.options[regSel.selectedIndex].text; };
+        })();
+      ` }} />
+    </div>
+  );
+}
+
 function renderTestimonialCard(testimonial: any) {
   return <article class="rounded-2xl border border-white/10 bg-white/5 p-5"><div class="flex items-start gap-3">{testimonial.photoUrl ? <img src={testimonial.photoUrl} alt={testimonial.participantName} loading="lazy" class="h-10 w-10 shrink-0 rounded-xl object-cover" /> : <div class="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-red-500/10 text-sm font-black text-red-300">{String(testimonial.participantName || '?').charAt(0).toUpperCase()}</div>}<div class="min-w-0"><p class="font-black text-white">{testimonial.participantName}</p>{testimonial.institution && <p class="mt-1 truncate text-xs font-bold text-slate-500">{testimonial.institution}</p>}</div></div><p class="mt-4 text-sm leading-relaxed text-slate-300">“{testimonial.content}”</p></article>;
 }
@@ -1557,6 +1618,15 @@ app.get('/blog/:slug', async (c) => {
     };
 
     const userReaction = user ? reactions.find(r => r.userEmail === user.email)?.type : null;
+
+    // Profil ringkas: kartu undangan non-pemblokir di bagian komentar,
+    // hanya untuk visitor login yang belum punya profil dan belum menunda.
+    let showProfilePrompt = false;
+    if (user && user.role === 'visitor' && !getCookie(c, 'profiling_deferred')) {
+      const existingProfile = await db.select().from(profileTable).where(eq(profileTable.email, user.email)).limit(1);
+      showProfilePrompt = existingProfile.length === 0;
+    }
+
     const baseUrl = process.env.BASE_URL || 'http://localhost:4128';
     const postUrl = `${baseUrl}/blog/${post.slug}`;
 
@@ -1659,7 +1729,9 @@ app.get('/blog/:slug', async (c) => {
 
           <div class="mt-16 md:mt-32 border-t border-white/10 pt-10 md:pt-16">
             <h3 class="text-2xl font-black italic mb-8 tracking-tight">BAGIAN <span class="text-red-500">KOMENTAR</span> ({allComments.length})</h3>
-            
+
+            {showProfilePrompt && user && renderProfilePromptCard(user)}
+
             {/* Comment Form */}
             {user ? (
               <div id="comment-form-container" class="bg-white/5 border border-white/10 p-6 md:p-8 rounded-[2rem] backdrop-blur-xl mb-16 transition-all">
@@ -2555,15 +2627,23 @@ app.post('/api/profile/save', async (c) => {
 
   const body = await c.req.parseBody();
 
-  await db.insert(profileTable).values({
-    email: user.email,
-    fullName: body.fullName as string,
-    province: body.provinceName as string,
-    regency: body.regencyName as string,
-    district: body.districtName as string,
-    occupation: body.occupation as string,
-  });
+  const existing = await db.select().from(profileTable).where(eq(profileTable.email, user.email)).limit(1);
+  if (existing.length === 0) {
+    await db.insert(profileTable).values({
+      email: user.email,
+      fullName: (body.fullName as string) || user.name,
+      province: (body.provinceName as string) || '',
+      regency: (body.regencyName as string) || '',
+      district: (body.districtName as string) || '',
+      occupation: (body.occupation as string) || '',
+    });
+  }
 
+  return c.redirect(c.req.header('referer') || '/');
+});
+
+app.post('/api/profile/defer', async (c) => {
+  setCookie(c, 'profiling_deferred', '1', { path: '/', httpOnly: true, maxAge: 3600 * 24 * 30 });
   return c.redirect(c.req.header('referer') || '/');
 });
 
